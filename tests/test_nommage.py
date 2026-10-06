@@ -4,10 +4,10 @@ from apps.referentiel.nommage import decoder_lte, decoder_wcdma, nom_site_normal
 
 
 @pytest.mark.parametrize("nom,attendu", [
-    ("DZUe2", ("DZU", 0, 2)),
-    ("DZUe12", ("DZU", 1, 2)),
-    ("116e23", ("116", 2, 3)),
-    ("KKTe3", ("KKT", 0, 3)),
+    ("DZUe2", ("DZU", 1, 2)),
+    ("DZUe12", ("DZU", 2, 2)),
+    ("116e23", ("116", 3, 3)),
+    ("KKTe3", ("KKT", 1, 3)),
 ])
 def test_decoder_lte(nom, attendu):
     c = decoder_lte(nom)

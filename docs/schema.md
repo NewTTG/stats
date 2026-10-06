@@ -51,8 +51,9 @@ Coordonnées GPS disponibles → carte possible pour la sélection de cellules.
 ## 3. Jointures KPI ↔ référentiel
 
 ### LTE
-`EutranCell_Id` = `<Trigramme>e<N>` ou `<Trigramme>e<P><S>` (P = porteuse, S = secteur).
-Ex. site DZU (3 porteuses) : `DZUe1..3`, `DZUe11..13`, `DZUe21..23`.
+`EutranCell_Id` = `<Trigramme>e<S>` (porteuse 1) ou `<Trigramme>e<P><S>` (porteuse P + 1),
+S = secteur — **confirmé**. Ex. site DZU (3 porteuses) : `DZUe1..3` (porteuse 1),
+`DZUe11..13` (porteuse 2), `DZUe21..23` (porteuse 3).
 → 99,9 % des préfixes trouvent un `Trigramme` dans `Site_File`.
 `ERBS_Id` correspond à la colonne `ERBS` dans 97,9 % des cas.
 

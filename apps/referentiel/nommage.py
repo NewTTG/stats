@@ -2,9 +2,10 @@
 
 Conventions observées dans les exports (hypothèses à valider, cf. docs/questions.md) :
 
-- LTE  : ``<Trigramme>e<N>`` ou ``<Trigramme>e<P><S>``
-    ``DZUe2``  -> trigramme DZU, porteuse 0, secteur 2
-    ``DZUe12`` -> trigramme DZU, porteuse 1, secteur 2
+- LTE  : ``<Trigramme>e<S>`` (porteuse 1) ou ``<Trigramme>e<P><S>`` (porteuse P + 1)
+    ``DZUe2``  -> trigramme DZU, porteuse 1, secteur 2
+    ``DZUe12`` -> trigramme DZU, porteuse 2, secteur 2   (confirmé)
+    ``DZUe22`` -> trigramme DZU, porteuse 3, secteur 2
 - WCDMA : ``<codeSite><lettre>``
     A/B/C -> porteuse 1, secteurs 1-3 ; D/E/F -> porteuse 2 ; J/K/L -> porteuse 3 ;
     G/H/I -> secteurs 4-6 (porteuse 1) ; M -> secteur 7 (porteuse 1).
@@ -40,7 +41,7 @@ def decoder_lte(nom: str) -> CelluleDecodee | None:
     if not m:
         return None
     num = m["num"]
-    porteuse, secteur = (0, int(num)) if len(num) == 1 else (int(num[0]), int(num[1]))
+    porteuse, secteur = (1, int(num)) if len(num) == 1 else (int(num[0]) + 1, int(num[1]))
     return CelluleDecodee("LTE", m["prefixe"], porteuse, secteur)
 
 

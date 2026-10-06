@@ -68,7 +68,7 @@ class Cellule(models.Model):
     nom = models.CharField(max_length=32)
     techno = models.CharField(max_length=8, choices=TECHNOS)
     secteur = models.ForeignKey(Secteur, null=True, on_delete=models.SET_NULL, related_name="cellules")
-    porteuse = models.PositiveSmallIntegerField(default=0)
+    porteuse = models.PositiveSmallIntegerField(default=1)
 
     class Meta:
         unique_together = [("techno", "nom")]

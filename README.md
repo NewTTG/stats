@@ -26,6 +26,14 @@ cp .env.example .env   # renseigner APP_DB_PASSWORD, DJANGO_SECRET_KEY…
 docker compose up --build
 ```
 
+## Exploration de la base KPI (phase 0)
+
+Depuis un poste ayant accès au réseau de la base, avec `KPI_DB_*` renseignés dans `.env` :
+
+```bash
+python scripts/explorer_schema.py   # session forcée en lecture seule -> docs/schema_bdd.md
+```
+
 ## Organisation
 
 | Chemin | Rôle |
