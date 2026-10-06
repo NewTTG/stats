@@ -1,0 +1,156 @@
+# Catalogue KPI — versionné. Ajouter un KPI = ajouter une entrée (voir README).
+#
+# numerateur / denominateur : expressions pandas (DataFrame.eval) sur les colonnes
+# des tables source. Le moteur somme numérateurs et dénominateurs sur le périmètre
+# et la période, PUIS divise (ratio de sommes), puis applique `facteur`.
+# Sans dénominateur, le KPI est additif (somme).
+#
+# qualite :
+#   exact       compteurs bruts disponibles
+#   reconstruit dénominateur déduit d'un ratio publié (ex. temps = volume / débit)
+#   approx      pondération de substitution : à remplacer par les compteurs bruts
+#               dès que le lexique KPI est fourni (cf. docs/questions.md)
+#
+# Les seuils sont provisoires (valeurs d'exemple du brief) — à valider.
+
+kpis:
+  # ---------------------------------------------------------------- LTE
+  - code: lte_dl_user_thp
+    libelle: Débit DL utilisateur moyen
+    techno: LTE
+    unite: Mbps
+    categorie: debit
+    numerateur: PayloadDl_mB
+    denominateur: PayloadDl_mB / UserThpDl_kbps
+    facteur: 0.001
+    sens: haut_est_mieux
+    seuils: { alerte: 10, critique: 5 }
+    qualite: reconstruit
+    note: >-
+      Temps de transfert reconstruit = volume / débit. Approximatif car le débit
+      Ericsson exclut le dernier TTI. Exact avec pmPdcpVolDlDrb - pmPdcpVolDlDrbLastTTI
+      et pmUeThpTimeDl.
+
+  - code: lte_ul_user_thp
+    libelle: Débit UL utilisateur moyen
+    techno: LTE
+    unite: Mbps
+    categorie: debit
+    numerateur: PayloadUl_mB
+    denominateur: PayloadUl_mB / UserThpUl_kbps
+    facteur: 0.001
+    sens: haut_est_mieux
+    seuils: { alerte: 2, critique: 1 }
+    qualite: reconstruit
+
+  - code: lte_payload_dl
+    libelle: Volume DL
+    techno: LTE
+    unite: Mo
+    categorie: trafic
+    numerateur: PayloadDl_mB
+    sens: haut_est_mieux
+
+  - code: lte_rrc_setup_sr
+    libelle: Taux de succès d'établissement RRC
+    techno: LTE
+    unite: "%"
+    categorie: accessibilite
+    numerateur: pmRrcConnEstabSucc
+    denominateur: pmRrcConnEstabAtt
+    facteur: 100
+    sens: haut_est_mieux
+    seuils: { alerte: 98, critique: 95 }
+
+  - code: lte_erab_drop
+    libelle: Taux de coupure E-RAB
+    techno: LTE
+    unite: "%"
+    categorie: retainability
+    numerateur: ErabDropRate_p * ErabEstabSucc_nb / 100
+    denominateur: ErabEstabSucc_nb
+    facteur: 100
+    sens: bas_est_mieux
+    seuils: { alerte: 1, critique: 2 }
+    qualite: approx
+    note: >-
+      Pondéré par le nombre d'E-RAB établis faute de compteurs de release
+      (pmErabRelAbnormalEnbAct, pmErabRelNormalEnb, ...).
+
+  - code: lte_prb_dl_util
+    libelle: Utilisation PRB DL
+    techno: LTE
+    unite: "%"
+    categorie: congestion
+    numerateur: PrbVectUsageDl_p
+    denominateur: "1"
+    sens: bas_est_mieux
+    seuils: { alerte: 80, critique: 90 }
+    qualite: approx
+    note: >-
+      Moyenne simple par cellule-période. Exact avec pmPrbUsedDlDtch / pmPrbAvailDl.
+
+  - code: lte_ho_intra_sr
+    libelle: Taux de succès HO intra-fréquence
+    techno: LTE
+    unite: "%"
+    categorie: mobilite
+    numerateur: HoIntraSucc_p * pmHoPrepAttLteIntraF / 100
+    denominateur: pmHoPrepAttLteIntraF
+    facteur: 100
+    sens: haut_est_mieux
+    seuils: { alerte: 97, critique: 95 }
+    qualite: reconstruit
+
+  - code: lte_cell_availability
+    libelle: Disponibilité cellule
+    techno: LTE
+    unite: "%"
+    categorie: disponibilite
+    numerateur: CellAvaibilityD_p
+    denominateur: "1"
+    sens: haut_est_mieux
+    seuils: { alerte: 99, critique: 95 }
+    note: Chaque ligne pèse la même durée (une heure ou un jour selon la table).
+
+  # -------------------------------------------------------------- WCDMA (phase 2)
+  - code: wcdma_hs_user_thp
+    libelle: Débit HSDPA utilisateur moyen
+    techno: WCDMA
+    unite: Mbps
+    categorie: debit
+    numerateur: PayloadPsHs_mb
+    denominateur: PayloadPsHs_mb / UserThpHs_kbps
+    facteur: 0.001
+    sens: haut_est_mieux
+    qualite: reconstruit
+
+  - code: wcdma_speech_traffic
+    libelle: Trafic voix
+    techno: WCDMA
+    unite: Erl
+    categorie: trafic
+    numerateur: SpeechTrafficDay_erlg
+    sens: haut_est_mieux
+
+  - code: wcdma_cs_drop
+    libelle: Taux de coupure appels voix (3G)
+    techno: WCDMA
+    unite: "%"
+    categorie: retainability
+    numerateur: RabDropCs_p * NbrSpeechCalls / 100
+    denominateur: NbrSpeechCalls
+    facteur: 100
+    sens: bas_est_mieux
+    seuils: { alerte: 1, critique: 2 }
+    qualite: approx
+
+  - code: wcdma_cell_availability
+    libelle: Disponibilité cellule 3G
+    techno: WCDMA
+    unite: "%"
+    categorie: disponibilite
+    numerateur: Avaibility_p
+    denominateur: "1"
+    sens: haut_est_mieux
+    seuils: { alerte: 99, critique: 95 }

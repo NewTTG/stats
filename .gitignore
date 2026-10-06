@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+db.sqlite3
+media/
+staticfiles/
+.pytest_cache/
+# Données réelles : jamais dans le dépôt (cf. brief §12)
+data/
+*.xlsx
+*.csv
+!tests/fixtures/*.csv
