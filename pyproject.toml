@@ -1,0 +1,10 @@
+[project]
+name = "stats-kpi-reseau"
+version = "0.1.0"
+description = "Application web d'analyse KPI réseau (LTE / WCDMA)"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py"]
+testpaths = ["tests"]
