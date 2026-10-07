@@ -61,21 +61,26 @@ def _titres_kpi(kpis):
     return [f"{k.libelle} ({k.unite})" + (" ≈" if k.qualite == "approx" else "") for k in kpis]
 
 
-def construire(resultat: Resultat) -> bytes:
+def parametres(resultat: Resultat) -> list[tuple[str, str]]:
+    """Description de la requête (onglet Paramètres, page de titre du PowerPoint)."""
     req = resultat.requete
-    wb = Workbook()
-
-    ws = wb.active
-    ws.title = "Paramètres"
-    lignes = [
+    return [
         ("Technologies", ", ".join(req.techno)),
         ("Périmètre", f"{req.perimetre.type} : {', '.join(req.perimetre.valeurs) or 'tout le réseau'}"),
         ("Période", f"du {req.periode.debut:%d/%m/%Y} au {req.periode.fin:%d/%m/%Y}"),
         ("Fenêtre horaire", req.fenetre_horaire),
         ("Granularité temporelle", req.granularite_temps),
         ("Granularité spatiale", req.granularite_espace),
-        ("KPI", ", ".join(req.kpis)),
     ]
+
+
+def construire(resultat: Resultat) -> bytes:
+    req = resultat.requete
+    wb = Workbook()
+
+    ws = wb.active
+    ws.title = "Paramètres"
+    lignes = [*parametres(resultat), ("KPI", ", ".join(req.kpis))]
     for r in resultat.par_techno:
         lignes.append((f"Cellules {r.techno}", r.cellules_demandees))
         if r.cellules_sans_donnees:
@@ -92,6 +97,10 @@ def construire(resultat: Resultat) -> bytes:
 
         ws = wb.create_sheet(f"Synthèse {r.techno}")
         _entete(ws, ["Entité", *titres])
+        vals = [_valeur(r.synthese_globale.get(k.code)) for k in r.kpis]
+        _ajouter(ws, ["Ensemble du périmètre", *vals])
+        ws.cell(row=ws.max_row, column=1).font = Font(bold=True)
+        _cellules_kpi(ws, r.kpis, vals, 2)
         for entite, valeurs in r.synthese.iterrows():
             vals = [_valeur(valeurs[k.code]) for k in r.kpis]
             _ajouter(ws, [entite, *vals])

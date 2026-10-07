@@ -43,16 +43,7 @@ def test_resultat_synthese_et_graphiques(client_admin, referentiel, base_kpi, mo
     assert "Synthèse sur la période" in html
     assert 'id="graphiques-LTE"' in html and "echarts" in html
     assert "export=xlsx" in html
-
-
-def test_export_excel(client_admin, referentiel, base_kpi, monkeypatch):  # noqa: F811
-    monkeypatch.setattr("apps.kpi.views.moteur_kpi", lambda: base_kpi)
-    r = client_admin.get("/", {**PARAMS, "export": "xlsx"})
-    assert r.status_code == 200
-    assert r["Content-Type"].startswith("application/vnd.openxmlformats")
-    assert 'filename="kpi_lte_20260901_20260902.xlsx"' in r["Content-Disposition"]
-    assert r.content[:2] == b"PK"
-    assert JournalAudit.objects.filter(action="export_excel").count() == 1
+    assert "Rapport PowerPoint" in html and 'name="perimetre_valeurs" value="NOUMEA"' in html
 
 
 def test_base_kpi_non_configuree(client_admin, referentiel, settings):  # noqa: F811

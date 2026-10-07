@@ -48,8 +48,7 @@ Les hypothèses retenues en attendant sont indiquées.
     peut couvrir plusieurs jours avec des horaires différents → créneaux multiples.
     37 noms distincts, dont des quasi-doublons à fusionner dans l'admin
     (ex. « Foire de Ponerihouen » / « Foire de Ponérihouen »).
-16. **Charte PowerPoint** : modèle `.pptx` à déposer en `config/modele_rapport.pptx`
-    (pris en compte automatiquement ; en attendant, charte dessinée par le code).
+16. ✅ **Charte PowerPoint** : modèle Helia PRO fourni (`config/modele_rapport.pptx`).
 17. ✅ Référence d'un événement : mêmes jours et heures des 4 semaines précédentes
     (modifiable par événement). Anomalies : écart > 2 σ et > 20 %, saturation
     PRB DL > 90 % avec débit < 10 Mbps, cellule sans données (réglables dans l'admin).

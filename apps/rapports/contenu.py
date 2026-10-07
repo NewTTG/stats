@@ -3,10 +3,11 @@
 from io import BytesIO
 
 from openpyxl import Workbook
-from openpyxl.styles import Font
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
 
 from apps.evenements.analyse import NIVEAUX, Analyse
-from apps.kpi.export_excel import REMPLISSAGE, _entete, _largeurs, description_requete
+from apps.kpi.export_excel import FONDS_STATUT, parametres
 from apps.kpi.service import Resultat
 from apps.kpi.views import donnees_graphiques
 
@@ -15,6 +16,20 @@ from .powerpoint import Deck, nombre, pourcentage
 LIBELLES_REGLE = {"seuil": "Seuil dépassé", "ecart": "Écart à la référence",
                   "sans_donnees": "Données absentes", "saturation": "Saturation"}
 MAX_CELLULES_ANNEXE = 300
+JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+
+
+def _entete(ws, ligne: int, titres: list[str]):
+    for col, titre in enumerate(titres, start=1):
+        c = ws.cell(row=ligne, column=col, value=titre)
+        c.font = Font(bold=True, color="FFFFFF")
+        c.fill = PatternFill("solid", fgColor="14284B")
+        c.alignment = Alignment(wrap_text=True, vertical="center")
+
+
+def _largeurs(ws, largeurs: list[int]):
+    for i, l in enumerate(largeurs, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = l
 
 
 def _statut(s: str) -> str:
@@ -37,12 +52,12 @@ def _annexe(deck: Deck, par_techno):
 
 def pptx_requete(resultat: Resultat) -> bytes:
     deck = Deck()
-    deck.titre("Statistiques KPI réseau", [f"{cle} : {val}" for cle, val in description_requete(resultat)[:-1]])
+    deck.titre("Statistiques KPI réseau", [f"{cle} : {val}" for cle, val in parametres(resultat)])
     gran = resultat.requete.granularite_temps
     for res in resultat.par_techno:
         lignes, statuts = [], []
         for k in res.kpis:
-            v = res.synthese.get(k.code)
+            v = res.synthese_globale.get(k.code)
             statut = k.statut(None if v != v else v)  # NaN != NaN
             lignes.append([k.libelle + (" ≈" if k.qualite == "approx" else ""), nombre(v), k.unite, _statut(statut)])
             statuts.append(["", statut, "", statut])
@@ -50,7 +65,7 @@ def pptx_requete(resultat: Resultat) -> bytes:
                      ["KPI", "Valeur", "Unité", "Statut"], lignes, statuts, largeurs=[5, 2, 1.2, 1.5])
         graphes = donnees_graphiques(res, gran)
         for k, g in zip(res.kpis, graphes["kpis"]):
-            v = res.synthese.get(k.code)
+            v = res.synthese_globale.get(k.code)
             commentaire = f"{k.libelle} : {nombre(v)} {k.unite} sur l'ensemble de la période et du périmètre."
             if graphes["tronque"]:
                 commentaire += " Graphique limité aux 12 premières entités."
@@ -82,14 +97,23 @@ def _lignes_anomalies(analyse: Analyse):
 def pptx_evenement(analyse: Analyse) -> bytes:
     e, niveau = analyse.evenement, NIVEAUX[analyse.niveau]
     deck = Deck()
-    creneaux = [f"{d:%d/%m/%Y %H:%M} → {f:%d/%m/%Y %H:%M}" for d, f in analyse.creneaux]
-    if len(creneaux) > 4:
-        creneaux = [*creneaux[:4], f"… et {len(creneaux) - 4} autre(s) créneau(x)"]
+    debut, fin = analyse.creneaux[0][0], analyse.creneaux[-1][1]
+    periode = f"le {debut:%d/%m/%Y}" if debut.date() == fin.date() else f"du {debut:%d/%m/%Y} au {fin:%d/%m/%Y}"
+    nb = len(analyse.creneaux)
+    cellules = ", ".join(f"{r.nb_cellules} cellules {r.techno}" for r in analyse.par_techno)
     deck.titre(e.nom, [
         *([e.type] if e.type else []),
-        "Créneaux : " + " ; ".join(creneaux),
-        f"Référence : mêmes jours et heures des {analyse.semaines} semaines précédentes",
-        f"Analyse par {niveau.lower()} — " + ", ".join(f"{r.nb_cellules} cellules {r.techno}" for r in analyse.par_techno),
+        f"{nb} créneau{'x' if nb > 1 else ''} {periode}",
+        f"Référence : {analyse.semaines} semaines précédentes — analyse par {niveau.lower()}",
+    ])
+    deck.texte("Périmètre analysé", [
+        "Créneaux :",
+        *(f"   • {JOURS[d.weekday()]} {d:%d/%m/%Y %H:%M} → {f:%H:%M}" + (f" (le {f:%d/%m})" if f.date() != d.date() else "")
+          for d, f in analyse.creneaux),
+        "",
+        f"Référence : mêmes jours et mêmes heures des {analyse.semaines} semaines précédentes.",
+        f"Cellules : {cellules or 'aucune'}.",
+        f"Anomalies et classement par {niveau.lower()}.",
     ])
     for res in analyse.par_techno:
         lignes, statuts = [], []
@@ -102,10 +126,10 @@ def pptx_evenement(analyse: Analyse) -> bytes:
                      "Écart", "Statut"], lignes, statuts, largeurs=[5, 1.6, 1.6, 1, 1.3, 1.3])
         for courbe, ligne in zip(res.courbes, res.synthese):
             deck.graphique(f"{res.techno} — {courbe.kpi.libelle} ({courbe.kpi.unite})", res.instants, [
-                {"nom": "Événement", "valeurs": courbe.evenement, "couleur": "14284B"},
-                {"nom": "Référence", "valeurs": courbe.reference, "couleur": "F0A500"},
-                {"nom": "Réf. min", "valeurs": courbe.ref_min, "couleur": "8A94A6", "pointille": True},
-                {"nom": "Réf. max", "valeurs": courbe.ref_max, "couleur": "8A94A6", "pointille": True},
+                {"nom": "Événement", "valeurs": courbe.evenement, "role": "principale"},
+                {"nom": "Référence", "valeurs": courbe.reference, "role": "secondaire"},
+                {"nom": "Réf. min", "valeurs": courbe.ref_min, "role": "gris", "pointille": True},
+                {"nom": "Réf. max", "valeurs": courbe.ref_max, "role": "gris", "pointille": True},
             ], commentaire_kpi(ligne))
     deck.tableau(f"Anomalies détectées ({len(analyse.anomalies)})", ["Gravité", "Techno", niveau, "Règle", "Détail"],
                  _lignes_anomalies(analyse),
@@ -138,7 +162,7 @@ def xlsx_evenement(analyse: Analyse) -> bytes:
                 if col in (4, 5, 6):
                     c.number_format = "0.00"
             if s.statut:
-                ws.cell(row=ligne, column=4).fill = ws.cell(row=ligne, column=7).fill = REMPLISSAGE[s.statut]
+                ws.cell(row=ligne, column=4).fill = ws.cell(row=ligne, column=7).fill = FONDS_STATUT[s.statut]
     _largeurs(ws, [10, 40, 8, 12, 12, 10, 10])
 
     ws = wb.create_sheet("Anomalies")
@@ -147,7 +171,7 @@ def xlsx_evenement(analyse: Analyse) -> bytes:
         for col, v in enumerate([a.gravite.capitalize(), a.techno, a.entite, LIBELLES_REGLE[a.regle],
                                  a.kpi.libelle if a.kpi else "", a.valeur, a.reference, a.message], start=1):
             ws.cell(row=i, column=col, value=v)
-        ws.cell(row=i, column=1).fill = REMPLISSAGE[a.gravite]
+        ws.cell(row=i, column=1).fill = FONDS_STATUT[a.gravite]
     _largeurs(ws, [10, 8, 18, 20, 30, 10, 10, 70])
 
     ws = wb.create_sheet("Classement")
