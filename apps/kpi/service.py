@@ -29,6 +29,8 @@ class ResultatTechno:
     table: pd.DataFrame  # index (periode, entite), une colonne par code KPI
     cellules_demandees: int
     cellules_sans_donnees: list[str] = field(default_factory=list)
+    # index entite : KPI agrégés sur toute la période (somme des num / somme des den)
+    synthese: pd.DataFrame | None = None
 
 
 @dataclass
@@ -145,13 +147,18 @@ def executer(requete: RequeteKpi, user, engine) -> Resultat:
             correspondance = _entites(techno, requete.granularite_espace)
             df = df.assign(entite=df["cellule"].map(correspondance).fillna(NON_RATTACHEE))
 
-        table = agreger(df, kpis, par=["periode", "entite"])[[k.code for k in kpis]] if len(df) else \
-            pd.DataFrame(columns=[k.code for k in kpis])
+        codes = [k.code for k in kpis]
+        if len(df):
+            table = agreger(df, kpis, par=["periode", "entite"])[codes]
+            synthese = agreger(df, kpis, par=["entite"])[codes]
+        else:
+            table = synthese = pd.DataFrame(columns=codes)
         resultat.par_techno.append(ResultatTechno(
             techno=techno,
             kpis=kpis,
             table=table,
             cellules_demandees=len(cellules) if cellules is not None else df["cellule"].nunique(),
             cellules_sans_donnees=sans_donnees,
+            synthese=synthese,
         ))
     return resultat
