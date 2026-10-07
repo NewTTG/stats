@@ -22,6 +22,7 @@
 {% if erreur %}<div class="erreur">{{ erreur }}</div>{% endif %}
 
 {% if resultat %}
+  {% if blocs %}<p><a class="bouton" href="{{ lien_export }}">Exporter en Excel</a></p>{% endif %}
   {% for a in resultat.avertissements %}<div class="avertissement">{{ a }}</div>{% endfor %}
   {% for bloc in blocs %}
   <section class="carte">
