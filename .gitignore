@@ -6,8 +6,6 @@ db.sqlite3
 media/
 staticfiles/
 .pytest_cache/
-# Données réelles : jamais dans le dépôt (cf. brief §12)
+# Données de travail locales. Le référentiel xlsx et les 4 extraits CSV à la racine
+# sont conservés volontairement dans le dépôt comme référence.
 data/
-*.xlsx
-*.csv
-!tests/fixtures/*.csv

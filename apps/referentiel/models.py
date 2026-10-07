@@ -38,6 +38,7 @@ class Site(models.Model):
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     type_zone = models.CharField("type de zone", max_length=16, blank=True)
+    nb_secteurs = models.PositiveSmallIntegerField("nb secteurs", null=True, blank=True)
 
     class Meta:
         ordering = ["code_site"]
@@ -61,7 +62,10 @@ class Secteur(models.Model):
 
 
 class Cellule(models.Model):
-    """Cellule radio rattachée à un secteur (dérivée des conventions de nommage)."""
+    """Cellule radio rattachée à un secteur (dérivée des conventions de nommage).
+
+    ``secteur`` vide : cellule non rattachée (voir les anomalies du dernier import).
+    """
 
     TECHNOS = [("LTE", "LTE"), ("WCDMA", "WCDMA")]
 

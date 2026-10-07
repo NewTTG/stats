@@ -6,6 +6,20 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def _charger_dotenv(chemin: Path):
+    """Charge .env s'il existe ; les variables déjà définies (ex. Docker) restent prioritaires."""
+    if not chemin.exists():
+        return
+    for ligne in chemin.read_text(encoding="utf-8").splitlines():
+        ligne = ligne.strip()
+        if ligne and not ligne.startswith("#") and "=" in ligne:
+            cle, valeur = ligne.split("=", 1)
+            os.environ.setdefault(cle.strip(), valeur.strip())
+
+
+_charger_dotenv(BASE_DIR / ".env")
+
+
 def env(name, default=None):
     return os.environ.get(name, default)
 
