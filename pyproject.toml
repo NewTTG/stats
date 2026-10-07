@@ -8,3 +8,4 @@ requires-python = ">=3.11"
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py"]
 testpaths = ["tests"]
+filterwarnings = ["ignore:No directory at:UserWarning"]  # STATIC_ROOT absent hors collectstatic

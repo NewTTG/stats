@@ -113,7 +113,7 @@ kpis:
     seuils: { alerte: 99, critique: 95 }
     note: Chaque ligne pèse la même durée (une heure ou un jour selon la table).
 
-  # -------------------------------------------------------------- WCDMA (phase 2)
+  # -------------------------------------------------------------- WCDMA
   - code: wcdma_hs_user_thp
     libelle: Débit HSDPA utilisateur moyen
     techno: WCDMA
@@ -124,6 +124,41 @@ kpis:
     facteur: 0.001
     sens: haut_est_mieux
     qualite: reconstruit
+
+  - code: wcdma_payload_hs
+    libelle: Volume HSDPA
+    techno: WCDMA
+    unite: Mo
+    categorie: trafic
+    numerateur: PayloadPsHs_mb
+    sens: haut_est_mieux
+    note: PayloadPsHs_mb est en mégaoctets malgré la casse (confirmé).
+
+  - code: wcdma_cssr_cs
+    libelle: Taux de succès d'établissement d'appel voix (3G)
+    techno: WCDMA
+    unite: "%"
+    categorie: accessibilite
+    numerateur: CssrSp_p * NbrSpeechCallsAtt / 100
+    denominateur: NbrSpeechCallsAtt
+    facteur: 100
+    sens: haut_est_mieux
+    seuils: { alerte: 98, critique: 95 }
+    qualite: approx
+    note: Pondéré par les tentatives d'appel voix faute des compteurs RRC / RAB séparés.
+
+  - code: wcdma_cssr_ps
+    libelle: Taux de succès d'établissement data (3G)
+    techno: WCDMA
+    unite: "%"
+    categorie: accessibilite
+    numerateur: CssrPs_p * ReqPs / 100
+    denominateur: ReqPs
+    facteur: 100
+    sens: haut_est_mieux
+    seuils: { alerte: 98, critique: 95 }
+    qualite: approx
+    note: Pondéré par les demandes PS.
 
   - code: wcdma_speech_traffic
     libelle: Trafic voix

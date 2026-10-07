@@ -11,6 +11,7 @@ PERIMETRES = [
     ("trigramme", "Trigramme(s)"),
     ("secteur", "Secteur(s)"),
     ("cellule", "Cellule(s)"),
+    ("evenement", "Événement(s) — nom"),
 ]
 FENETRES = [("journee", "Journée complète"), ("18-22", "18h – 22h"), ("7-20", "7h – 20h")]
 GRAN_TEMPS = [("jour", "Jour"), ("heure", "Heure"), ("semaine", "Semaine"), ("mois", "Mois")]

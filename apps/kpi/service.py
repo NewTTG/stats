@@ -27,6 +27,8 @@ class ResultatTechno:
     techno: str
     kpis: list[DefinitionKpi]
     table: pd.DataFrame  # index (periode, entite), une colonne par code KPI
+    # Valeur de chaque KPI sur tout le périmètre et toute la période (ratio de sommes).
+    synthese: dict[str, float]
     cellules_demandees: int
     cellules_sans_donnees: list[str] = field(default_factory=list)
     # index entite : KPI agrégés sur toute la période (somme des num / somme des den)
@@ -61,6 +63,14 @@ def cellules_du_perimetre(requete: RequeteKpi, techno: str) -> list[str] | None:
         "secteur": Q(secteur__code__in=valeurs),
         "cellule": Q(nom__in=valeurs),
     }
+    if p.type == "evenement":
+        from apps.evenements.models import Evenement
+
+        evenements = list(Evenement.objects.filter(nom__in=valeurs))
+        inconnus = set(valeurs) - {e.nom for e in evenements}
+        if inconnus:
+            raise RequeteRefusee(f"Événement(s) inconnu(s) : {', '.join(sorted(inconnus))}")
+        return sorted({c for e in evenements for c in e.noms_cellules(techno)})
     if p.type not in filtres:
         raise RequeteRefusee(f"Le périmètre « {p.type} » n'est pas encore disponible.")
     return sorted(Cellule.objects.filter(filtres[p.type], techno=techno).values_list("nom", flat=True))
@@ -157,6 +167,7 @@ def executer(requete: RequeteKpi, user, engine) -> Resultat:
             techno=techno,
             kpis=kpis,
             table=table,
+            synthese=synthese,
             cellules_demandees=len(cellules) if cellules is not None else df["cellule"].nunique(),
             cellules_sans_donnees=sans_donnees,
             synthese=synthese,

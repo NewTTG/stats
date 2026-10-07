@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block titre %}Événements — Stats KPI réseau{% endblock %}
+{% block contenu %}
+<section class="carte">
+  <h2>Événements</h2>
+  <p class="aide">Création et modification dans l'administration (cellules, créneaux, semaines de référence).
+    {% if perms.evenements.add_evenement %}<a href="{% url 'admin:evenements_evenement_add' %}">Nouvel événement</a>{% endif %}</p>
+  {% if evenements %}
+  <div class="table-defil"><table>
+    <thead><tr><th>Événement</th><th>Type</th><th>Premier créneau</th><th>Créneaux</th></tr></thead>
+    <tbody>{% for e in evenements %}
+      <tr><td><a href="{% url 'evenements:detail' e.pk %}">{{ e.nom }}</a></td><td>{{ e.type }}</td>
+        <td>{{ e.debut|date:"d/m/Y H:i" }}</td><td class="nombre">{{ e.nb_creneaux }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p>Aucun événement daté.</p>{% endif %}
+</section>
+{% if sans_date %}
+<section class="carte">
+  <details><summary>{{ sans_date|length }} événement(s) sans créneau (à compléter dans l'administration)</summary>
+    <p class="aide">{% for e in sans_date %}{% if perms.evenements.change_evenement %}<a href="{% url 'admin:evenements_evenement_change' e.pk %}">{{ e.nom }}</a>{% else %}{{ e.nom }}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+  </details>
+</section>
+{% endif %}
+{% endblock %}

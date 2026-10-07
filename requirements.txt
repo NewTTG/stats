@@ -7,3 +7,5 @@ PyYAML>=6.0
 openpyxl>=3.1.5
 python-pptx>=1.0
 gunicorn>=22
+whitenoise>=6.6
+django-q2>=1.7

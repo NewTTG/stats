@@ -37,6 +37,24 @@ def test_resultat_et_audit(client_admin, referentiel, base_kpi, monkeypatch):  #
     assert JournalAudit.objects.filter(action="requete_kpi").count() == 1
 
 
+def test_resultat_synthese_et_graphiques(client_admin, referentiel, base_kpi, monkeypatch):  # noqa: F811
+    monkeypatch.setattr("apps.kpi.views.moteur_kpi", lambda: base_kpi)
+    html = client_admin.get("/", PARAMS).content.decode()
+    assert "Synthèse sur la période" in html
+    assert 'id="graphiques-LTE"' in html and "echarts" in html
+    assert "export=xlsx" in html
+
+
+def test_export_excel(client_admin, referentiel, base_kpi, monkeypatch):  # noqa: F811
+    monkeypatch.setattr("apps.kpi.views.moteur_kpi", lambda: base_kpi)
+    r = client_admin.get("/", {**PARAMS, "export": "xlsx"})
+    assert r.status_code == 200
+    assert r["Content-Type"].startswith("application/vnd.openxmlformats")
+    assert 'filename="kpi_lte_20260901_20260902.xlsx"' in r["Content-Disposition"]
+    assert r.content[:2] == b"PK"
+    assert JournalAudit.objects.filter(action="export_excel").count() == 1
+
+
 def test_base_kpi_non_configuree(client_admin, referentiel, settings):  # noqa: F811
     from apps.kpi.source import moteur_kpi
     moteur_kpi.cache_clear()

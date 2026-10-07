@@ -18,6 +18,9 @@ from .statut import statut
 
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 FORMAT_PERIODE = {"heure": "%d/%m/%Y %Hh", "jour": "%d/%m/%Y", "semaine": "sem. du %d/%m/%Y", "mois": "%m/%Y"}
+# Au-delà, une courbe par entité devient illisible : on garde les premières.
+SERIES_MAX = 12
+MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 def _lignes(res_techno, granularite_temps):
@@ -33,10 +36,39 @@ def _lignes(res_techno, granularite_temps):
     return lignes
 
 
+def _synthese(res_techno):
+    return [{"kpi": k, "valeur": (v := _valeur(res_techno.synthese.get(k.code))), "statut": k.statut(v)}
+            for k in res_techno.kpis]
+
+
+def donnees_graphiques(res_techno, granularite_temps):
+    """Données ECharts : un graphique par KPI, une série par entité."""
+    table = res_techno.table
+    if table.empty:
+        return {"periodes": [], "kpis": [], "tronque": False}
+    periodes = sorted(table.index.get_level_values("periode").unique())
+    entites = list(dict.fromkeys(table.index.get_level_values("entite")))
+    tronque = len(entites) > SERIES_MAX
+    graphiques = []
+    for k in res_techno.kpis:
+        series = []
+        for e in entites[:SERIES_MAX]:
+            valeurs = table.xs(e, level="entite")[k.code].reindex(periodes)
+            series.append({"nom": str(e), "valeurs": [_valeur(v) for v in valeurs]})
+        graphiques.append({"titre": f"{k.libelle} ({k.unite})", "seuils": k.seuils.model_dump(), "series": series})
+    return {
+        "periodes": [p.strftime(FORMAT_PERIODE[granularite_temps]) for p in periodes],
+        "kpis": graphiques,
+        "tronque": tronque,
+    }
+
+
 @login_required
 def requete(request):
     visibles = kpis_autorises(request.user, set(catalogue()))
-    form = RequeteForm(request.GET or None, kpis_visibles=visibles)
+    params = request.GET.copy()
+    export = params.pop("export", [None])[0]
+    form = RequeteForm(params or None, kpis_visibles=visibles)
     contexte = {"form": form}
 
     export = request.GET.get("export") == "xlsx"

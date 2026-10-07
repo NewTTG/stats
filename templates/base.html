@@ -8,7 +8,7 @@
     :root { --marine: #14284b; --marine-clair: #e8edf5; --ambre: #f0a500; --alerte: #fff1cc; --critique: #f8d0cc; }
     * { box-sizing: border-box; }
     body { margin: 0; font-family: system-ui, "Segoe UI", sans-serif; color: #1b1f24; background: #f6f7f9; }
-    header { background: var(--marine); color: #fff; padding: .7rem 1.5rem; display: flex; align-items: center; gap: 1.5rem; }
+    header { background: var(--marine); color: #fff; padding: .7rem 1rem; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.5rem; }
     header strong { color: var(--ambre); }
     header a { color: #fff; text-decoration: none; opacity: .85; }
     header .droite { margin-left: auto; display: flex; gap: 1rem; align-items: center; }
@@ -39,6 +39,26 @@
     td.alerte { background: var(--alerte); }
     td.critique { background: var(--critique); font-weight: 600; }
     details summary { cursor: pointer; color: var(--marine); }
+    h3 { font-size: 1rem; color: var(--marine); margin: 1.25rem 0 .5rem; }
+    .actions { display: flex; justify-content: flex-end; margin-bottom: .75rem; }
+    .actions .bouton { margin-top: 0; text-decoration: none; }
+    .bouton.secondaire { background: var(--ambre); color: var(--marine); }
+    .bouton.secondaire:hover { background: #d99500; }
+    table.synthese { width: auto; min-width: 50%; }
+    .graphiques { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 1rem; }
+    .graphique { height: 300px; }
+    .succes { background: #e3f4e8; border-left: 4px solid #27ae60; padding: .5rem 1rem; border-radius: 4px; margin-bottom: 1rem; }
+    .actions { gap: .5rem; flex-wrap: wrap; align-items: center; }
+    .actions form { margin: 0; display: flex; gap: .5rem; align-items: center; }
+    .actions select { width: auto; }
+    .etiquette { display: inline-block; padding: .05rem .5rem; border-radius: 10px; font-size: .8rem; font-weight: 600; }
+    .etiquette.critique { background: var(--critique); color: #8e1f14; }
+    .etiquette.alerte { background: var(--alerte); color: #7a5300; }
+    .etiquette.ok { background: #e3f4e8; color: #1e6b3a; }
+    .onglets { display: flex; gap: .25rem; margin-bottom: 1rem; }
+    .onglets a { padding: .35rem .9rem; border-radius: 4px; text-decoration: none; color: var(--marine); border: 1px solid #c4ccd8; background: #fff; }
+    .onglets a.actif { background: var(--marine); color: #fff; border-color: var(--marine); }
+    a { color: var(--marine); }
   </style>
 </head>
 <body>
@@ -46,6 +66,8 @@
     <strong>Stats KPI réseau</strong>
     {% if user.is_authenticated %}
       <a href="{% url 'kpi:requete' %}">Requête</a>
+      <a href="{% url 'evenements:liste' %}">Événements</a>
+      <a href="{% url 'rapports:liste' %}">Mes rapports</a>
       {% if user.is_staff %}<a href="{% url 'admin:index' %}">Administration</a>{% endif %}
       <div class="droite">
         <span>{{ user.get_username }}</span>
@@ -53,6 +75,10 @@
       </div>
     {% endif %}
   </header>
-  <main>{% block contenu %}{% endblock %}</main>
+  <main>
+    {% for m in messages %}<div class="{% if m.tags == 'error' %}erreur{% else %}succes{% endif %}">{{ m }}</div>{% endfor %}
+    {% block contenu %}{% endblock %}
+  </main>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

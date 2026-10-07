@@ -38,10 +38,14 @@ INSTALLED_APPS = [
     "apps.comptes",
     "apps.referentiel",
     "apps.kpi",
+    "apps.evenements",
+    "apps.rapports",
+    "django_q",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -105,6 +109,22 @@ LOGOUT_REDIRECT_URL = "login"
 
 KPI_CATALOGUE_PATH = BASE_DIR / "config" / "kpi_catalogue.yaml"
 
+# Modèle PowerPoint (charte) : utilisé s'il existe, sinon charte dessinée par le code.
+PPTX_MODELE = env("PPTX_MODELE") or BASE_DIR / "config" / "modele_rapport.pptx"
+
+# Tâches de fond (django-q2, file d'attente dans la base applicative : pas de Redis).
+# Lancer le worker : python manage.py qcluster. Q_SYNC=1 : exécution immédiate, sans worker.
+Q_CLUSTER = {
+    "name": "stats",
+    "orm": "default",
+    "workers": int(env("Q_WORKERS", "2")),
+    "timeout": 900,
+    "retry": 1200,
+    "max_attempts": 1,
+    "catch_up": False,
+    "sync": env("Q_SYNC", "0") == "1",
+}
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -119,6 +139,7 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]  # dont ECharts, servi localement (pas de CDN)
 MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

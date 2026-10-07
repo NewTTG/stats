@@ -29,8 +29,8 @@ Les hypothèses retenues en attendant sont indiquées.
 5 bis. **Trous du référentiel** : ~4 % des cellules n'ont pas de secteur dans `Cell_File`
    (ex. EXP099, FLA384, NDI186, CGO491…) — la liste complète est dans l'historique
    des imports (admin). À compléter dans le xlsx ?
-6. **Unités** : `PayloadDl_mB` = mégaoctets ? `PayloadPsHs_mb` (minuscule) = mégabits ?
-7. **Seuils** d'alerte / critique par KPI (valeurs provisoires dans le catalogue).
+6. ✅ **Unités** : `PayloadDl_mB` et `PayloadPsHs_mb` sont tous deux en mégaoctets.
+7. ✅ **Seuils** : valeurs provisoires conservées, réglables dans l'admin (Seuils KPI).
 8. **Liste des 5-6 KPI LTE du MVP** : proposition = débit DL, débit UL, volume DL,
    RRC SR, E-RAB drop, PRB DL, HO intra, disponibilité.
 9. ✅ **Historique** : horaire ≈ 14 mois, journalier depuis 2020 ; chargement horaire (H-1)
@@ -39,9 +39,17 @@ Les hypothèses retenues en attendant sont indiquées.
 
 ## 🟢 Plus tard
 
-11. Tâches de fond : **django-q2** (pas de Redis) proposé par défaut — Celery si Redis déjà opéré.
+11. ✅ Tâches de fond : **django-q2** (pas de Redis), service `worker` dans Docker Compose.
 12. Serveur cible (OS, Docker disponible ?, reverse proxy existant ?).
 13. SSO : AD/LDAP ou Entra ID OIDC.
 14. Lecteurs restreints : clients externes ou services internes ?
-15. Onglet `Cluster` : à importer comme événements initiaux ? Que signifie `Type` (Concert / Day) ?
-16. Charte PowerPoint : fournir un modèle `.pptx` (bleu marine / ambre).
+15. ✅ Onglet `Cluster` : importé une fois comme événements initiaux (`import_clusters`),
+    non réutilisé ensuite. `Type` (Concert / Day) = nature du créneau ; un événement
+    peut couvrir plusieurs jours avec des horaires différents → créneaux multiples.
+    37 noms distincts, dont des quasi-doublons à fusionner dans l'admin
+    (ex. « Foire de Ponerihouen » / « Foire de Ponérihouen »).
+16. **Charte PowerPoint** : modèle `.pptx` à déposer en `config/modele_rapport.pptx`
+    (pris en compte automatiquement ; en attendant, charte dessinée par le code).
+17. ✅ Référence d'un événement : mêmes jours et heures des 4 semaines précédentes
+    (modifiable par événement). Anomalies : écart > 2 σ et > 20 %, saturation
+    PRB DL > 90 % avec débit < 10 Mbps, cellule sans données (réglables dans l'admin).

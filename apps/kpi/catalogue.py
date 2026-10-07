@@ -32,6 +32,17 @@ class DefinitionKpi(BaseModel):
     qualite: Literal["exact", "reconstruit", "approx"] = "exact"
     note: str | None = None
 
+    def statut(self, valeur: float | None) -> str:
+        """« critique », « alerte » ou « » selon les seuils et le sens du KPI."""
+        if valeur is None or self.seuils.alerte is None:
+            return ""
+        def franchi(seuil):
+            return valeur <= seuil if self.sens == "haut_est_mieux" else valeur >= seuil
+
+        if self.seuils.critique is not None and franchi(self.seuils.critique):
+            return "critique"
+        return "alerte" if franchi(self.seuils.alerte) else ""
+
 
 def charger_catalogue(chemin: Path) -> dict[str, DefinitionKpi]:
     with open(chemin, encoding="utf-8") as f:
@@ -45,7 +56,20 @@ def charger_catalogue(chemin: Path) -> dict[str, DefinitionKpi]:
 
 
 @lru_cache
-def catalogue() -> dict[str, DefinitionKpi]:
+def catalogue_yaml() -> dict[str, DefinitionKpi]:
+    """Catalogue tel que défini dans le YAML versionné."""
     from django.conf import settings
 
     return charger_catalogue(settings.KPI_CATALOGUE_PATH)
+
+
+def catalogue() -> dict[str, DefinitionKpi]:
+    """Catalogue YAML, avec les seuils réglés dans l'admin (table ``SeuilKpi``)."""
+    from .models import SeuilKpi
+
+    base = catalogue_yaml()
+    reglages = {s.code: s for s in SeuilKpi.objects.filter(code__in=list(base))}
+    return {
+        code: k.model_copy(update={"seuils": Seuils(alerte=r.alerte, critique=r.critique)}) if (r := reglages.get(code)) else k
+        for code, k in base.items()
+    }
