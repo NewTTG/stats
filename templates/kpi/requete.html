@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load l10n %}
+{% block contenu %}
+<form method="get" class="carte">
+  <h2>Nouvelle requête</h2>
+  {% if form.non_field_errors %}<div class="erreur">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="grille">
+    <div>{{ form.techno.label_tag }}{{ form.techno }}{{ form.techno.errors }}</div>
+    <div>{{ form.perimetre_type.label_tag }}{{ form.perimetre_type }}</div>
+    <div>{{ form.perimetre_valeurs.label_tag }}{{ form.perimetre_valeurs }}
+      <div class="aide">{{ form.perimetre_valeurs.help_text }}</div>{{ form.perimetre_valeurs.errors }}</div>
+    <div>{{ form.debut.label_tag }}{{ form.debut }}{{ form.debut.errors }}</div>
+    <div>{{ form.fin.label_tag }}{{ form.fin }}{{ form.fin.errors }}</div>
+    <div>{{ form.fenetre_horaire.label_tag }}{{ form.fenetre_horaire }}</div>
+    <div>{{ form.granularite_temps.label_tag }}{{ form.granularite_temps }}</div>
+    <div>{{ form.granularite_espace.label_tag }}{{ form.granularite_espace }}</div>
+  </div>
+  <div class="kpis" style="margin-top: 1rem;">{{ form.kpis.label_tag }}{{ form.kpis }}{{ form.kpis.errors }}</div>
+  <button class="bouton" type="submit">Calculer</button>
+</form>
+
+{% if erreur %}<div class="erreur">{{ erreur }}</div>{% endif %}
+
+{% if resultat %}
+  {% for a in resultat.avertissements %}<div class="avertissement">{{ a }}</div>{% endfor %}
+  {% for bloc in blocs %}
+  <section class="carte">
+    <h2>{{ bloc.res.techno }} — {{ bloc.res.cellules_demandees }} cellule{{ bloc.res.cellules_demandees|pluralize }}</h2>
+    {% if bloc.lignes %}
+    <div class="table-defil">
+      <table>
+        <thead><tr><th>Période</th><th>Entité</th>
+          {% for k in bloc.res.kpis %}<th>{{ k.libelle }} ({{ k.unite }}){% if k.qualite == "approx" %} <span title="{{ k.note|default:'Valeur approximative' }}">≈</span>{% endif %}</th>{% endfor %}
+        </tr></thead>
+        <tbody>
+          {% for l in bloc.lignes %}
+          <tr><td>{{ l.periode }}</td><td>{{ l.entite }}</td>
+            {% for v in l.valeurs %}<td class="nombre {{ v.statut }}">{% if v.valeur is None %}—{% else %}{{ v.valeur|floatformat:"2g" }}{% endif %}</td>{% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p>Aucune donnée sur cette période.</p>
+    {% endif %}
+    {% if bloc.res.cellules_sans_donnees %}
+    <details style="margin-top: .75rem;">
+      <summary>{{ bloc.res.cellules_sans_donnees|length }} cellule(s) du périmètre sans aucune donnée</summary>
+      <p class="aide">{{ bloc.res.cellules_sans_donnees|join:", " }}</p>
+    </details>
+    {% endif %}
+  </section>
+  {% endfor %}
+  {% if not blocs and not resultat.avertissements %}<div class="avertissement">Aucun KPI sélectionné pour les technologies choisies.</div>{% endif %}
+{% endif %}
+{% endblock %}
