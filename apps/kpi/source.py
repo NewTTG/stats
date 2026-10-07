@@ -83,8 +83,11 @@ def lire(
         requete = requete.bindparams(sa.bindparam("cellules", expanding=True))
         params["cellules"] = list(cellules)
 
+    # Lecture via SQLAlchemy plutôt que pd.read_sql : certaines combinaisons
+    # de versions pandas/SQLAlchemy ne reconnaissent pas la connexion.
     with engine.connect() as conn:
-        df = pd.read_sql(requete, conn, params=params)
+        lignes = conn.execute(requete, params).all()
+    df = pd.DataFrame(lignes, columns=["cellule", "horodatage", *colonnes])
     df["horodatage"] = pd.to_datetime(df["horodatage"])
     for c in colonnes:
         df[c] = pd.to_numeric(df[c], errors="coerce")
