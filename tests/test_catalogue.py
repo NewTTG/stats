@@ -19,7 +19,7 @@ def test_expressions_du_catalogue_evaluables():
                 "pmRrcConnEstabSucc", "pmRrcConnEstabAtt", "ErabDropRate_p", "ErabEstabSucc_nb",
                 "PrbVectUsageDl_p", "HoIntraSucc_p", "pmHoPrepAttLteIntraF", "CellAvaibilityD_p"],
         "WCDMA": ["PayloadPsHs_mb", "UserThpHs_kbps", "SpeechTrafficDay_erlg", "RabDropCs_p",
-                  "NbrSpeechCalls", "Avaibility_p"],
+                  "NbrSpeechCalls", "Avaibility_p", "CssrSp_p", "NbrSpeechCallsAtt", "CssrPs_p", "ReqPs"],
     }
     for techno, cols in colonnes.items():
         df = pd.DataFrame({c: [10.0, 20.0] for c in cols})

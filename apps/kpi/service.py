@@ -61,6 +61,14 @@ def cellules_du_perimetre(requete: RequeteKpi, techno: str) -> list[str] | None:
         "secteur": Q(secteur__code__in=valeurs),
         "cellule": Q(nom__in=valeurs),
     }
+    if p.type == "evenement":
+        from apps.evenements.models import Evenement
+
+        evenements = list(Evenement.objects.filter(nom__in=valeurs))
+        inconnus = set(valeurs) - {e.nom for e in evenements}
+        if inconnus:
+            raise RequeteRefusee(f"Événement(s) inconnu(s) : {', '.join(sorted(inconnus))}")
+        return sorted({c for e in evenements for c in e.noms_cellules(techno)})
     if p.type not in filtres:
         raise RequeteRefusee(f"Le périmètre « {p.type} » n'est pas encore disponible.")
     return sorted(Cellule.objects.filter(filtres[p.type], techno=techno).values_list("nom", flat=True))

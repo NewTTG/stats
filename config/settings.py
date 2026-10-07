@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "apps.comptes",
     "apps.referentiel",
     "apps.kpi",
+    "apps.evenements",
 ]
 
 MIDDLEWARE = [
