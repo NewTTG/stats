@@ -10,7 +10,7 @@ def _charger_dotenv(chemin: Path):
     """Charge .env s'il existe ; les variables déjà définies (ex. Docker) restent prioritaires."""
     if not chemin.exists():
         return
-    for ligne in chemin.read_text(encoding="utf-8").splitlines():
+    for ligne in chemin.read_text(encoding="utf-8-sig").splitlines():
         ligne = ligne.strip()
         if ligne and not ligne.startswith("#") and "=" in ligne:
             cle, valeur = ligne.split("=", 1)
@@ -26,7 +26,7 @@ def env(name, default=None):
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", "dev-insecure-key")
 DEBUG = env("DJANGO_DEBUG", "0") == "1"
-ALLOWED_HOSTS = [h for h in env("DJANGO_ALLOWED_HOSTS", "localhost").split(",") if h]
+ALLOWED_HOSTS = [h for h in env("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h]
 
 INSTALLED_APPS = [
     "django.contrib.admin",

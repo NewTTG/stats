@@ -28,7 +28,7 @@ def charger_env():
     fichier = RACINE / ".env"
     if not fichier.exists():
         return
-    for ligne in fichier.read_text(encoding="utf-8").splitlines():
+    for ligne in fichier.read_text(encoding="utf-8-sig").splitlines():
         ligne = ligne.strip()
         if ligne and not ligne.startswith("#") and "=" in ligne:
             cle, valeur = ligne.split("=", 1)

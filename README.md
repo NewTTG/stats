@@ -11,28 +11,32 @@ prérequis et questions ouvertes ([`docs/questions.md`](docs/questions.md)).
 
 ### En local (dev)
 
-Prérequis : Python 3.12+.
+Prérequis : Python 3.11+. Toutes les commandes se lancent **depuis la racine du dépôt**.
 
-```bash
+**Windows (PowerShell)**
+
+```powershell
 # 1. Environnement Python
-python3 -m venv .venv
-source .venv/bin/activate              # Windows : .venv\Scripts\activate
+python -m venv .venv
+.venv\Scripts\Activate.ps1
 pip install -r requirements-dev.txt
 
 # 2. Configuration (sans APP_DB_HOST : base applicative SQLite locale)
-cp .env.example .env                   # Windows : copy .env.example .env
+Copy-Item .env.example .env
 
 # 3. Base applicative + compte administrateur
 python manage.py migrate
 python manage.py createsuperuser
 
-# 4. Chargement du référentiel (+ cellules lues dans les extraits KPI)
-python manage.py import_referentiel OPT_Network_Database_V2.xlsx \
-    --cellules lte_cell_hour.csv lte_cell_day.csv wcdma_cell_hour.csv wcdma_cell_day.csv
+# 4. Chargement du référentiel (+ cellules lues dans les extraits KPI) — sur une seule ligne
+python manage.py import_referentiel OPT_Network_Database_V2.xlsx --cellules lte_cell_hour.csv lte_cell_day.csv wcdma_cell_hour.csv wcdma_cell_day.csv
 
 # 5. Lancement
 python manage.py runserver             # http://localhost:8000 -> admin
 ```
+
+**Linux / macOS (bash)** : mêmes commandes, avec `source .venv/bin/activate` et
+`cp .env.example .env`.
 
 Le fichier `.env` est lu automatiquement. Renseigner `APP_DB_HOST` (et les autres
 `APP_DB_*`) pour utiliser PostgreSQL plutôt que SQLite.
@@ -69,7 +73,8 @@ Les écrans de requête KPI arrivent en phase 1 (accès à la base KPI requis).
 Depuis un poste ayant accès au réseau de la base, avec `KPI_DB_*` renseignés dans `.env` :
 
 ```bash
-python scripts/explorer_schema.py   # session forcée en lecture seule -> docs/schema_bdd.md
+pip install "psycopg[binary]"
+python scripts/explorer_schema.py   # depuis la racine du dépôt ; lecture seule -> docs/schema_bdd.md
 ```
 
 ## Organisation
