@@ -111,6 +111,12 @@ KPI_CATALOGUE_PATH = BASE_DIR / "config" / "kpi_catalogue.yaml"
 
 # Modèle PowerPoint (charte) : utilisé s'il existe, sinon charte dessinée par le code.
 PPTX_MODELE = env("PPTX_MODELE") or BASE_DIR / "config" / "modele_rapport.pptx"
+# Dispositions du modèle par rôle (premier nom trouvé ; sinon dispositions standard).
+PPTX_DISPOSITIONS = {
+    "titre": ["Diapo 1", "Titre", "Diapositive de titre", "Title Slide"],
+    "contenu": ["Diapo Simple 3", "Titre seul", "Title Only"],
+    "fin": ["Diapo FIN"],
+}
 
 # Tâches de fond (django-q2, file d'attente dans la base applicative : pas de Redis).
 # Lancer le worker : python manage.py qcluster. Q_SYNC=1 : exécution immédiate, sans worker.

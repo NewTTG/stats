@@ -19,6 +19,12 @@ from .test_service import analyste, base_kpi, referentiel, requete  # noqa: F401
 pytestmark = pytest.mark.django_db
 
 
+@pytest.fixture(autouse=True)
+def sans_modele(settings):
+    """Charte dessinée par le code, sauf dans les tests qui fournissent un modèle."""
+    settings.PPTX_MODELE = None
+
+
 def _textes(prs):
     return [" ".join(sh.text_frame.text for sh in s.shapes if sh.has_text_frame and sh.text_frame.text) for s in prs.slides]
 
@@ -50,6 +56,30 @@ def test_pptx_avec_modele(evenement, base_horaire, analyste, tmp_path, settings)
     assert not any("DIAPO DU MODÈLE" in t for t in _textes(prs))
     assert prs.slides[0].slide_layout.name == "Title Slide"
     assert prs.slides[1].slide_layout.name == "Title Only"
+
+
+def test_pptx_modele_helia(evenement, base_horaire, analyste, settings):  # noqa: F811
+    from apps.rapports.powerpoint import charte_du_theme
+
+    settings.PPTX_MODELE = settings.BASE_DIR / "config" / "modele_rapport.pptx"
+    octets = pptx_evenement(analyser(evenement, analyste, base_horaire))
+    prs = Presentation(BytesIO(octets))
+    dispositions = [s.slide_layout.name for s in prs.slides]
+    assert dispositions[0] == "Diapo 1" and dispositions[-1] == "Diapo FIN"
+    assert set(dispositions[1:-1]) == {"Diapo Simple 3"}
+    assert {l.name for l in prs.slide_layouts} == {"Diapo 1", "Diapo Simple 3", "Diapo FIN"}
+    assert len(octets) < 4_000_000  # dispositions inutilisées (et leurs images) retirées
+    # Titre écrit dans l'espace réservé du modèle, autres espaces réservés retirés.
+    assert list(prs.slides[1].placeholders)[0].text_frame.text == "Périmètre analysé"
+    assert list(prs.slides[2].placeholders)[0].text_frame.text.startswith("LTE — synthèse")
+    assert len(prs.slides[1].placeholders) == 1
+    assert prs.slides[0].shapes.title.text == "Foire"
+    # Couleurs du thème : magenta pour l'événement, gris foncé pour la référence.
+    charte = charte_du_theme(prs.slide_master.part.part_related_by(
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme").blob)
+    assert (charte.principale, charte.secondaire) == ("FF00E3", "5F6A72")
+    graphe = next(sh.chart for s in prs.slides for sh in s.shapes if sh.has_chart)
+    assert str(graphe.series[0].format.line.color.rgb) == "FF00E3"
 
 
 def test_xlsx_evenement(evenement, base_horaire, analyste):  # noqa: F811

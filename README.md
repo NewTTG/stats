@@ -75,9 +75,10 @@ sont conservés dans le volume `media`.
   niveau d'agrégation, KPI → synthèse sur toute la période (ratio de sommes) avec statut
   OK / alerte / critique, graphiques d'évolution (ECharts), tableau détaillé avec seuils
   en couleur et liste des cellules du périmètre sans données. Nécessite `KPI_DB_*` dans `.env`.
-- **Export Excel** (bouton sur l'écran de résultat) : onglet *Synthèse* (paramètres de la
-  requête + valeur et statut de chaque KPI), un onglet de données par technologie,
-  onglet *Cellules sans données*. Chaque export est tracé dans le journal d'audit.
+- **Export Excel** (bouton sur l'écran de résultat) : onglet *Paramètres* (requête,
+  cellules sans données, avertissements), par technologie un onglet *Synthèse*
+  (ensemble du périmètre puis chaque entité, sur toute la période) et un onglet
+  *Données*, onglet *Définitions* des KPI. Chaque export est tracé dans le journal d'audit.
 - **Rapport PowerPoint d'une requête** (bouton sur l'écran de résultat) : titre,
   synthèse, un graphique commenté par KPI, annexe des cellules sans données.
 - **Événements** (/evenements) : pour chaque événement, comparaison des créneaux avec
@@ -113,12 +114,16 @@ remet les valeurs du YAML.
 
 ### Modèle PowerPoint
 
-Déposer le modèle de la charte en `config/modele_rapport.pptx` (ou indiquer son chemin
-dans `PPTX_MODELE`). Ses dispositions « Titre » / « Title Slide » et « Titre seul » /
-« Title Only » sont utilisées, ses diapositives existantes sont ignorées. Sans modèle,
-la charte bleu marine / ambre est dessinée par le code.
+Le modèle de la charte Helia PRO est en `config/modele_rapport.pptx` (autre chemin :
+variable `PPTX_MODELE`). Les rapports utilisent ses dispositions « Diapo 1 » (titre),
+« Diapo Simple 3 » (contenu) et « Diapo FIN » (fin), à changer dans
+`PPTX_DISPOSITIONS` (`config/settings.py`). Les couleurs des graphiques et des
+tableaux viennent du thème du modèle (magenta pour l'événement, gris pour la
+référence). Ses diapositives d'exemple sont ignorées et les dispositions non
+utilisées retirées du fichier produit (≈ 2 Mo au lieu de 10). Sans modèle, la
+charte bleu marine / ambre est dessinée par le code.
 
-### Droits d'accès
+## Droits d'accès
 
 - superutilisateur ou membre du groupe **Admin** ou **Analyste** : tout le réseau, tous les KPI ;
 - autre utilisateur : uniquement les cellules et KPI de ses **Périmètres** (admin →

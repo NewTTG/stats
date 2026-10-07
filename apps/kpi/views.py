@@ -20,7 +20,10 @@ XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 FORMAT_PERIODE = {"heure": "%d/%m/%Y %Hh", "jour": "%d/%m/%Y", "semaine": "sem. du %d/%m/%Y", "mois": "%m/%Y"}
 # Au-delà, une courbe par entité devient illisible : on garde les premières.
 SERIES_MAX = 12
-MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _valeur(v):
+    return None if v is None or (isinstance(v, float) and math.isnan(v)) else float(v)
 
 
 def _lignes(res_techno, granularite_temps):
@@ -28,8 +31,7 @@ def _lignes(res_techno, granularite_temps):
     for (periode, entite), valeurs in res_techno.table.iterrows():
         cellules = []
         for k in res_techno.kpis:
-            v = valeurs[k.code]
-            v = None if v is None or (isinstance(v, float) and math.isnan(v)) else float(v)
+            v = _valeur(valeurs[k.code])
             cellules.append({"valeur": v, "statut": statut(k, v)})
         lignes.append({"periode": periode.strftime(FORMAT_PERIODE[granularite_temps]), "entite": entite,
                        "valeurs": cellules})
@@ -37,7 +39,7 @@ def _lignes(res_techno, granularite_temps):
 
 
 def _synthese(res_techno):
-    return [{"kpi": k, "valeur": (v := _valeur(res_techno.synthese.get(k.code))), "statut": k.statut(v)}
+    return [{"kpi": k, "valeur": (v := _valeur(res_techno.synthese_globale.get(k.code))), "statut": statut(k, v)}
             for k in res_techno.kpis]
 
 
@@ -67,11 +69,9 @@ def donnees_graphiques(res_techno, granularite_temps):
 def requete(request):
     visibles = kpis_autorises(request.user, set(catalogue()))
     params = request.GET.copy()
-    export = params.pop("export", [None])[0]
+    export = params.pop("export", [None])[0] == "xlsx"
     form = RequeteForm(params or None, kpis_visibles=visibles)
     contexte = {"form": form}
-
-    export = request.GET.get("export") == "xlsx"
 
     if form.is_bound and form.is_valid():
         try:
@@ -89,7 +89,12 @@ def requete(request):
             requete_export = request.GET.copy()
             requete_export["export"] = "xlsx"
             contexte["lien_export"] = "?" + requete_export.urlencode()
-            contexte["blocs"] = [{"res": r, "lignes": _lignes(r, req.granularite_temps)}
+            contexte["requete_params"] = list(params.lists())  # rapport PowerPoint (POST)
+            contexte["blocs"] = [{"res": r,
+                                  "lignes": _lignes(r, req.granularite_temps),
+                                  "synthese": _synthese(r),
+                                  "graphiques": donnees_graphiques(r, req.granularite_temps),
+                                  "id_graphiques": f"graphiques-{r.techno}"}
                                  for r in resultat.par_techno]
         except ValidationError as e:
             contexte["erreur"] = "; ".join(err["msg"].removeprefix("Value error, ") for err in e.errors())
