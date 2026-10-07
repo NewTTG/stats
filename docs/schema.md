@@ -58,12 +58,20 @@ S = secteur — **confirmé**. Ex. site DZU (3 porteuses) : `DZUe1..3` (porteuse
 `ERBS_Id` correspond à la colonne `ERBS` dans 97,9 % des cas.
 
 ### WCDMA
-`CellWcdma` = `<codeSite><lettre>` (A/B/C, D/E/F, J/K/L… = porteuse × secteur).
+`CellWcdma` = `<codeSite><lettre>` — **confirmé** : secteur 1 = A/D/G/J, secteur 2 = B/E/H/K,
+secteur 3 = C/F/I/L (porteuses 1 à 4). Site à 4 secteurs (présence d'un M, ex. DTS009) :
+A/B/C/D = secteurs 1-4 porteuse 1, J/K/L/M = secteurs 1-4 porteuse 2.
 → 98,1 % des préfixes trouvent un `codeSite`. Non trouvés : ex. `EXP099*`, `FLA384*`.
+
+### Résultat de l'import (`import_referentiel` sur le xlsx + les 4 extraits)
+588 sites, 1 383 secteurs ; cellules rattachées à un secteur : LTE 1 958 / 2 044,
+WCDMA 1 914 / 1 990 (≈ 96 %). Les non-rattachées correspondent à des sites ou secteurs
+absents de `Cell_File` et sont listées dans l'historique de l'import.
 
 ### Pièges relevés
 - `Trigramme` **non unique** : `3VL` (2 sites), `CHT` (3 sites), `NKA` (2 sites). La
-  jointure LTE par trigramme seul est donc ambiguë pour ces sites.
+  jointure LTE par trigramme seul est donc ambiguë : règle provisoire, le premier site
+  du fichier fait foi.
 - Suffixes `bb` / `e` dans les noms ERBS (`TIARIbb`, `KARIKATEe`) et `s` (`3_VALLEESbbs`).
 - Secteur `BGV0021` en double dans `Cell_File`.
 - Onglet `Cluster` : noms de cellules mixtes LTE (`ZIZe3`) / WCDMA (`ZIZ179C`) et

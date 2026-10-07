@@ -7,24 +7,62 @@ de données par utilisateur et exports Excel / PowerPoint. Cahier des charges :
 **État : phase 0** — squelette, description des données ([`docs/schema.md`](docs/schema.md)),
 prérequis et questions ouvertes ([`docs/questions.md`](docs/questions.md)).
 
-## Installation (dev)
+## Initialiser et démarrer l'application
+
+### En local (dev)
+
+Prérequis : Python 3.12+.
 
 ```bash
-python3.12 -m venv .venv && source .venv/bin/activate
+# 1. Environnement Python
+python3 -m venv .venv
+source .venv/bin/activate              # Windows : .venv\Scripts\activate
 pip install -r requirements-dev.txt
-cp .env.example .env          # sans APP_DB_HOST : base SQLite locale
+
+# 2. Configuration (sans APP_DB_HOST : base applicative SQLite locale)
+cp .env.example .env                   # Windows : copy .env.example .env
+
+# 3. Base applicative + compte administrateur
 python manage.py migrate
 python manage.py createsuperuser
-python manage.py runserver    # admin : http://localhost:8000/admin/
-pytest
+
+# 4. Chargement du référentiel (+ cellules lues dans les extraits KPI)
+python manage.py import_referentiel OPT_Network_Database_V2.xlsx \
+    --cellules lte_cell_hour.csv lte_cell_day.csv wcdma_cell_hour.csv wcdma_cell_day.csv
+
+# 5. Lancement
+python manage.py runserver             # http://localhost:8000 -> admin
 ```
 
-## Docker
+Le fichier `.env` est lu automatiquement. Renseigner `APP_DB_HOST` (et les autres
+`APP_DB_*`) pour utiliser PostgreSQL plutôt que SQLite.
+
+Tests : `pytest`.
+
+### Avec Docker (serveur)
 
 ```bash
-cp .env.example .env   # renseigner APP_DB_PASSWORD, DJANGO_SECRET_KEY…
-docker compose up --build
+cp .env.example .env                   # renseigner DJANGO_SECRET_KEY, APP_DB_PASSWORD, KPI_DB_*
+docker compose up -d --build           # PostgreSQL + application, migrations appliquées au démarrage
+docker compose exec app python manage.py createsuperuser
+docker compose exec app python manage.py import_referentiel OPT_Network_Database_V2.xlsx \
+    --cellules lte_cell_hour.csv lte_cell_day.csv wcdma_cell_hour.csv wcdma_cell_day.csv
 ```
+
+Application sur http://<serveur>:8000.
+
+### Ce que l'on peut faire aujourd'hui
+
+Dans l'admin : consulter sites / secteurs / cellules, l'historique des imports (ajouts,
+suppressions, anomalies), créer des utilisateurs, groupes et périmètres.
+Les écrans de requête KPI arrivent en phase 1 (accès à la base KPI requis).
+
+### Import du référentiel : règles
+
+- relancer `import_referentiel` à chaque nouvelle version du xlsx : chaque import est historisé ;
+- secteurs en double : première ligne conservée ; secteurs sans site : rejetés ;
+- trigramme partagé par plusieurs sites : le premier site du fichier fait foi ;
+- cellules dont le secteur est absent du xlsx : conservées sans rattachement et signalées.
 
 ## Exploration de la base KPI (phase 0)
 
@@ -68,5 +106,5 @@ les expressions du catalogue sont évaluables.
 
 ## Données
 
-Aucune donnée réelle ni identifiant dans le dépôt : les fichiers `*.xlsx` / `*.csv`
-sont ignorés par Git, les secrets sont dans `.env`.
+Le référentiel xlsx et les 4 extraits CSV à la racine sont conservés comme référence.
+Aucun identifiant dans le dépôt : les secrets sont dans `.env` (non versionné).
