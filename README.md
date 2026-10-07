@@ -4,8 +4,10 @@ Application web interne de statistiques de trafic et de qualité radio, avec pé
 de données par utilisateur et exports Excel / PowerPoint. Cahier des charges :
 [`brief_app_kpi_reseau.md`](brief_app_kpi_reseau.md).
 
-**État : phase 0** — squelette, description des données ([`docs/schema.md`](docs/schema.md)),
-prérequis et questions ouvertes ([`docs/questions.md`](docs/questions.md)).
+**État : phase 1 (MVP)** — import du référentiel, catalogue KPI, moteur de calcul,
+écran de requête (tableau, synthèse, graphiques), périmètres d'accès, export Excel.
+Données décrites dans [`docs/schema.md`](docs/schema.md), questions ouvertes dans
+[`docs/questions.md`](docs/questions.md).
 
 ## Initialiser et démarrer l'application
 
@@ -59,8 +61,12 @@ Application sur http://<serveur>:8000.
 
 - **Requête KPI** (page d'accueil, http://localhost:8000) : technologie, périmètre
   (commune, site, trigramme, secteur, cellule), période, fenêtre horaire, pas de temps,
-  niveau d'agrégation, KPI → tableau avec seuils d'alerte en couleur et liste des
-  cellules du périmètre sans données. Nécessite `KPI_DB_*` dans `.env`.
+  niveau d'agrégation, KPI → synthèse sur toute la période (ratio de sommes) avec statut
+  OK / alerte / critique, graphiques d'évolution (ECharts), tableau détaillé avec seuils
+  en couleur et liste des cellules du périmètre sans données. Nécessite `KPI_DB_*` dans `.env`.
+- **Export Excel** (bouton sur l'écran de résultat) : onglet *Synthèse* (paramètres de la
+  requête + valeur et statut de chaque KPI), un onglet de données par technologie,
+  onglet *Cellules sans données*. Chaque export est tracé dans le journal d'audit.
 - **Administration** (/admin) : sites / secteurs / cellules, historique des imports,
   utilisateurs, groupes, périmètres, journal d'audit des requêtes.
 
@@ -94,6 +100,7 @@ python scripts/explorer_schema.py   # depuis la racine du dépôt ; lecture seul
 | `apps/comptes/` | périmètres d'accès, journal d'audit |
 | `apps/referentiel/` | sites / secteurs / cellules importés du xlsx, décodage des noms de cellules |
 | `apps/kpi/` | modèle de requête (Pydantic), catalogue, moteur de calcul |
+| `static/vendor/` | ECharts, servi localement (aucun CDN) |
 | `docs/` | documentation phase 0 |
 | `tests/` | pytest (données synthétiques uniquement) |
 

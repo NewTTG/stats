@@ -32,6 +32,17 @@ class DefinitionKpi(BaseModel):
     qualite: Literal["exact", "reconstruit", "approx"] = "exact"
     note: str | None = None
 
+    def statut(self, valeur: float | None) -> str:
+        """« critique », « alerte » ou « » selon les seuils et le sens du KPI."""
+        if valeur is None or self.seuils.alerte is None:
+            return ""
+        def franchi(seuil):
+            return valeur <= seuil if self.sens == "haut_est_mieux" else valeur >= seuil
+
+        if self.seuils.critique is not None and franchi(self.seuils.critique):
+            return "critique"
+        return "alerte" if franchi(self.seuils.alerte) else ""
+
 
 def charger_catalogue(chemin: Path) -> dict[str, DefinitionKpi]:
     with open(chemin, encoding="utf-8") as f:
