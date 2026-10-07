@@ -31,6 +31,8 @@ class ResultatTechno:
     synthese: dict[str, float]
     cellules_demandees: int
     cellules_sans_donnees: list[str] = field(default_factory=list)
+    # index entite : KPI agrégés sur toute la période (somme des num / somme des den)
+    synthese: pd.DataFrame | None = None
 
 
 @dataclass
@@ -158,9 +160,9 @@ def executer(requete: RequeteKpi, user, engine) -> Resultat:
         codes = [k.code for k in kpis]
         if len(df):
             table = agreger(df, kpis, par=["periode", "entite"])[codes]
-            synthese = agreger(df, kpis, par=[])[codes].iloc[0].to_dict()
+            synthese = agreger(df, kpis, par=["entite"])[codes]
         else:
-            table, synthese = pd.DataFrame(columns=codes), dict.fromkeys(codes, float("nan"))
+            table = synthese = pd.DataFrame(columns=codes)
         resultat.par_techno.append(ResultatTechno(
             techno=techno,
             kpis=kpis,
@@ -168,5 +170,6 @@ def executer(requete: RequeteKpi, user, engine) -> Resultat:
             synthese=synthese,
             cellules_demandees=len(cellules) if cellules is not None else df["cellule"].nunique(),
             cellules_sans_donnees=sans_donnees,
+            synthese=synthese,
         ))
     return resultat

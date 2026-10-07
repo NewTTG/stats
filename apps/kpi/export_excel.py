@@ -1,142 +1,123 @@
-"""Export Excel d'un ``Resultat`` (brief §8) : onglet synthèse + données par technologie."""
+"""Export Excel d'un résultat de requête (brief §8) : synthèse + données détaillées + définitions."""
 
+import io
 import math
-from io import BytesIO
 
-from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from .service import Resultat
+from .statut import statut
 
-MARINE, AMBRE = "14284B", "F0A500"
-REMPLISSAGE = {
-    "alerte": PatternFill("solid", fgColor="FFF1CC"),
-    "critique": PatternFill("solid", fgColor="F8D0CC"),
+MARINE = "1F2A44"
+ENTETE = Font(bold=True, color="FFFFFF")
+FOND_ENTETE = PatternFill("solid", fgColor=MARINE)
+FONDS_STATUT = {
+    "alerte": PatternFill("solid", fgColor="FFE8B3"),
+    "critique": PatternFill("solid", fgColor="F8C4C4"),
 }
-ENTETE = PatternFill("solid", fgColor=MARINE)
-FORMAT_PERIODE = {"heure": "dd/mm/yyyy hh:mm", "jour": "dd/mm/yyyy", "semaine": "dd/mm/yyyy", "mois": "mm/yyyy"}
-LIBELLES_FENETRE = {"journee": "Journée complète", "heure_chargee": "Heure chargée par cellule"}
+FORMAT_PERIODE = {"heure": "dd/mm/yyyy hh\\h", "jour": "dd/mm/yyyy", "semaine": "dd/mm/yyyy", "mois": "mm/yyyy"}
 
 
-def _valeur(v) -> float | None:
+def _valeur(v):
     if v is None or (isinstance(v, float) and math.isnan(v)):
         return None
     return float(v)
 
 
-def _entete(ws, ligne: int, titres: list[str]):
-    for col, titre in enumerate(titres, start=1):
-        c = ws.cell(row=ligne, column=col, value=titre)
-        c.font = Font(bold=True, color="FFFFFF")
-        c.fill = ENTETE
+def _ajouter(ws, valeurs):
+    """Ajoute une ligne ; un texte commençant par « = » reste du texte (pas de formule)."""
+    ws.append(valeurs)
+    for c in ws[ws.max_row]:
+        if isinstance(c.value, str) and c.value.startswith("="):
+            c.data_type = "s"
+
+
+def _entete(ws, titres):
+    _ajouter(ws, titres)
+    for c in ws[ws.max_row]:
+        c.font, c.fill = ENTETE, FOND_ENTETE
         c.alignment = Alignment(wrap_text=True, vertical="center")
+    ws.freeze_panes = f"A{ws.max_row + 1}"
 
 
-def _largeurs(ws, largeurs: list[int]):
+def _largeurs(ws, largeurs):
     for i, l in enumerate(largeurs, start=1):
         ws.column_dimensions[get_column_letter(i)].width = l
 
 
-def _titre_kpi(k) -> str:
-    return f"{k.libelle} ({k.unite})" + (" ≈" if k.qualite == "approx" else "")
+def _cellules_kpi(ws, kpis, valeurs, premiere_col):
+    ligne = ws.max_row
+    for j, (k, v) in enumerate(zip(kpis, valeurs)):
+        c = ws.cell(row=ligne, column=premiere_col + j)
+        c.number_format = "0.00"
+        fond = FONDS_STATUT.get(statut(k, v))
+        if fond:
+            c.fill = fond
 
 
-def description_requete(resultat: Resultat) -> list[tuple[str, str]]:
-    r = resultat.requete
-    p = r.perimetre
-    fenetre = LIBELLES_FENETRE.get(r.fenetre_horaire, r.fenetre_horaire.replace("-", "h – ") + "h")
-    return [
-        ("Technologies", ", ".join(r.techno)),
-        ("Périmètre", p.type + (f" : {', '.join(p.valeurs)}" if p.valeurs else "")),
-        ("Période", f"{r.periode.debut:%d/%m/%Y} → {r.periode.fin:%d/%m/%Y}"),
-        ("Fenêtre horaire", fenetre),
-        ("Pas de temps", r.granularite_temps),
-        ("Niveau d'agrégation", r.granularite_espace),
-        ("Généré le", timezone.localtime().strftime("%d/%m/%Y %H:%M")),
-    ]
+def _titres_kpi(kpis):
+    return [f"{k.libelle} ({k.unite})" + (" ≈" if k.qualite == "approx" else "") for k in kpis]
 
 
-def _onglet_synthese(ws, resultat: Resultat):
-    ws.title = "Synthèse"
-    ws["A1"] = "Synthèse KPI"
-    ws["A1"].font = Font(bold=True, size=14, color=MARINE)
-    ligne = 3
-    for cle, valeur in description_requete(resultat):
-        ws.cell(row=ligne, column=1, value=cle).font = Font(bold=True)
-        ws.cell(row=ligne, column=2, value=valeur)
-        ligne += 1
-
-    ligne += 1
-    _entete(ws, ligne, ["Techno", "KPI", "Unité", "Valeur", "Statut", "Cellules", "Sans données", "Remarque"])
-    for res in resultat.par_techno:
-        for k in res.kpis:
-            ligne += 1
-            v = _valeur(res.synthese.get(k.code))
-            statut = k.statut(v)
-            remarque = {"approx": "Valeur approximative", "reconstruit": "Valeur reconstruite"}.get(k.qualite, "")
-            valeurs = [res.techno, k.libelle, k.unite, v, statut.capitalize() or ("OK" if v is not None else "—"),
-                       res.cellules_demandees, len(res.cellules_sans_donnees), remarque]
-            for col, val in enumerate(valeurs, start=1):
-                ws.cell(row=ligne, column=col, value=val)
-            c = ws.cell(row=ligne, column=4)
-            c.number_format = "0.00"
-            if statut:
-                c.fill = ws.cell(row=ligne, column=5).fill = REMPLISSAGE[statut]
-
-    if resultat.avertissements:
-        ligne += 2
-        ws.cell(row=ligne, column=1, value="Avertissements").font = Font(bold=True, color=AMBRE)
-        for a in resultat.avertissements:
-            ligne += 1
-            ws.cell(row=ligne, column=1, value=a)
-    _largeurs(ws, [22, 40, 8, 12, 10, 10, 13, 24])
-
-
-def _onglet_donnees(wb, res, granularite_temps: str):
-    ws = wb.create_sheet(f"Données {res.techno}")
-    _entete(ws, 1, ["Période", "Entité", *(_titre_kpi(k) for k in res.kpis)])
-    ws.freeze_panes = "C2"
-    for i, ((periode, entite), valeurs) in enumerate(res.table.iterrows(), start=2):
-        c = ws.cell(row=i, column=1, value=periode.to_pydatetime())
-        c.number_format = FORMAT_PERIODE[granularite_temps]
-        ws.cell(row=i, column=2, value=entite)
-        for j, k in enumerate(res.kpis, start=3):
-            v = _valeur(valeurs[k.code])
-            c = ws.cell(row=i, column=j, value=v)
-            c.number_format = "0.00"
-            statut = k.statut(v)
-            if statut:
-                c.fill = REMPLISSAGE[statut]
-    if res.table.shape[0]:
-        ws.auto_filter.ref = ws.dimensions
-    _largeurs(ws, [18, 24, *([18] * len(res.kpis))])
-
-
-def _onglet_sans_donnees(wb, resultat: Resultat):
-    lignes = [(r.techno, c) for r in resultat.par_techno for c in r.cellules_sans_donnees]
-    if not lignes:
-        return
-    ws = wb.create_sheet("Cellules sans données")
-    _entete(ws, 1, ["Techno", "Cellule"])
-    for i, (techno, cellule) in enumerate(lignes, start=2):
-        ws.cell(row=i, column=1, value=techno)
-        ws.cell(row=i, column=2, value=cellule)
-    _largeurs(ws, [10, 20])
-
-
-def classeur(resultat: Resultat) -> bytes:
+def construire(resultat: Resultat) -> bytes:
+    req = resultat.requete
     wb = Workbook()
-    _onglet_synthese(wb.active, resultat)
-    for res in resultat.par_techno:
-        _onglet_donnees(wb, res, resultat.requete.granularite_temps)
-    _onglet_sans_donnees(wb, resultat)
-    flux = BytesIO()
+
+    ws = wb.active
+    ws.title = "Paramètres"
+    lignes = [
+        ("Technologies", ", ".join(req.techno)),
+        ("Périmètre", f"{req.perimetre.type} : {', '.join(req.perimetre.valeurs) or 'tout le réseau'}"),
+        ("Période", f"du {req.periode.debut:%d/%m/%Y} au {req.periode.fin:%d/%m/%Y}"),
+        ("Fenêtre horaire", req.fenetre_horaire),
+        ("Granularité temporelle", req.granularite_temps),
+        ("Granularité spatiale", req.granularite_espace),
+        ("KPI", ", ".join(req.kpis)),
+    ]
+    for r in resultat.par_techno:
+        lignes.append((f"Cellules {r.techno}", r.cellules_demandees))
+        if r.cellules_sans_donnees:
+            lignes.append((f"Cellules {r.techno} sans donnée", ", ".join(r.cellules_sans_donnees)))
+    for a in resultat.avertissements:
+        lignes.append(("Avertissement", a))
+    for l in lignes:
+        _ajouter(ws, l)
+        ws.cell(row=ws.max_row, column=1).font = Font(bold=True)
+    _largeurs(ws, [28, 90])
+
+    for r in resultat.par_techno:
+        titres = _titres_kpi(r.kpis)
+
+        ws = wb.create_sheet(f"Synthèse {r.techno}")
+        _entete(ws, ["Entité", *titres])
+        for entite, valeurs in r.synthese.iterrows():
+            vals = [_valeur(valeurs[k.code]) for k in r.kpis]
+            _ajouter(ws, [entite, *vals])
+            _cellules_kpi(ws, r.kpis, vals, 2)
+        _largeurs(ws, [30, *[18] * len(titres)])
+
+        ws = wb.create_sheet(f"Données {r.techno}")
+        _entete(ws, ["Période", "Entité", *titres])
+        for (periode, entite), valeurs in r.table.iterrows():
+            vals = [_valeur(valeurs[k.code]) for k in r.kpis]
+            _ajouter(ws, [periode.to_pydatetime(), entite, *vals])
+            ws.cell(row=ws.max_row, column=1).number_format = FORMAT_PERIODE[req.granularite_temps]
+            _cellules_kpi(ws, r.kpis, vals, 3)
+        _largeurs(ws, [18, 30, *[18] * len(titres)])
+        if ws.max_row > 1:
+            ws.auto_filter.ref = ws.dimensions
+
+    ws = wb.create_sheet("Définitions")
+    _entete(ws, ["Code", "Libellé", "Unité", "Numérateur", "Dénominateur", "Facteur",
+                 "Seuil alerte", "Seuil critique", "Qualité", "Note"])
+    for r in resultat.par_techno:
+        for k in r.kpis:
+            _ajouter(ws, [k.code, k.libelle, k.unite, k.numerateur, k.denominateur or "", k.facteur,
+                       k.seuils.alerte, k.seuils.critique, k.qualite, k.note or ""])
+    _largeurs(ws, [22, 30, 10, 40, 40, 9, 12, 12, 12, 50])
+
+    flux = io.BytesIO()
     wb.save(flux)
     return flux.getvalue()
-
-
-def nom_fichier(resultat: Resultat) -> str:
-    r = resultat.requete
-    return f"kpi_{'_'.join(r.techno)}_{r.periode.debut:%Y%m%d}_{r.periode.fin:%Y%m%d}.xlsx".lower()

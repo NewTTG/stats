@@ -62,3 +62,34 @@ def test_base_kpi_non_configuree(client_admin, referentiel, settings):  # noqa: 
     r = client_admin.get("/", PARAMS)
     assert "Base KPI non configurée" in r.content.decode()
     moteur_kpi.cache_clear()
+
+
+def test_export_excel(client_admin, referentiel, base_kpi, monkeypatch):  # noqa: F811
+    import io
+
+    from openpyxl import load_workbook
+
+    monkeypatch.setattr("apps.kpi.views.moteur_kpi", lambda: base_kpi)
+    html = client_admin.get("/", PARAMS).content.decode()
+    assert "export=xlsx" in html
+
+    r = client_admin.get("/", {**PARAMS, "export": "xlsx"})
+    assert r.status_code == 200
+    assert r["Content-Disposition"] == 'attachment; filename="kpi_20260901_20260902.xlsx"'
+    wb = load_workbook(io.BytesIO(r.content))
+    assert wb.sheetnames == ["Paramètres", "Synthèse LTE", "Données LTE", "Définitions"]
+    donnees = list(wb["Données LTE"].iter_rows(values_only=True))
+    assert donnees[0][:2] == ("Période", "Entité")
+    assert any(l[1] == "SITE_AAA" for l in donnees[1:])
+    assert wb["Définitions"]["A2"].value == "lte_rrc_setup_sr"
+    assert JournalAudit.objects.filter(action="export_excel").count() == 1
+
+
+def test_export_excel_texte_pas_formule():
+    from openpyxl import Workbook
+
+    from apps.kpi.export_excel import _ajouter
+
+    ws = Workbook().active
+    _ajouter(ws, ["=HYPERLINK(\"x\")", 1.5])
+    assert ws["A1"].data_type == "s" and ws["B1"].data_type == "n"

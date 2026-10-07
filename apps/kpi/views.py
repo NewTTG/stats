@@ -9,20 +9,18 @@ from apps.comptes.acces import kpis_autorises
 from apps.comptes.models import JournalAudit
 
 from .catalogue import catalogue
-from .export_excel import classeur, nom_fichier
+from .export_excel import construire as construire_excel
 from .forms import RequeteForm
 from .requete import RequeteKpi
 from .service import RequeteRefusee, executer
 from .source import BaseKpiNonConfiguree, moteur_kpi
+from .statut import statut
 
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 FORMAT_PERIODE = {"heure": "%d/%m/%Y %Hh", "jour": "%d/%m/%Y", "semaine": "sem. du %d/%m/%Y", "mois": "%m/%Y"}
 # Au-delà, une courbe par entité devient illisible : on garde les premières.
 SERIES_MAX = 12
 MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-
-
-def _valeur(v):
-    return None if v is None or (isinstance(v, float) and math.isnan(v)) else float(v)
 
 
 def _lignes(res_techno, granularite_temps):
@@ -30,8 +28,9 @@ def _lignes(res_techno, granularite_temps):
     for (periode, entite), valeurs in res_techno.table.iterrows():
         cellules = []
         for k in res_techno.kpis:
-            v = _valeur(valeurs[k.code])
-            cellules.append({"valeur": v, "statut": k.statut(v)})
+            v = valeurs[k.code]
+            v = None if v is None or (isinstance(v, float) and math.isnan(v)) else float(v)
+            cellules.append({"valeur": v, "statut": statut(k, v)})
         lignes.append({"periode": periode.strftime(FORMAT_PERIODE[granularite_temps]), "entite": entite,
                        "valeurs": cellules})
     return lignes
@@ -72,24 +71,25 @@ def requete(request):
     form = RequeteForm(params or None, kpis_visibles=visibles)
     contexte = {"form": form}
 
+    export = request.GET.get("export") == "xlsx"
+
     if form.is_bound and form.is_valid():
         try:
             req = RequeteKpi(**form.vers_requete())
-            action = "export_excel" if export == "xlsx" else "requete_kpi"
-            JournalAudit.objects.create(utilisateur=request.user, action=action, requete=req.model_dump(mode="json"))
+            JournalAudit.objects.create(utilisateur=request.user,
+                                        action="export_excel" if export else "requete_kpi",
+                                        requete=req.model_dump(mode="json"))
             resultat = executer(req, request.user, moteur_kpi())
-            if export == "xlsx":
-                reponse = HttpResponse(classeur(resultat), content_type=MIME_XLSX)
-                reponse["Content-Disposition"] = f'attachment; filename="{nom_fichier(resultat)}"'
+            if export:
+                reponse = HttpResponse(construire_excel(resultat), content_type=XLSX)
+                nom = f"kpi_{req.periode.debut:%Y%m%d}_{req.periode.fin:%Y%m%d}.xlsx"
+                reponse["Content-Disposition"] = f'attachment; filename="{nom}"'
                 return reponse
             contexte["resultat"] = resultat
-            contexte["requete_qs"] = params.urlencode()
-            contexte["requete_params"] = list(params.lists())
-            contexte["blocs"] = [{"res": r,
-                                  "lignes": _lignes(r, req.granularite_temps),
-                                  "synthese": _synthese(r),
-                                  "graphiques": donnees_graphiques(r, req.granularite_temps),
-                                  "id_graphiques": f"graphiques-{r.techno}"}
+            requete_export = request.GET.copy()
+            requete_export["export"] = "xlsx"
+            contexte["lien_export"] = "?" + requete_export.urlencode()
+            contexte["blocs"] = [{"res": r, "lignes": _lignes(r, req.granularite_temps)}
                                  for r in resultat.par_techno]
         except ValidationError as e:
             contexte["erreur"] = "; ".join(err["msg"].removeprefix("Value error, ") for err in e.errors())
