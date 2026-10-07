@@ -1,7 +1,32 @@
 # Phase 0 — Description des données sources
 
-> Établi à partir des **extraits CSV** et du référentiel xlsx fournis (pas encore d'accès
-> à la base PostgreSQL). À compléter dès que l'accès lecture seule est ouvert.
+> Établi à partir des extraits CSV, du référentiel xlsx et de l'exploration de la base
+> KPI (`docs/schema_bdd.md`, généré par `scripts/explorer_schema.py`).
+
+## 0. Base KPI PostgreSQL — synthèse
+
+PostgreSQL 17.5, schéma `public`, accès lecture seule.
+
+| Table | Lignes | Historique | Clé unique (index) |
+|---|---|---|---|
+| `lte_cell_hour` | 16,1 M | 2025-08-13 → aujourd'hui | (`DateHour`, `EutranCell_Id`) + index sur chaque colonne |
+| `lte_cell_day` | 3,1 M | 2020-02-27 → J-1 | (`DateDay`, `EutranCell_Id`) + index (`ERBS_Id`, `DateDay`) |
+| `wcdma_cell_hour` | 12,9 M | 2025-07-31 → aujourd'hui | (`DateHour`, `CellWcdma`) + index cellule, date, site |
+| `wcdma_cell_day` | 3,4 M | 2020-10-01 → J-1 | (`CellWcdma`, `DateDay`) + index cellule, date, site |
+
+- Colonnes **identiques** aux extraits CSV (144 LTE, 127 WCDMA) : le catalogue KPI
+  s'applique tel quel. **Aucun compteur brut supplémentaire** en base : les KPI marqués
+  `reconstruit` / `approx` le restent.
+- Horaire : historique d'environ 14 mois ; au-delà, seules les tables journalières existent.
+- Index existants suffisants pour filtrer par période + liste de cellules : **aucun index
+  à proposer**.
+- Agrégats existants par site (`*_rbs_*`), zone (`lte_tac_*`, `wcdma_lac_*`), RNC et
+  réseau : ratios calculés par l'OSS au bon niveau, utilisables pour les vues globales.
+- Autres tables : GSM (`gsm_*`), voisinages / handovers (`lte_neigh_day`, `wcdma_*ho_day`),
+  états de cellules ENM, alarmes, `ref_sites` (576 lignes), `ref_cells` (vide).
+- `vw_calendar_hour` ne couvre que les 2 derniers mois ; `vw_lte_wcdma_aug2026` est une
+  vue ponctuelle (événement août 2026, jointure LTE/WCDMA par 3 premiers caractères).
+- Horodatages `timestamp without time zone` : heure locale supposée.
 
 ## 1. Tables KPI
 
