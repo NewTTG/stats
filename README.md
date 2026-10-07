@@ -57,9 +57,18 @@ Application sur http://<serveur>:8000.
 
 ### Ce que l'on peut faire aujourd'hui
 
-Dans l'admin : consulter sites / secteurs / cellules, l'historique des imports (ajouts,
-suppressions, anomalies), créer des utilisateurs, groupes et périmètres.
-Les écrans de requête KPI arrivent en phase 1 (accès à la base KPI requis).
+- **Requête KPI** (page d'accueil, http://localhost:8000) : technologie, périmètre
+  (commune, site, trigramme, secteur, cellule), période, fenêtre horaire, pas de temps,
+  niveau d'agrégation, KPI → tableau avec seuils d'alerte en couleur et liste des
+  cellules du périmètre sans données. Nécessite `KPI_DB_*` dans `.env`.
+- **Administration** (/admin) : sites / secteurs / cellules, historique des imports,
+  utilisateurs, groupes, périmètres, journal d'audit des requêtes.
+
+### Droits d'accès
+
+- superutilisateur ou membre du groupe **Admin** ou **Analyste** : tout le réseau, tous les KPI ;
+- autre utilisateur : uniquement les cellules et KPI de ses **Périmètres** (admin →
+  Périmètres), rattachés à lui ou à l'un de ses groupes. Sans périmètre : aucune donnée.
 
 ### Import du référentiel : règles
 

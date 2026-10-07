@@ -10,7 +10,8 @@ Les hypothèses retenues en attendant sont indiquées.
    cloud. → Lancer `python scripts/explorer_schema.py` depuis un poste du réseau et
    fournir le `docs/schema_bdd.md` produit (métadonnées uniquement).
    ✅ Le compte est limité en lecture seule côté serveur.
-2. **Compteurs bruts** : les tables exposent-elles (ou une autre table expose-t-elle)
+2. ✅ **Compteurs bruts** : absents de la base (colonnes identiques aux CSV). Les KPI
+   approximatifs le restent sauf si une autre source existe. Question initiale : les tables exposent-elles (ou une autre table expose-t-elle)
    les compteurs `pm*` derrière les ratios ? Sinon, le lexique KPI LTE/WCDMA (formules)
    pour savoir quoi demander. Sans eux, E-RAB drop, CS drop et PRB restent approximatifs.
    *Hypothèse : pondérations décrites dans `config/kpi_catalogue.yaml` (champ `qualite`).*
@@ -32,7 +33,8 @@ Les hypothèses retenues en attendant sont indiquées.
 7. **Seuils** d'alerte / critique par KPI (valeurs provisoires dans le catalogue).
 8. **Liste des 5-6 KPI LTE du MVP** : proposition = débit DL, débit UL, volume DL,
    RRC SR, E-RAB drop, PRB DL, HO intra, disponibilité.
-9. **Profondeur d'historique** en base et fréquence de chargement (temps réel ? J+1 ?).
+9. ✅ **Historique** : horaire ≈ 14 mois, journalier depuis 2020 ; chargement horaire (H-1)
+   et journalier (J-1) d'après les bornes observées.
 10. **Fuseau** des horodatages (heure locale Nouméa supposée).
 
 ## 🟢 Plus tard

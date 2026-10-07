@@ -99,6 +99,10 @@ KPI_DB = {
     "password": env("KPI_DB_PASSWORD"),
 }
 
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "kpi:requete"
+LOGOUT_REDIRECT_URL = "login"
+
 KPI_CATALOGUE_PATH = BASE_DIR / "config" / "kpi_catalogue.yaml"
 
 AUTH_PASSWORD_VALIDATORS = [
