@@ -7,6 +7,8 @@ admin.site.site_title = "Stats KPI réseau"
 
 urlpatterns = [
     path("", include("apps.kpi.urls")),
+    path("evenements/", include("apps.evenements.urls")),
+    path("rapports/", include("apps.rapports.urls")),
     path("connexion/", auth_views.LoginView.as_view(), name="login"),
     path("deconnexion/", auth_views.LogoutView.as_view(), name="logout"),
     path("admin/", admin.site.urls),

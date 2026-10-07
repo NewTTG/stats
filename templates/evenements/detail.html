@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% load static %}
+{% block titre %}{{ evenement.nom }} — Stats KPI réseau{% endblock %}
+{% block contenu %}
+<section class="carte">
+  <h2>{{ evenement.nom }}{% if evenement.type %} <span class="aide">· {{ evenement.type }}</span>{% endif %}</h2>
+  {% if evenement.description %}<p>{{ evenement.description }}</p>{% endif %}
+  {% if analyse %}
+  <p class="aide">
+    Créneaux : {% for d, f in analyse.creneaux %}{{ d|date:"D d/m/Y H:i" }} → {{ f|date:"H:i" }}{% if f|date:"Ymd" != d|date:"Ymd" %} ({{ f|date:"d/m" }}){% endif %}{% if not forloop.last %} ; {% endif %}{% endfor %}<br>
+    Référence : mêmes jours et heures des {{ analyse.semaines }} semaines précédentes.
+  </p>
+  {% endif %}
+  {% if perms.evenements.change_evenement %}<p class="aide"><a href="{% url 'admin:evenements_evenement_change' evenement.pk %}">Modifier l'événement</a></p>{% endif %}
+</section>
+
+{% if erreur %}<div class="erreur">{{ erreur }}</div>{% endif %}
+
+{% if analyse %}
+<div class="actions" style="justify-content: space-between;">
+  <nav class="onglets">{% for code, libelle in niveaux.items %}<a href="?niveau={{ code }}" class="{% if code == niveau %}actif{% endif %}">Par {{ libelle|lower }}</a>{% endfor %}</nav>
+  <div class="actions" style="margin: 0;">
+    <form method="post" action="{% url 'rapports:evenement' evenement.pk %}">{% csrf_token %}
+      <input type="hidden" name="niveau" value="{{ niveau }}"><input type="hidden" name="format" value="pptx">
+      <button class="bouton" type="submit" style="margin-top:0">Rapport PowerPoint</button>
+    </form>
+    <form method="post" action="{% url 'rapports:evenement' evenement.pk %}">{% csrf_token %}
+      <input type="hidden" name="niveau" value="{{ niveau }}"><input type="hidden" name="format" value="xlsx">
+      <button class="bouton secondaire" type="submit" style="margin-top:0">Rapport Excel</button>
+    </form>
+  </div>
+</div>
+{% for a in analyse.avertissements %}<div class="avertissement">{{ a }}</div>{% endfor %}
+
+{% for bloc in blocs %}
+<section class="carte">
+  <h2>{{ bloc.res.techno }} — {{ bloc.res.nb_cellules }} cellule{{ bloc.res.nb_cellules|pluralize }}</h2>
+  <h3>Synthèse événement / référence</h3>
+  <div class="table-defil"><table class="synthese">
+    <thead><tr><th>KPI</th><th>Événement</th><th>Référence</th><th>Unité</th><th>Écart</th><th>Statut</th></tr></thead>
+    <tbody>{% for s in bloc.res.synthese %}
+      <tr><td>{{ s.kpi.libelle }}{% if s.kpi.qualite == "approx" %} <span title="{{ s.kpi.note|default:'Valeur approximative' }}">≈</span>{% endif %}</td>
+        <td class="nombre {{ s.statut }}">{% if s.valeur is None %}—{% else %}{{ s.valeur|floatformat:"2g" }}{% endif %}</td>
+        <td class="nombre">{% if s.reference is None %}—{% else %}{{ s.reference|floatformat:"2g" }}{% endif %}</td>
+        <td>{{ s.kpi.unite }}</td>
+        <td class="nombre">{% if s.ecart_pct is None %}—{% else %}{{ s.ecart_pct|floatformat:"+1" }} %{% endif %}</td>
+        <td>{% if s.statut %}<span class="etiquette {{ s.statut }}">{{ s.statut|capfirst }}</span>{% elif s.valeur is not None %}<span class="etiquette ok">OK</span>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% if bloc.res.instants %}
+  <h3>Courbes horaires</h3>
+  <p class="aide">Bleu : événement · ambre : référence · zone grise : min–max des semaines de référence.</p>
+  {{ bloc.graphiques|json_script:bloc.id }}
+  <div class="graphiques courbes" data-source="{{ bloc.id }}"></div>
+  {% endif %}
+  {% if bloc.res.cellules_sans_donnees %}
+  <details style="margin-top: .75rem;"><summary>{{ bloc.res.cellules_sans_donnees|length }} cellule(s) sans aucune donnée pendant l'événement</summary>
+    <p class="aide">{{ bloc.res.cellules_sans_donnees|join:", " }}</p></details>
+  {% endif %}
+</section>
+{% endfor %}
+
+<section class="carte">
+  <h2>Anomalies détectées ({{ analyse.anomalies|length }})</h2>
+  {% if analyse.anomalies %}
+  <div class="table-defil"><table>
+    <thead><tr><th>Gravité</th><th>Techno</th><th>{% if niveau == "site" %}Site{% else %}Secteur{% endif %}</th><th>Règle</th><th>Détail</th></tr></thead>
+    <tbody>{% for a in analyse.anomalies %}
+      <tr><td><span class="etiquette {{ a.gravite }}">{{ a.gravite|capfirst }}</span></td><td>{{ a.techno }}</td><td>{{ a.entite }}</td>
+        <td>{% for code, libelle in regles.items %}{% if code == a.regle %}{{ libelle }}{% endif %}{% endfor %}</td>
+        <td style="white-space: normal;">{{ a.message }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p>Aucune anomalie.</p>{% endif %}
+</section>
+
+{% if analyse.classement %}
+<section class="carte">
+  <h2>{% if niveau == "site" %}Sites{% else %}Secteurs{% endif %} les plus dégradés</h2>
+  <div class="table-defil"><table>
+    <thead><tr><th>#</th><th>Techno</th><th>{% if niveau == "site" %}Site{% else %}Secteur{% endif %}</th><th>Critiques</th><th>Alertes</th><th>Concerne</th></tr></thead>
+    <tbody>{% for c in analyse.classement %}
+      <tr><td>{{ forloop.counter }}</td><td>{{ c.techno }}</td><td>{{ c.entite }}</td><td class="nombre">{{ c.critiques }}</td>
+        <td class="nombre">{{ c.alertes }}</td><td style="white-space: normal;">{{ c.kpis|join:", " }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if blocs %}
+<script src="{% static 'vendor/echarts-5.6.0.min.js' %}"></script>
+<script>
+document.querySelectorAll(".courbes").forEach(function (zone) {
+  var donnees = JSON.parse(document.getElementById(zone.dataset.source).textContent);
+  donnees.kpis.forEach(function (g) {
+    var div = document.createElement("div");
+    div.className = "graphique";
+    zone.appendChild(div);
+    var ecart = g.max.map(function (v, i) { return v === null || g.min[i] === null ? null : v - g.min[i]; });
+    var graphique = echarts.init(div);
+    graphique.setOption({
+      title: { text: g.titre, textStyle: { fontSize: 13, color: "#14284b" } },
+      tooltip: { trigger: "axis", formatter: function (p) {
+        var lignes = [p[0].axisValue], i = p[0].dataIndex;
+        lignes.push("Événement : " + (g.evenement[i] === null ? "—" : g.evenement[i]));
+        lignes.push("Référence : " + (g.reference[i] === null ? "—" : g.reference[i]));
+        if (g.min[i] !== null) lignes.push("Réf. min – max : " + g.min[i] + " – " + g.max[i]);
+        return lignes.join("<br>");
+      } },
+      legend: { bottom: 0, data: ["Événement", "Référence"] },
+      grid: { left: 55, right: 20, top: 40, bottom: 50 },
+      xAxis: { type: "category", data: donnees.instants },
+      yAxis: { type: "value", scale: true },
+      series: [
+        { name: "min", type: "line", data: g.min, stack: "bande", symbol: "none", lineStyle: { opacity: 0 }, silent: true },
+        { name: "bande", type: "line", data: ecart, stack: "bande", symbol: "none", lineStyle: { opacity: 0 },
+          areaStyle: { color: "rgba(138,148,166,.25)" }, silent: true },
+        { name: "Référence", type: "line", data: g.reference, color: "#f0a500", lineStyle: { type: "dashed" } },
+        { name: "Événement", type: "line", data: g.evenement, color: "#14284b", lineStyle: { width: 3 } }
+      ]
+    });
+    window.addEventListener("resize", function () { graphique.resize(); });
+  });
+});
+</script>
+{% endif %}
+{% endblock %}

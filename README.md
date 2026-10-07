@@ -4,8 +4,9 @@ Application web interne de statistiques de trafic et de qualité radio, avec pé
 de données par utilisateur et exports Excel / PowerPoint. Cahier des charges :
 [`brief_app_kpi_reseau.md`](brief_app_kpi_reseau.md).
 
-**État : phase 1 (MVP)** — import du référentiel, catalogue KPI, moteur de calcul,
-écran de requête (tableau, synthèse, graphiques), périmètres d'accès, export Excel.
+**État : phase 2** — phase 1 (référentiel, catalogue KPI, moteur de calcul, écran de
+requête, périmètres d'accès, export Excel) + événements avec détection d'anomalies,
+rapports PowerPoint / Excel en tâche de fond, KPI WCDMA, seuils réglables dans l'admin.
 Données décrites dans [`docs/schema.md`](docs/schema.md), questions ouvertes dans
 [`docs/questions.md`](docs/questions.md).
 
@@ -33,9 +34,16 @@ python manage.py createsuperuser
 # 4. Chargement du référentiel (+ cellules lues dans les extraits KPI) — sur une seule ligne
 python manage.py import_referentiel OPT_Network_Database_V2.xlsx --cellules lte_cell_hour.csv lte_cell_day.csv wcdma_cell_hour.csv wcdma_cell_day.csv
 
-# 5. Lancement
-python manage.py runserver             # http://localhost:8000 -> admin
+# 5. (une fois) Événements initiaux depuis l'onglet Cluster — créneaux à renseigner ensuite dans l'admin
+python manage.py import_clusters OPT_Network_Database_V2.xlsx
+
+# 6. Lancement : application + worker des rapports (deux terminaux)
+python manage.py runserver             # http://localhost:8000
+python manage.py qcluster              # génère les rapports PowerPoint / Excel
 ```
+
+Sans worker, mettre `Q_SYNC=1` dans `.env` : les rapports sont alors générés
+immédiatement, pendant la requête.
 
 **Linux / macOS (bash)** : mêmes commandes, avec `source .venv/bin/activate` et
 `cp .env.example .env`.
@@ -53,9 +61,12 @@ docker compose up -d --build           # PostgreSQL + application, migrations ap
 docker compose exec app python manage.py createsuperuser
 docker compose exec app python manage.py import_referentiel OPT_Network_Database_V2.xlsx \
     --cellules lte_cell_hour.csv lte_cell_day.csv wcdma_cell_hour.csv wcdma_cell_day.csv
+docker compose exec app python manage.py import_clusters OPT_Network_Database_V2.xlsx   # une seule fois
 ```
 
-Application sur http://<serveur>:8000.
+Application sur http://<serveur>:8000. Le service `worker` (django-q2, sans Redis :
+la file d'attente est dans la base applicative) génère les rapports ; les fichiers
+sont conservés dans le volume `media`.
 
 ### Ce que l'on peut faire aujourd'hui
 
@@ -67,8 +78,45 @@ Application sur http://<serveur>:8000.
 - **Export Excel** (bouton sur l'écran de résultat) : onglet *Synthèse* (paramètres de la
   requête + valeur et statut de chaque KPI), un onglet de données par technologie,
   onglet *Cellules sans données*. Chaque export est tracé dans le journal d'audit.
+- **Rapport PowerPoint d'une requête** (bouton sur l'écran de résultat) : titre,
+  synthèse, un graphique commenté par KPI, annexe des cellules sans données.
+- **Événements** (/evenements) : pour chaque événement, comparaison des créneaux avec
+  les mêmes jours et heures des N semaines précédentes (4 par défaut) :
+  - synthèse par KPI (événement, référence, écart %, statut) ;
+  - courbes horaires événement / référence avec la bande min–max des semaines ;
+  - anomalies triées par gravité : seuil dépassé, écart significatif à la référence,
+    cellule sans données sur un créneau, saturation (PRB DL haute + débit DL bas) ;
+  - classement des secteurs (ou sites) les plus dégradés ;
+  - rapports PowerPoint et Excel, par secteur ou par site.
+- **Mes rapports** (/rapports) : historique et téléchargement des rapports générés.
 - **Administration** (/admin) : sites / secteurs / cellules, historique des imports,
-  utilisateurs, groupes, périmètres, journal d'audit des requêtes.
+  utilisateurs, groupes, périmètres, journal d'audit, **événements** (cellules,
+  créneaux, semaines de référence), **seuils KPI**, **réglages de détection d'anomalies**.
+
+### Événements
+
+- Cellules : codes site (toutes leurs cellules), codes secteur et/ou noms de cellules
+  LTE ou WCDMA. Elles sont enregistrées par leur nom : un nouvel import du référentiel
+  ne les perd pas.
+- Créneaux : autant que nécessaire (plusieurs jours, horaires différents chaque jour).
+- Référence : moyenne des mêmes créneaux décalés de 1 à N semaines. Pour un KPI
+  additif (volume, trafic), c'est la moyenne des semaines, pas leur somme.
+- Écart significatif : dégradation de plus de 20 % **et** de plus de 2 écarts-types
+  (sur les semaines de référence) ; critique au-delà de 40 %. Réglable dans l'admin.
+- Un lecteur restreint ne voit que les cellules et KPI de son périmètre.
+
+### Seuils KPI
+
+Admin → **Seuils KPI** : une ligne par KPI, initialisée avec les valeurs du catalogue
+YAML ; modifier directement dans la liste. L'action « Rétablir les seuils du catalogue »
+remet les valeurs du YAML.
+
+### Modèle PowerPoint
+
+Déposer le modèle de la charte en `config/modele_rapport.pptx` (ou indiquer son chemin
+dans `PPTX_MODELE`). Ses dispositions « Titre » / « Title Slide » et « Titre seul » /
+« Title Only » sont utilisées, ses diapositives existantes sont ignorées. Sans modèle,
+la charte bleu marine / ambre est dessinée par le code.
 
 ### Droits d'accès
 
@@ -99,7 +147,9 @@ python scripts/explorer_schema.py   # depuis la racine du dépôt ; lecture seul
 | `config/` | settings Django, `kpi_catalogue.yaml` |
 | `apps/comptes/` | périmètres d'accès, journal d'audit |
 | `apps/referentiel/` | sites / secteurs / cellules importés du xlsx, décodage des noms de cellules |
-| `apps/kpi/` | modèle de requête (Pydantic), catalogue, moteur de calcul |
+| `apps/kpi/` | modèle de requête (Pydantic), catalogue, moteur de calcul, seuils réglables |
+| `apps/evenements/` | événements, analyse contre référence, règles de détection (`detection.py`) |
+| `apps/rapports/` | PowerPoint / Excel, tâche django-q2, historique |
 | `static/vendor/` | ECharts, servi localement (aucun CDN) |
 | `docs/` | documentation phase 0 |
 | `tests/` | pytest (données synthétiques uniquement) |

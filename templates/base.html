@@ -46,6 +46,18 @@
     table.synthese { width: auto; min-width: 50%; }
     .graphiques { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 1rem; }
     .graphique { height: 300px; }
+    .succes { background: #e3f4e8; border-left: 4px solid #27ae60; padding: .5rem 1rem; border-radius: 4px; margin-bottom: 1rem; }
+    .actions { gap: .5rem; flex-wrap: wrap; align-items: center; }
+    .actions form { margin: 0; display: flex; gap: .5rem; align-items: center; }
+    .actions select { width: auto; }
+    .etiquette { display: inline-block; padding: .05rem .5rem; border-radius: 10px; font-size: .8rem; font-weight: 600; }
+    .etiquette.critique { background: var(--critique); color: #8e1f14; }
+    .etiquette.alerte { background: var(--alerte); color: #7a5300; }
+    .etiquette.ok { background: #e3f4e8; color: #1e6b3a; }
+    .onglets { display: flex; gap: .25rem; margin-bottom: 1rem; }
+    .onglets a { padding: .35rem .9rem; border-radius: 4px; text-decoration: none; color: var(--marine); border: 1px solid #c4ccd8; background: #fff; }
+    .onglets a.actif { background: var(--marine); color: #fff; border-color: var(--marine); }
+    a { color: var(--marine); }
   </style>
 </head>
 <body>
@@ -53,6 +65,8 @@
     <strong>Stats KPI réseau</strong>
     {% if user.is_authenticated %}
       <a href="{% url 'kpi:requete' %}">Requête</a>
+      <a href="{% url 'evenements:liste' %}">Événements</a>
+      <a href="{% url 'rapports:liste' %}">Mes rapports</a>
       {% if user.is_staff %}<a href="{% url 'admin:index' %}">Administration</a>{% endif %}
       <div class="droite">
         <span>{{ user.get_username }}</span>
@@ -60,7 +74,10 @@
       </div>
     {% endif %}
   </header>
-  <main>{% block contenu %}{% endblock %}</main>
+  <main>
+    {% for m in messages %}<div class="{% if m.tags == 'error' %}erreur{% else %}succes{% endif %}">{{ m }}</div>{% endfor %}
+    {% block contenu %}{% endblock %}
+  </main>
   {% block scripts %}{% endblock %}
 </body>
 </html>

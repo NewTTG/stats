@@ -43,7 +43,7 @@ def _titre_kpi(k) -> str:
     return f"{k.libelle} ({k.unite})" + (" ≈" if k.qualite == "approx" else "")
 
 
-def _description_requete(resultat: Resultat) -> list[tuple[str, str]]:
+def description_requete(resultat: Resultat) -> list[tuple[str, str]]:
     r = resultat.requete
     p = r.perimetre
     fenetre = LIBELLES_FENETRE.get(r.fenetre_horaire, r.fenetre_horaire.replace("-", "h – ") + "h")
@@ -63,7 +63,7 @@ def _onglet_synthese(ws, resultat: Resultat):
     ws["A1"] = "Synthèse KPI"
     ws["A1"].font = Font(bold=True, size=14, color=MARINE)
     ligne = 3
-    for cle, valeur in _description_requete(resultat):
+    for cle, valeur in description_requete(resultat):
         ws.cell(row=ligne, column=1, value=cle).font = Font(bold=True)
         ws.cell(row=ligne, column=2, value=valeur)
         ligne += 1

@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     "apps.referentiel",
     "apps.kpi",
     "apps.evenements",
+    "apps.rapports",
+    "django_q",
 ]
 
 MIDDLEWARE = [
@@ -106,6 +108,22 @@ LOGIN_REDIRECT_URL = "kpi:requete"
 LOGOUT_REDIRECT_URL = "login"
 
 KPI_CATALOGUE_PATH = BASE_DIR / "config" / "kpi_catalogue.yaml"
+
+# Modèle PowerPoint (charte) : utilisé s'il existe, sinon charte dessinée par le code.
+PPTX_MODELE = env("PPTX_MODELE") or BASE_DIR / "config" / "modele_rapport.pptx"
+
+# Tâches de fond (django-q2, file d'attente dans la base applicative : pas de Redis).
+# Lancer le worker : python manage.py qcluster. Q_SYNC=1 : exécution immédiate, sans worker.
+Q_CLUSTER = {
+    "name": "stats",
+    "orm": "default",
+    "workers": int(env("Q_WORKERS", "2")),
+    "timeout": 900,
+    "retry": 1200,
+    "max_attempts": 1,
+    "catch_up": False,
+    "sync": env("Q_SYNC", "0") == "1",
+}
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

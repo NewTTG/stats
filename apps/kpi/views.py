@@ -42,7 +42,7 @@ def _synthese(res_techno):
             for k in res_techno.kpis]
 
 
-def _graphiques(res_techno, granularite_temps):
+def donnees_graphiques(res_techno, granularite_temps):
     """Données ECharts : un graphique par KPI, une série par entité."""
     table = res_techno.table
     if table.empty:
@@ -84,10 +84,11 @@ def requete(request):
                 return reponse
             contexte["resultat"] = resultat
             contexte["requete_qs"] = params.urlencode()
+            contexte["requete_params"] = list(params.lists())
             contexte["blocs"] = [{"res": r,
                                   "lignes": _lignes(r, req.granularite_temps),
                                   "synthese": _synthese(r),
-                                  "graphiques": _graphiques(r, req.granularite_temps),
+                                  "graphiques": donnees_graphiques(r, req.granularite_temps),
                                   "id_graphiques": f"graphiques-{r.techno}"}
                                  for r in resultat.par_techno]
         except ValidationError as e:

@@ -24,6 +24,10 @@
 {% if resultat %}
   {% if blocs %}
   <div class="actions">
+    <form method="post" action="{% url 'rapports:requete' %}">{% csrf_token %}
+      {% for cle, valeurs in requete_params %}{% for v in valeurs %}<input type="hidden" name="{{ cle }}" value="{{ v }}">{% endfor %}{% endfor %}
+      <button class="bouton" type="submit" style="margin-top:0">Rapport PowerPoint</button>
+    </form>
     <a class="bouton secondaire" href="?{{ requete_qs }}&amp;export=xlsx">Exporter en Excel</a>
   </div>
   {% endif %}
