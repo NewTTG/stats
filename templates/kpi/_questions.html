@@ -1,0 +1,30 @@
+<div class="questions">
+  {% for item in questions %}
+  <section class="carte question" aria-labelledby="question-{{ forloop.counter }}">
+    <h2 id="question-{{ forloop.counter }}">{{ item.question.texte }}</h2>
+    <div class="options">
+      {% for o in item.options %}
+      <a class="option" href="{{ o.lien }}">{{ o.option.libelle }}{% if o.option.detail %}<small>{{ o.option.detail }}</small>{% endif %}</a>
+      {% endfor %}
+    </div>
+    {% if item.question.saisie == "dates" %}
+    <form class="saisie" method="get" action="{% url 'kpi:requete' %}">
+      {% for cle, valeur in item.caches %}<input type="hidden" name="{{ cle }}" value="{{ valeur }}">{% endfor %}
+      <div><label for="qd-{{ forloop.counter }}">Du</label><input id="qd-{{ forloop.counter }}" type="date" name="debut" required></div>
+      <div><label for="qf-{{ forloop.counter }}">Au</label><input id="qf-{{ forloop.counter }}" type="date" name="fin" required></div>
+      <button class="bouton" type="submit">Valider ces dates</button>
+    </form>
+    {% elif item.question.saisie == "texte" %}
+    <form class="saisie" method="get" action="{% url 'kpi:requete' %}">
+      {% for cle, valeur in item.caches %}<input type="hidden" name="{{ cle }}" value="{{ valeur }}">{% endfor %}
+      <div><label for="qt-{{ forloop.counter }}">Type</label>
+        <select id="qt-{{ forloop.counter }}" name="perimetre_type">
+          {% for code, libelle in edition.perimetre_types %}{% if code != "global" %}<option value="{{ code }}">{{ libelle }}</option>{% endif %}{% endfor %}
+        </select></div>
+      <div><label for="qv-{{ forloop.counter }}">Autre lieu</label><input id="qv-{{ forloop.counter }}" name="perimetre_valeurs" list="lieux-suggestions" required></div>
+      <button class="bouton" type="submit">Valider</button>
+    </form>
+    {% endif %}
+  </section>
+  {% endfor %}
+</div>

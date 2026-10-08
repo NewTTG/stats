@@ -1,0 +1,142 @@
+{% load l10n %}
+<div class="barre-actions">
+  <p class="resume">
+    Du {{ requete.periode.debut|date:"d/m/Y" }} au {{ requete.periode.fin|date:"d/m/Y" }}
+    · {{ resume_lieu }}
+  </p>
+  {% if blocs %}
+  <div class="boutons">
+    <a class="bouton secondaire" href="{{ lien_export }}">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></svg>
+      Exporter Excel</a>
+    <form method="post" action="{% url 'rapports:requete' %}">{% csrf_token %}
+      {% for cle, valeurs in requete_params %}{% for v in valeurs %}<input type="hidden" name="{{ cle }}" value="{{ v }}">{% endfor %}{% endfor %}
+      <button class="bouton" type="submit">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        Rapport PowerPoint</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+{% for a in resultat.avertissements %}<div class="avertissement">{{ a }}</div>{% endfor %}
+{% if not blocs and not resultat.avertissements %}<div class="avertissement">Aucun KPI sélectionné pour les technologies choisies.</div>{% endif %}
+
+{% for bloc in blocs %}
+<section class="bloc-techno" aria-labelledby="titre-{{ bloc.res.techno }}">
+  <header class="bloc-entete">
+    <h2 id="titre-{{ bloc.res.techno }}"><span class="badge-techno {{ bloc.res.techno }}">{{ bloc.court }}</span> {{ bloc.res.techno }}</h2>
+    <p>{{ bloc.res.cellules_demandees }} cellule{{ bloc.res.cellules_demandees|pluralize }}{% if bloc.res.cellules_sans_donnees %} · {{ bloc.res.cellules_sans_donnees|length }} sans données{% endif %}</p>
+  </header>
+
+  {% if bloc.lignes %}
+  <h3 class="titre-section">Synthèse sur la période</h3>
+  <div class="cartes-kpi">
+    {% for c in bloc.cartes %}
+    <article class="carte-kpi {{ c.statut }}">
+      <div class="libelle">{{ c.kpi.libelle }}</div>
+      <div class="valeur">{{ c.texte }}<small>{{ c.unite }}</small></div>
+      <div class="pied">
+        {% if c.statut == "ok" %}<span class="statut ok">OK</span>{% elif c.statut == "alerte" %}<span class="statut alerte">Alerte</span>{% elif c.statut == "critique" %}<span class="statut critique">Critique</span>{% endif %}
+        {% if c.approx or c.kpi.note %}
+        <span class="infobulle">
+          <button class="approx" type="button" aria-label="{% if c.approx %}Valeur approximative. {% endif %}{{ c.kpi.note|default:'' }}">{% if c.approx %}≈{% else %}i{% endif %}</button>
+          <span class="texte-bulle" role="tooltip">{% if c.approx %}<strong>Valeur approximative.</strong> {% endif %}{{ c.kpi.note|default:"" }}</span>
+        </span>
+        {% endif %}
+        {% if c.seuils %}<span>{{ c.seuils }}</span>{% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+
+  {% if bloc.causes %}
+  <h3 class="titre-section">Répartition par cause</h3>
+  <div class="causes">
+    {% for cause in bloc.causes %}
+    <div class="carte cause-corps">
+      <div>
+        <h3>{{ cause.parent.libelle }}</h3>
+        <p class="total-causes">Total <strong>{{ cause.total_texte }} {{ cause.parent.unite }}</strong> · part de chaque cause dans les coupures (et points de taux)</p>
+        <ol class="pareto">
+          {% for b in cause.barres %}
+          <li class="{% if b.non_ventile %}non-ventile{% endif %}">
+            <span>{{ b.libelle }}</span>
+            <span class="chiffres"><strong>{{ b.part|floatformat:1 }} %</strong> · {{ b.texte }} pt</span>
+            <span class="barre" aria-hidden="true"><span style="width: {{ b.part|unlocalize }}%"></span></span>
+          </li>
+          {% endfor %}
+        </ol>
+        {% if cause.negligeables %}<p class="aide" style="margin-top: .6rem;">Négligeables (&lt; 0,1 %) : {{ cause.negligeables|join:", " }}.</p>{% endif %}
+        {% if cause.non_ventile %}<p class="aide">« Non ventilé » : coupures sans cause publiée (taux total − somme des causes).</p>{% endif %}
+      </div>
+      <div>
+        {{ cause.graphique|json_script:cause.id }}
+        <div class="graphique graphique-causes" data-source="{{ cause.id }}" role="img" aria-label="Répartition des causes par {{ cause.graphique.par }}"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if bloc.classement %}
+  <h3 class="titre-section">Classement par {{ bloc.espace }}</h3>
+  <div class="classements">
+    {% for cl in bloc.classement %}
+    <div class="carte">
+      <h3>{{ cl.titre }} — {{ cl.kpi.libelle }}</h3>
+      <table class="classement">
+        <tbody>
+          {% for l in cl.lignes %}
+          <tr><td class="rang">{{ forloop.counter }}</td>
+            <td class="entite">{{ l.entite }}<div class="jauge" aria-hidden="true"><span class="{{ l.statut }}" style="width: {{ l.largeur|unlocalize }}%"></span></div></td>
+            <td class="val">{{ l.texte }}{% if l.statut %} <span class="statut {{ l.statut }}">{{ l.statut|capfirst }}</span>{% endif %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if cl.total > cl.lignes|length %}<p class="aide">{{ cl.lignes|length }} premiers sur {{ cl.total }} — liste complète dans le tableau détaillé.</p>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if bloc.graphiques.periodes|length > 1 and bloc.graphiques.kpis %}
+  <h3 class="titre-section">Évolution</h3>
+  {% if bloc.graphiques.tronque %}<p class="aide">Courbes des {{ bloc.graphiques.nombre }} entités les plus dégradées (ou les plus chargées) par KPI — le tableau détaillé est complet.</p>{% endif %}
+  {{ bloc.graphiques|json_script:bloc.id_graphiques }}
+  <div class="graphiques" data-source="{{ bloc.id_graphiques }}"></div>
+  <noscript><p class="aide">Les graphiques nécessitent JavaScript ; les valeurs sont dans le tableau détaillé.</p></noscript>
+  {% endif %}
+
+  <details class="repliable">
+    <summary>Tableau détaillé ({{ bloc.lignes|length }} ligne{{ bloc.lignes|length|pluralize }})</summary>
+    <div class="contenu">
+      {% if bloc.lignes_tronquees %}<p class="aide">Affichage limité aux {{ bloc.lignes|length }} premières lignes : l'export Excel est complet.</p>{% endif %}
+      <div class="table-defil">
+        <table>
+          <thead><tr><th scope="col">Période</th><th scope="col">Entité</th>
+            {% for k in bloc.res.kpis %}<th scope="col">{{ k.libelle }} ({{ k.unite }}){% if k.qualite == "approx" %} <span title="{{ k.note|default:'Valeur approximative' }}">≈</span>{% endif %}</th>{% endfor %}
+          </tr></thead>
+          <tbody>
+            {% for l in bloc.lignes %}
+            <tr><td>{{ l.periode }}</td><td>{{ l.entite }}</td>
+              {% for v in l.valeurs %}<td class="nombre {{ v.statut }}">{% if v.valeur is None %}—{% else %}{{ v.valeur|floatformat:"2g" }}{% endif %}</td>{% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+  {% else %}
+  <p class="avertissement">Aucune donnée sur cette période pour ce périmètre.</p>
+  {% endif %}
+
+  {% if bloc.res.cellules_sans_donnees %}
+  <details class="repliable">
+    <summary>{{ bloc.res.cellules_sans_donnees|length }} cellule{{ bloc.res.cellules_sans_donnees|length|pluralize }} du périmètre sans aucune donnée</summary>
+    <div class="contenu"><p class="liste-cellules">{{ bloc.res.cellules_sans_donnees|join:", " }}</p></div>
+  </details>
+  {% endif %}
+</section>
+{% endfor %}

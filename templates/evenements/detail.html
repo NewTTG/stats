@@ -2,8 +2,11 @@
 {% load static %}
 {% block titre %}{{ evenement.nom }} — Stats KPI réseau{% endblock %}
 {% block contenu %}
+<div class="entete-page">
+  <h1>{{ evenement.nom }}{% if evenement.type %} <span class="aide">· {{ evenement.type }}</span>{% endif %}</h1>
+  <a class="bouton secondaire petit" href="{% url 'evenements:liste' %}">← Tous les événements</a>
+</div>
 <section class="carte">
-  <h2>{{ evenement.nom }}{% if evenement.type %} <span class="aide">· {{ evenement.type }}</span>{% endif %}</h2>
   {% if evenement.description %}<p>{{ evenement.description }}</p>{% endif %}
   {% if analyse %}
   <p class="aide">
@@ -34,7 +37,7 @@
 
 {% for bloc in blocs %}
 <section class="carte">
-  <h2>{{ bloc.res.techno }} — {{ bloc.res.nb_cellules }} cellule{{ bloc.res.nb_cellules|pluralize }}</h2>
+  <h2><span class="badge-techno {{ bloc.res.techno }}">{% if bloc.res.techno == "LTE" %}4G{% else %}3G{% endif %}</span> {{ bloc.res.techno }} — {{ bloc.res.nb_cellules }} cellule{{ bloc.res.nb_cellules|pluralize }}</h2>
   <h3>Synthèse événement / référence</h3>
   <div class="table-defil"><table class="synthese">
     <thead><tr><th>KPI</th><th>Événement</th><th>Référence</th><th>Unité</th><th>Écart</th><th>Statut</th></tr></thead>
@@ -54,8 +57,8 @@
   <div class="graphiques courbes" data-source="{{ bloc.id }}"></div>
   {% endif %}
   {% if bloc.res.cellules_sans_donnees %}
-  <details style="margin-top: .75rem;"><summary>{{ bloc.res.cellules_sans_donnees|length }} cellule(s) sans aucune donnée pendant l'événement</summary>
-    <p class="aide">{{ bloc.res.cellules_sans_donnees|join:", " }}</p></details>
+  <details class="repliable"><summary>{{ bloc.res.cellules_sans_donnees|length }} cellule(s) sans aucune donnée pendant l'événement</summary>
+    <div class="contenu"><p class="liste-cellules">{{ bloc.res.cellules_sans_donnees|join:", " }}</p></div></details>
   {% endif %}
 </section>
 {% endfor %}
@@ -96,9 +99,13 @@
 document.querySelectorAll(".courbes").forEach(function (zone) {
   var donnees = JSON.parse(document.getElementById(zone.dataset.source).textContent);
   donnees.kpis.forEach(function (g) {
+    var carte = document.createElement("figure");
+    carte.className = "carte-graphique";
+    carte.style.margin = "0";
     var div = document.createElement("div");
     div.className = "graphique";
-    zone.appendChild(div);
+    carte.appendChild(div);
+    zone.appendChild(carte);
     var ecart = g.max.map(function (v, i) { return v === null || g.min[i] === null ? null : v - g.min[i]; });
     var graphique = echarts.init(div);
     graphique.setOption({
@@ -111,7 +118,7 @@ document.querySelectorAll(".courbes").forEach(function (zone) {
         return lignes.join("<br>");
       } },
       legend: { bottom: 0, data: ["Événement", "Référence"] },
-      grid: { left: 55, right: 20, top: 40, bottom: 50 },
+      grid: { left: 8, right: 16, top: 40, bottom: 40, containLabel: true },
       xAxis: { type: "category", data: donnees.instants },
       yAxis: { type: "value", scale: true },
       series: [

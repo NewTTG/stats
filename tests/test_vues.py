@@ -26,7 +26,9 @@ def test_connexion_requise(client):
 
 def test_formulaire_vierge(client_admin):
     r = client_admin.get("/")
-    assert r.status_code == 200 and "Nouvelle requête" in r.content.decode()
+    html = r.content.decode()
+    assert r.status_code == 200 and 'name="q"' in html  # barre de recherche
+    assert "Recherche avancée" in html and 'name="perimetre_type"' in html  # formulaire structuré conservé
 
 
 def test_resultat_et_audit(client_admin, referentiel, base_kpi, monkeypatch):  # noqa: F811
