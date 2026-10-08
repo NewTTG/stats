@@ -112,8 +112,13 @@ sont conservés dans le volume `media`.
 - Créneaux : autant que nécessaire (plusieurs jours, horaires différents chaque jour).
 - Référence : moyenne des mêmes créneaux décalés de 1 à N semaines. Pour un KPI
   additif (volume, trafic), c'est la moyenne des semaines, pas leur somme.
+- KPI analysés : ceux de l'événement s'il en liste, sinon les KPI principaux du
+  catalogue (sans les causes de coupure ni les composants des taux d'accès composites,
+  qui restent sélectionnables explicitement).
 - Écart significatif : dégradation de plus de 20 % **et** de plus de 2 écarts-types
-  (sur les semaines de référence) ; critique au-delà de 40 %. Réglable dans l'admin.
+  (sur les semaines de référence) **et** d'au moins `ecart_min` (catalogue, unité du KPI :
+  0,1 pt pour les coupures, 0,5 pt pour les taux d'accès…) ; critique au-delà de 40 %.
+  Pourcentages réglables dans l'admin.
 - Un lecteur restreint ne voit que les cellules et KPI de son périmètre.
 
 ### Seuils KPI
@@ -143,23 +148,33 @@ quelque chose, elle pose une question avec des réponses en un clic.
   heures) est une puce cliquable pour le modifier ; les mots non compris sont listés.
 - **Questions** : période absente (Hier, 7 derniers jours, Semaine dernière…, ou dates
   libres), KPI non reconnu (Drop, Taux d'accès, Débit, Trafic data, Appels, SMS,
-  Disponibilité, Congestion), lieu ambigu (trigramme partagé `CHT`, événements en double).
+  Disponibilité, Congestion), lieu ambigu (trigramme partagé `CHT`, événements en double),
+  lieu mal orthographié ou inconnu (« Nouméaa » → « vouliez-vous dire Nouméa ? », ou
+  « Tout le réseau ») : jamais de repli silencieux sur tout le réseau.
 - **Vocabulaire** dans [`config/recherche.yaml`](config/recherche.yaml) : intentions →
   synonymes → KPI par techno. Les causes de coupure ne sont pas listées : « causes »,
   « pourquoi » ajoutent les KPI du catalogue dont `decomposition_de` est le KPI retenu.
+  « voix » / « data » précisent une intention (« taux de coupure voix » = coupures voix
+  3G seules, « accès data » = accès data) au lieu d'ajouter les appels ou le volume.
 - **Lieux** : communes (accents et tirets tolérés), régions / provinces, codes et noms de
   site, trigrammes, secteurs, cellules, événements — limités au périmètre de l'utilisateur
   (un lecteur restreint ne se voit proposer aucun lieu hors de son périmètre).
 - **Dates** : aujourd'hui, hier, cette semaine, la semaine dernière, les N derniers jours,
   ce mois-ci, le mois dernier, « septembre », « septembre 2025 », « du 1er au 15
-  septembre », « du 01/09 au 15/09 », « le 14/09 », « le week-end du 14 », « 2025 ».
+  septembre », « du 01/09 au 15/09 », « le 14/09 », « le week-end du 14 », « semaine 38 »,
+  « 2025 ». Période limitée à 400 jours en horaire et 10 ans en journalier ; si les
+  données ne couvrent qu'une partie de la période, un avertissement donne les dates
+  réellement disponibles.
   Heures : « 18h-22h », « entre 7h et 20h », « soirée », « en journée ». « Heure chargée »
   est reconnue mais pas encore calculée (journée complète, avec une note).
 - **URL partageable, sans état** : `/?q=…` ; les paramètres explicites (`periode=7j`,
   `debut` / `fin`, `techno`, `kpis`, `perimetre_type` / `perimetre_valeurs`,
   `granularite_temps`, `granularite_espace`, `fenetre_horaire`) priment sur le texte.
   Les paramètres du formulaire historique fonctionnent toujours.
-- Exports Excel et rapport PowerPoint depuis tout résultat ; chaque recherche est tracée
+- Exports Excel (200 000 lignes de données au plus par techno, mention dans l'onglet
+  Paramètres) et rapport PowerPoint (une diapo Pareto pour les causes) depuis tout
+  résultat ; après une recherche IA, les liens rejouent la requête résolue sans rappeler
+  le modèle ; chaque recherche est tracée
   dans le journal d'audit (texte, IA ou non, requête produite) et apparaît dans « Mes
   dernières recherches ». Suggestions de lieux en JSON : `/suggestions/?q=nou`.
 - Fonctionne sans JavaScript (formulaires GET) ; JavaScript sert aux graphiques (ECharts
