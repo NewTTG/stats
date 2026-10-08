@@ -241,8 +241,8 @@ class ResolveurLieux:
         for indices, candidats in self.communes.trouver(texte):
             ajouter(indices, candidats)
         if self.restreint:  # commune hors périmètre : question, jamais de calcul en silence
-            for indices, _candidats in self.toutes_communes.trouver(texte):
-                hors_perimetre(self._avec_generique(texte, indices))
+            for indices, candidats in self.toutes_communes.trouver(texte):
+                hors_perimetre(self._avec_generique(texte, self._avec_article(texte, indices, candidats)))
         for indices, candidats in self.noms_sites.trouver(texte):
             ajouter(indices, candidats)
         if self.restreint:
@@ -317,6 +317,18 @@ class ResolveurLieux:
         if len(mot) != 3 or not mot.isalpha() or mot in MOTS_VIDES:
             return False
         return mot not in self.voc.pas_trigrammes or texte.origines[i] == texte.origines[i].upper()
+
+    @staticmethod
+    def _avec_article(texte: Texte, indices: list[int], candidats: list[Lieu]) -> list[int]:
+        """« La Foa » : l'article du nom (mot vide, hors de la clé) fait partie du lieu cité."""
+        debut = indices[0]
+        for lieu in candidats:
+            mots = normaliser(lieu.valeurs[0]).split()
+            k = next((n for n, m in enumerate(mots) if m not in MOTS_VIDES), 0)
+            if k and debut >= k and texte.mots[debut - k:debut] == mots[:k] and not any(
+                    texte.consomme[j] for j in range(debut - k, debut)):
+                return list(range(debut - k, indices[-1] + 1))
+        return list(indices)
 
     @staticmethod
     def _avec_generique(texte: Texte, indices: list[int]) -> list[int]:

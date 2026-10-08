@@ -166,8 +166,7 @@ def construire(demande: Demande, contexte: Contexte, aujourdhui: date, *, source
             if demande.lieux:
                 options.append(Option(f"Ignorer « {a.texte} »", lieu.params, detail=lieu.libelle))
             if restreint:
-                options.append(Option(_libelle_mon_perimetre(contexte), GLOBAL.params,
-                                      detail="toutes vos communes"))
+                options.append(Option(_libelle_mon_perimetre(contexte), GLOBAL.params))
             elif not demande.lieux:
                 options.append(Option("Tout le réseau", GLOBAL.params, detail="périmètre autorisé"))
             if a.candidats:

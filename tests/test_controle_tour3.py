@@ -259,6 +259,8 @@ def _question_lieu(i):
     ("débit 4G pic martin hier", "pic martin"),
     ("drop 4G Pouembou hier", "Pouembou"),  # jamais GREEN_ACRE_BT (nom 3G POUEMBOUTbb)
     ("drop 4G Nouméaa hier", "Nouméaa"),
+    ("débit 3G HSDPA La Foa samedi dernier", "La Foa"),  # article du nom de commune compris
+    ("drop 4G foire de La Foa hier", "foire de La Foa"),
 ])
 def test_lecteur_lieu_demande_hors_perimetre(ctx_lecteur, phrase, texte):
     i = interpreter(phrase, J, ctx_lecteur)
