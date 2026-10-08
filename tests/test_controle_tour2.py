@@ -44,7 +44,8 @@ def _html(r):
 def test_formatage_des_cartes():
     texte, unite = affichage.formater(48_817_967, "appels")
     assert texte == "48 817 967" and unite == "appels"  # espace fine insécable
-    assert affichage._taille(texte) == "longue" and affichage._taille("1 234 567 890") == "tres-longue"
+    assert affichage._taille(texte) == "tres-longue" and affichage._taille("1\u202f234\u202f567") == "longue"
+    assert affichage._taille("99,75") == ""
     assert affichage.formater(4_947_560_878.1, "Mo") == ("4 948", "To")
     assert affichage.formater(2_500_000, "Mo", diviseur=1e6) == ("2,5", "To")  # même unité que la carte
 
@@ -271,3 +272,19 @@ def test_generateur_causes_plafonnees_ligne_a_ligne(tmp_path):
         assert (somme <= v[total] + 1e-9).all() and (v[total] <= 100 + 1e-9).all()
         if techno == "LTE":
             assert np.allclose(somme, v[total])
+
+
+# ------------------------------------------------------------------ robustesse : rapports, icône
+
+def test_rapport_au_fichier_disparu_sans_erreur_500(admin, settings, tmp_path):  # noqa: F811
+    from apps.rapports.models import Rapport
+
+    settings.MEDIA_ROOT = tmp_path
+    rapport = Rapport.objects.create(utilisateur=User.objects.get(username="admin"), titre="Disparu", nature="requete",
+                                     format="pptx", statut="termine", fichier="rapports/2026/10/disparu.pptx")
+    r = admin.get(f"/rapports/{rapport.pk}/telecharger/", follow=True)
+    assert r.status_code == 200 and "introuvable" in r.content.decode()
+
+
+def test_favicon_sans_404(client):
+    assert client.get("/favicon.ico").status_code == 204

@@ -70,9 +70,9 @@ def conversions(res: ResultatTechno) -> dict[str, tuple[float, str]]:
 
 def _taille(texte: str) -> str:
     """Classe de taille de la grande valeur d'une carte (les grands nombres sont réduits)."""
-    if len(texte) > 12:
+    if len(texte) > 9:
         return "tres-longue"
-    return "longue" if len(texte) > 8 else ""
+    return "longue" if len(texte) > 7 else ""
 
 
 def cartes(res: ResultatTechno, conv=None) -> list[dict]:

@@ -82,7 +82,7 @@ def pptx_requete(resultat: Resultat) -> bytes:
                 principale = c["barres"][0] if c["barres"] else None
                 commentaire = f"{k.libelle} : {c['total_texte']} {k.unite} au total."
                 if principale:
-                    commentaire += (f" Première cause : {principale['libelle'].lower()} "
+                    commentaire += (f" Première cause : {principale['libelle'][:1].lower() + principale['libelle'][1:]} "
                                     f"({nombre(principale['part'], 1)} % des coupures).")
                 if c["negligeables"]:
                     commentaire += f" Négligeables : {', '.join(c['negligeables'])}."
