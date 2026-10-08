@@ -12,7 +12,11 @@ from .construction import Contexte, appliquer, construire, parametres_explicites
 from .interpretation import Interpretation, Option, Puce, Question
 
 
-def interpreter(texte: str, aujourdhui: date, contexte: Contexte) -> Interpretation:
+def interpreter(texte: str, aujourdhui: date, contexte: Contexte, ia: bool = False) -> Interpretation:
+    if ia:
+        from .ia import interpreter as interpreter_ia
+
+        return interpreter_ia(texte, aujourdhui, contexte)
     from .regles import interpreter as interpreter_regles
 
     return interpreter_regles(texte, aujourdhui, contexte)

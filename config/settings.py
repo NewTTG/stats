@@ -107,7 +107,13 @@ KPI_DB = {
 KPI_DEMO_SQLITE = Path(env("KPI_DEMO_SQLITE") or BASE_DIR / "data" / "kpi_demo.sqlite3")
 
 # Recherche en langage libre : interprétation par règles locales (config/recherche.yaml).
+# Option « Recherche IA » (Groq, API compatible OpenAI) visible seulement si la clé est définie.
+# Le modèle ne reçoit que le texte de la demande et ne produit que le JSON de requête.
 RECHERCHE_VOCABULAIRE_PATH = BASE_DIR / "config" / "recherche.yaml"
+GROQ_API_KEY = env("GROQ_API_KEY", "")
+GROQ_MODEL = env("GROQ_MODEL") or "llama-3.3-70b-versatile"
+GROQ_TIMEOUT = float(env("GROQ_TIMEOUT") or 10)
+GROQ_URL = env("GROQ_URL") or "https://api.groq.com/openai/v1/chat/completions"
 
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "kpi:requete"
