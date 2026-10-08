@@ -73,6 +73,7 @@ class Demande:
     """Ce qui a été compris de la demande, avant les valeurs par défaut."""
 
     techno: list[str] = field(default_factory=list)
+    techno_implicite: bool = False  # techno déduite d'un sigle (« CSFB » = 4G), non citée
     intentions: list[str] = field(default_factory=list)
     causes: bool = False
     kpis: list[str] = field(default_factory=list)  # codes explicites (IA, paramètres)

@@ -67,7 +67,11 @@ def kpis_de(demande: Demande, cat: dict) -> tuple[list[str], list[str]]:
             intention = voc.intentions[code]
             technos = [t for t in TECHNOS if t in demande.techno] if demande.techno else intention.technos_defaut
             trouves = kpis_intention(intention, technos, cat)
-            if not trouves and demande.techno:
+            if not trouves and demande.techno_implicite:
+                # Techno déduite d'un sigle (« appels CSFB et SMS » : CSFB = 4G) : elle ne vaut
+                # pas pour une intention qui n'existe pas dans cette techno (SMS = 3G).
+                trouves = kpis_intention(intention, intention.technos_defaut, cat)
+            elif not trouves and demande.techno:
                 notes.append(f"Aucun KPI « {intention.libelle} » en "
                              f"{' / '.join(LIBELLES_TECHNO[t] for t in demande.techno)}.")
             codes += trouves
@@ -290,7 +294,7 @@ def appliquer(demande: Demande | None, explicites: dict, contexte: Contexte, auj
     if "techno" in explicites:
         technos = [t for t in TECHNOS if t in explicites["techno"]]
         if technos:
-            d.techno = technos
+            d.techno, d.techno_implicite = technos, False
     if "intention" in explicites:
         intentions = [i for i in explicites["intention"] if i in voc.intentions]
         if intentions:
@@ -299,7 +303,7 @@ def appliquer(demande: Demande | None, explicites: dict, contexte: Contexte, auj
         codes = [c for c in explicites["kpis"] if c in contexte.catalogue]
         if codes:
             d.kpis, d.intentions, d.causes = codes, [], False
-            d.techno = []
+            d.techno, d.techno_implicite = [], False
     type_p = explicites.get("perimetre_type")
     if type_p in TYPES_PERIMETRE:
         valeurs = [v.strip() for v in explicites.get("perimetre_valeurs", "").split(",") if v.strip()]
