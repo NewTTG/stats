@@ -11,6 +11,8 @@
 import json
 import logging
 import math
+import re
+from datetime import date, timedelta
 from urllib.parse import urlencode
 
 from django.contrib.auth.decorators import login_required
@@ -61,7 +63,10 @@ LIBELLES_CATEGORIE = {"debit": "Débit", "trafic": "Trafic", "accessibilite": "A
 
 def contexte_global(request):
     """Processeur de contexte : bandeau « données de démonstration » sur toutes les pages."""
-    return {"donnees_demo": est_demo()}
+    if not est_demo():
+        return {"donnees_demo": False}
+    infos = infos_demo()
+    return {"donnees_demo": True, "demo_debut": infos.get("debut"), "demo_fin": infos.get("fin")}
 
 
 def _valeur(v):
@@ -105,19 +110,71 @@ def _lien(get, params: dict, retirer=()) -> str:
     return "?" + urlencode(paires)
 
 
-def _kpis_par_techno(cat, codes_choisis):
+def _kpis_par_techno(cat, codes_choisis, technos_demandees=()):
+    """Panneau de la puce KPI : technos demandées d'abord, KPI cochés en tête de chaque techno."""
     groupes = []
-    for techno in ("LTE", "WCDMA"):
+    ordre = [t for t in technos_demandees if t in ("LTE", "WCDMA")] + [t for t in ("LTE", "WCDMA")
+                                                                      if t not in technos_demandees]
+    for techno in ordre:
         kpis = [k for k in cat.values() if k.techno == techno]
         if not kpis:
             continue
         par_categorie = {}
-        for k in kpis:
-            par_categorie.setdefault(LIBELLES_CATEGORIE.get(k.categorie, k.categorie), []).append(
+        coches = [k for k in kpis if k.code in codes_choisis]
+        if coches:
+            par_categorie["Sélection actuelle"] = []
+        for k in coches + [k for k in kpis if k.code not in codes_choisis]:
+            categorie = "Sélection actuelle" if k.code in codes_choisis else LIBELLES_CATEGORIE.get(k.categorie, k.categorie)
+            par_categorie.setdefault(categorie, []).append(
                 {"code": k.code, "libelle": k.libelle, "unite": k.unite, "cause": bool(k.decomposition_de),
                  "coche": k.code in codes_choisis})
         groupes.append({"techno": techno, "nom": LIBELLES_TECHNO[techno], "categories": par_categorie.items()})
     return groupes
+
+
+def _exemples(user, aujourdhui) -> list[str]:
+    """Exemples de l'accueil : lieux du périmètre d'un lecteur restreint (m10) ; en
+    démonstration, « hier » remplacé par le dernier jour disponible si la base est ancienne."""
+    voc = vocabulaire()
+    exemples = list(voc.exemples)
+    if not voit_tout_le_reseau(user):
+        visibles = [voc.libelle_commune(c) for c in Contexte.pour(user).lieux.communes_visibles]
+        connues = sorted({voc.libelle_commune(c) for c in voc.communes}, key=len, reverse=True)
+        sortie = []
+        for n, e in enumerate(exemples):
+            cite = next((c for c in connues if c in e), None)
+            if cite and visibles:
+                e = e.replace(cite, visibles[n % len(visibles)])
+            elif cite:
+                e = e.replace(f" à {cite}", "").replace(cite, "")
+            sortie.append(e)
+        exemples = sortie
+    derniere = (infos_demo() or {}).get("fin") if est_demo() else None
+    if isinstance(derniere, date):
+        if derniere < aujourdhui - timedelta(days=1):
+            exemples = [re.sub(r"\bhier\b", f"le {derniere:%d/%m/%Y}", e) for e in exemples]
+    return exemples
+
+
+def _parametres_resolus(q: str, params: dict):
+    """Paramètres GET équivalents à l'interprétation (sans ``ia``) : après une recherche IA,
+    les liens (puces, questions, export) rejouent la requête résolue sans rappeler le modèle."""
+    from django.http import QueryDict
+
+    get = QueryDict(mutable=True)
+    get["q"] = q
+    if params.get("kpis"):
+        get.setlist("kpis", list(params["kpis"]))
+    if params.get("perimetre"):
+        get["perimetre_type"] = params["perimetre"]["type"]
+        get["perimetre_valeurs"] = ", ".join(params["perimetre"]["valeurs"])
+    if params.get("periode"):
+        get["debut"] = params["periode"]["debut"].isoformat()
+        get["fin"] = params["periode"]["fin"].isoformat()
+    for cle in ("granularite_temps", "granularite_espace", "fenetre_horaire"):
+        if params.get(cle):
+            get[cle] = params[cle]
+    return get
 
 
 def _edition(get, interp, contexte: Contexte) -> dict:
@@ -143,7 +200,7 @@ def _edition(get, interp, contexte: Contexte) -> dict:
         "questions": questions,
         "edition": {
             "technos": [(t, LIBELLES_TECHNO[t], t in params.get("techno", [])) for t in ("LTE", "WCDMA")],
-            "kpis": _kpis_par_techno(contexte.catalogue, set(params.get("kpis", []))),
+            "kpis": _kpis_par_techno(contexte.catalogue, set(params.get("kpis", [])), params.get("techno", [])),
             "perimetre_types": PERIMETRES,
             "perimetre": params.get("perimetre") or {"type": "global", "valeurs": []},
             "perimetre_valeurs": ", ".join((params.get("perimetre") or {}).get("valeurs", [])),
@@ -228,7 +285,7 @@ def requete(request):
     ia_ok = ia_disponible()
     ia = ia_ok and get.get("ia") == "1"
     explicites = parametres_explicites(get)
-    ctx = {"q": q, "ia": ia, "ia_disponible": ia_ok, "exemples": vocabulaire().exemples}
+    ctx = {"q": q, "ia": ia, "ia_disponible": ia_ok}
     req, interp = None, None
 
     if "q" in get and (q or explicites):
@@ -238,6 +295,8 @@ def requete(request):
                   else construire(Demande(), contexte, aujourdhui))
         interp = avec_parametres(interp, get, contexte, aujourdhui)
         ctx["interp"] = interp
+        if get.get("ia") == "1":  # liens : requête résolue, sans nouvel appel IA
+            get = _parametres_resolus(q, interp.params)
         ctx["form"] = RequeteForm(initial=champs_depuis_params(interp.params), kpis_visibles=visibles)
         ctx.update(_edition(get, interp, contexte))
         if interp.complete:
@@ -258,6 +317,7 @@ def requete(request):
         ctx["mode"] = "accueil"
         ctx["form"] = RequeteForm(kpis_visibles=visibles)
         ctx["recentes"] = _recherches_recentes(request.user)
+        ctx["exemples"] = _exemples(request.user, aujourdhui)
 
     if req is not None:
         if ctx["mode"] == "recherche":

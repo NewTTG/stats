@@ -1,6 +1,7 @@
 """Exécution d'une ``RequeteKpi`` : périmètre -> cellules -> lecture -> agrégation."""
 
 import re
+from datetime import date
 from dataclasses import dataclass, field
 
 import pandas as pd
@@ -15,6 +16,9 @@ from .requete import RequeteKpi
 from .source import lire
 
 NON_RATTACHEE = "(non rattachée)"
+# Bornes de période : au-delà, message clair plutôt qu'une lecture démesurée (ou une erreur).
+DATE_MIN, DATE_MAX = date(2000, 1, 1), date(2100, 12, 31)
+JOURS_MAX = {"heure": 400, "jour": 3660}
 _IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
@@ -115,6 +119,37 @@ def _entites(techno: str, granularite: str) -> dict[str, str]:
     return {nom: valeur or NON_RATTACHEE for nom, valeur in Cellule.objects.filter(techno=techno).values_list("nom", champ)}
 
 
+def verifier_periode(requete: RequeteKpi, resolution: str):
+    """Refuse une période hors bornes ou trop longue pour la résolution lue (message affichable)."""
+    p = requete.periode
+    if p.debut < DATE_MIN or p.fin > DATE_MAX:
+        raise RequeteRefusee(f"Période hors limites : choisissez des dates entre {DATE_MIN:%d/%m/%Y} "
+                             f"et {DATE_MAX:%d/%m/%Y}.")
+    jours = (p.fin - p.debut).days + 1
+    if jours > JOURS_MAX[resolution]:
+        if resolution == "heure":
+            raise RequeteRefusee(
+                f"Période trop longue pour un calcul horaire ({jours} jours, {JOURS_MAX['heure']} au plus) : "
+                "choisissez un pas journalier (ou plus long) en journée complète, ou une période plus courte.")
+        raise RequeteRefusee(f"Période trop longue ({jours} jours, {JOURS_MAX['jour']} au plus, soit 10 ans) : "
+                             "choisissez une période plus courte.")
+
+
+def couverture_donnees(df: pd.DataFrame, debut: date, fin: date) -> str | None:
+    """Avertissement si les données lues ne couvrent pas toute la période demandée.
+
+    Calculé d'après les horodatages réellement lus (vaut pour PostgreSQL comme pour la démo).
+    """
+    demande = f"du {debut:%d/%m/%Y} au {fin:%d/%m/%Y}"
+    if df.empty:
+        return f"aucune donnée sur la période demandée ({demande})."
+    premier, dernier = df["horodatage"].min().date(), df["horodatage"].max().date()
+    if premier > debut or dernier < fin:
+        return (f"données disponibles du {premier:%d/%m/%Y} au {dernier:%d/%m/%Y} seulement "
+                f"(période demandée : {demande}).")
+    return None
+
+
 def executer(requete: RequeteKpi, user, engine) -> Resultat:
     cat = catalogue()
     inconnus = [c for c in requete.kpis if c not in cat]
@@ -132,6 +167,7 @@ def executer(requete: RequeteKpi, user, engine) -> Resultat:
         resultat.avertissements.append(f"KPI non autorisés ignorés : {', '.join(sorted(refuses))}")
 
     resolution = "heure" if requete.granularite_temps == "heure" or requete.fenetre_horaire != "journee" else "jour"
+    verifier_periode(requete, resolution)
 
     for techno in requete.techno:
         kpis = [cat[c] for c in requete.kpis if c in autorises and cat[c].techno == techno]
@@ -144,6 +180,9 @@ def executer(requete: RequeteKpi, user, engine) -> Resultat:
 
         df = lire(engine, techno, resolution, colonnes_utilisees(kpis),
                   requete.periode.debut, requete.periode.fin, cellules)
+        couverture = couverture_donnees(df, requete.periode.debut, requete.periode.fin)
+        if couverture:
+            resultat.avertissements.append(f"{techno} : {couverture}")
         df = _fenetre(df, requete.fenetre_horaire)
 
         sans_donnees = sorted(set(cellules) - set(df["cellule"])) if cellules is not None else []

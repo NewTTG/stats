@@ -48,16 +48,27 @@ def est_demo() -> bool:
 
 
 def infos_demo() -> dict:
-    """Paramètres de génération de la base de démonstration (période, incidents simulés)."""
+    """Paramètres de génération de la base de démonstration (période, incidents simulés).
+
+    Mis en cache tant que le fichier n'est pas régénéré (date de modification).
+    """
     if not est_demo():
         return {}
     try:
-        with moteur_kpi().connect() as conn:
-            infos = dict(conn.execute(sa.text("SELECT cle, valeur FROM demo_info")).all())
-        infos["incidents"] = json.loads(infos.get("incidents") or "[]")
-        return infos
+        return dict(_infos_demo(str(chemin_demo()), chemin_demo().stat().st_mtime))
     except Exception:  # base générée par une version antérieure, ou en cours de remplacement
         return {}
+
+
+@lru_cache(maxsize=4)
+def _infos_demo(chemin: str, _mtime: float) -> dict:
+    with moteur_kpi().connect() as conn:
+        infos = dict(conn.execute(sa.text("SELECT cle, valeur FROM demo_info")).all())
+    infos["incidents"] = json.loads(infos.get("incidents") or "[]")
+    for cle in ("debut", "fin"):
+        if infos.get(cle):
+            infos[cle] = date.fromisoformat(infos[cle])
+    return infos
 
 
 def _moteur_demo(chemin: Path) -> sa.Engine:
