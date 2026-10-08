@@ -8,9 +8,10 @@ import re
 import pytest
 from django.contrib.auth.models import User
 
+from apps.kpi.recherche import Contexte
 from apps.kpi.recherche.regles import interpreter
 
-from .test_controle_tour3 import ctx3, ref_t3  # noqa: F401  (fixtures)
+from .test_controle_tour3 import _question_lieu, ctx3, ctx_lecteur, lecteur_kone, ref_t3  # noqa: F401
 from .test_recherche_regles import J, ref_recherche  # noqa: F401  (fixture)
 from .test_recherche_vues import base_recherche  # noqa: F401  (fixture)
 
@@ -63,3 +64,98 @@ def test_vue_classement_les_plus_charges_decroissant(base_recherche, client):  #
     html = client.get("/", {"q": "drop 4G et durée moyenne des appels par site à Nouméa la semaine dernière"}
                       ).content.decode()
     assert "Les plus dégradés — Taux de coupure E-RAB" in html and "— Durée" not in html
+
+
+# ------------------------------------------------------------------ MAJEUR 2 : pas d'oracle sur les noms de sites
+
+# Mots tirés de noms de sites (et d'événements) hors du périmètre du lecteur, et mots inventés.
+MOTS_ORACLE = ["tindu", "einstein", "magenta", "ravel", "pepiniere", "koutio", "tontouta", "carnaval", "diginova"]
+TEMOINS = ["xylophone", "zorglub"]
+
+
+@pytest.fixture
+def lecteur_paita(base_recherche, client):  # noqa: F811
+    from apps.comptes.models import Perimetre
+    from apps.evenements.models import Evenement
+    from apps.referentiel.models import Site
+
+    for code, nom in [("TND063", "TINDU"), ("EIN001", "EINSTEIN"), ("MAG001", "MAGENTA_PLAGE"), ("RAV001", "RAVEL"),
+                      ("PEP001", "PEPINIERE"), ("KTO001", "KOUTIO"), ("TON001", "TONTOUTA_AERO")]:
+        Site.objects.create(code_site=code, trigramme=code[:3], nom=nom, commune="NOUMEA", region="NEA")
+    Evenement.objects.create(nom="Diginova", sites=["NOU001"])
+    lecteur = User.objects.create_user("lec_oracle")
+    Perimetre.objects.create(nom="Païta", communes=["PAITA"]).utilisateurs.add(lecteur)
+    client.force_login(lecteur)
+    return client
+
+
+def _page(client, phrase, mot):
+    html = client.get("/", {"q": phrase}).content.decode()
+    html = re.sub(r'name="csrfmiddlewaretoken" value="[^"]+"', "", html)
+    return html.replace(mot, "MOT").replace(mot.capitalize(), "MOT")
+
+
+@pytest.mark.parametrize("modele,capitalise", [
+    ("drop 4G {} hier", False), ("drop 4G {} Païta hier", False), ("drop 4G à {} hier", False),
+    ("drop 4G {} hier", True), ("drop 4G à {} hier", True), ("débit 4G Païta {} la semaine dernière", False),
+], ids=["seul", "avec-commune", "apres-a", "capitalise", "capitalise-apres-a", "fin"])
+def test_lecteur_aucun_oracle_sur_les_noms(lecteur_paita, modele, capitalise):
+    """Réponse HTML identique, au mot près, pour un nom de site / d'événement hors périmètre
+    et pour un mot inventé (xylophone, zorglub)."""
+    pages = {}
+    for mot in MOTS_ORACLE + TEMOINS:
+        pages[mot] = _page(lecteur_paita, modele.format(mot.capitalize() if capitalise else mot), mot)
+    reference = pages["xylophone"]
+    if " à " in modele:  # placé comme un lieu : même question, quel que soit le mot
+        assert "« MOT » n&#x27;est pas dans votre périmètre." in reference
+    else:  # sinon : mot non compris, calcul sur le périmètre
+        assert re.search(r'class="mot"[^>]*>MOT<', reference) and "Synthèse sur la période" in reference
+    assert pages["zorglub"] == reference
+    for mot in MOTS_ORACLE:
+        assert pages[mot] == reference, f"« {mot} » ne répond pas comme un mot inconnu ({modele})"
+
+
+def test_lecteur_sources_publiques_et_formes_de_code(ctx_lecteur):  # noqa: F811
+    for phrase, texte in [("drop 4G Province Sud hier", "Province Sud"), ("drop 4G Koumak hier", "Koumak"),
+                          ("drop 4G à Pita hier", "Pita"), ("drop 4G TND063 hier", "TND063"),
+                          ("drop 4G XYZ999 hier", "XYZ999"), ("drop 4G QQQ hier", "QQQ"), ("drop 4G CHT hier", "CHT")]:
+        q = _question_lieu(interpreter(phrase, J, ctx_lecteur))
+        assert q and q.texte == f"« {texte} » n'est pas dans votre périmètre.", phrase
+    # Un trigramme en minuscules, comme un mot inconnu : jamais d'après son existence.
+    assert interpreter("drop 4G cht hier", J, ctx_lecteur).non_compris == ["cht"]
+    assert interpreter("drop 4G qqq hier", J, ctx_lecteur).non_compris == ["qqq"]
+
+
+# ------------------------------------------------------------------ mineurs : capitales, rapprochements
+
+@pytest.mark.parametrize("phrase,mot", [
+    ("Drop 4G Nouméa hier Urgent", "Urgent"), ("drop 4G Nouméa hier Tendance", "Tendance"),
+    ("drop 4G Nouméa Brousse hier", "Brousse"), ("drop 4G Nouméa hier Cordialement", "Cordialement"),
+    ("drop 4G Nouméa hier Xylophone", "Xylophone"),
+])
+def test_mot_capitalise_sans_preposition_non_compris(ctx3, phrase, mot):  # noqa: F811
+    i = interpreter(phrase, J, ctx3)
+    assert _question_lieu(i) is None and i.params["perimetre"] == {"type": "commune", "valeurs": ["NOUMEA"]}
+    assert mot in i.non_compris
+
+
+@pytest.mark.parametrize("phrase", ["drop 4G à Xylophone hier", "drop 4G de Xylophone hier",
+                                    "drop 4G pour Xylophone hier"])
+def test_mot_capitalise_apres_preposition_de_lieu(ctx3, phrase):  # noqa: F811
+    q = _question_lieu(interpreter(phrase, J, ctx3))
+    assert q and q.texte.startswith("Lieu non reconnu : « Xylophone »")
+
+
+def test_faux_rapprochements(ctx3):  # noqa: F811
+    from apps.evenements.models import Evenement
+
+    Evenement.objects.create(nom="Contrôle pic drop Koné", sites=["KON552"])
+    ctx = Contexte.pour(None)
+    i = interpreter("drop 4G près du marché de Nouméa hier", J, ctx)
+    assert _question_lieu(i) is None and i.params["perimetre"] == {"type": "commune", "valeurs": ["NOUMEA"]}
+    i = interpreter("drop 4G Koné contre Pouembout la semaine dernière", J, ctx)
+    assert _question_lieu(i) is None
+    assert i.params["perimetre"] == {"type": "commune", "valeurs": ["KONE", "POUEMBOUT"]}
+    assert i.params["granularite_espace"] == "commune"
+    i = interpreter("drop 4G Maree hier", J, ctx)  # nom de 4 lettres : jamais approché
+    assert not any(o.libelle == "Maré" for q in i.questions for o in q.options)

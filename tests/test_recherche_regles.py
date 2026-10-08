@@ -280,7 +280,7 @@ def test_lecteur_restreint_sans_fuite_de_lieux(ref_recherche):
     # Lieu hors périmètre : question, jamais de calcul silencieux sur le périmètre (tour 3, R4),
     # et même message qu'un lieu inexistant : rien n'est révélé.
     for phrase, texte in [("drop 4G à Nouméa hier", "Nouméa"), ("débit 4G CHT hier", "CHT"),
-                          ("débit 4G à Koumak hier", "Koumak"), ("drop 4G agence telecom hier", "agence telecom"),
+                          ("débit 4G à Koumak hier", "Koumak"), ("drop 4G à agence telecom hier", "agence"),
                           ("drop 4G à Zorglub hier", "Zorglub"), ("drop 4G au carnaval hier", "carnaval")]:
         i = interpreter(phrase, J, ctx)
         q = next(q for q in i.questions if q.champ == "perimetre")

@@ -242,7 +242,7 @@ modificateurs:
            nouvelle caledonie, caledonie, pays, national]
   # Plusieurs communes (ou sites) comparées : résultat par commune (ou par site).
   comparaison: [comparaison, comparaisons, comparer, compare, comparez, comparatif, comparatifs, vs, versus,
-                face a face]
+                face a face, contre, compare a, compare avec, par rapport a]
 
 # Mots courants sans effet sur la requête : reconnus, jamais signalés comme incompris.
 neutres: [kpi, kpis, stat, stats, statistique, statistiques, indicateur, indicateurs, evolution, courbe, courbes,
@@ -257,6 +257,15 @@ neutres: [kpi, kpis, stat, stats, statistique, statistiques, indicateur, indicat
           detail, details, detaille, operateur, opt, journee, journees, jour, jours, periode,
           nb, nbre, quantite, erab, e rab, volte, rab, oss, enodeb, nodeb, rnc, succes, reussite, taux de succes,
           taux de reussite, signalisation, sr]
+
+# Mots courants jamais rapprochés d'un nom de lieu (correspondance approchée) ni pris pour
+# un lieu : « près du marché » n'est pas Maré, « Koné contre Pouembout » n'est pas un événement.
+mots_courants: [marche, marches, contre, rencontre, rencontres, carte, cartes, centre, quartier, quartiers,
+                matin, matins, soir, soirs, urgent, urgente, tendance, tendances, cordialement, bonjour, bonsoir,
+                salut, brousse, alerte, alertes, rapport, rapports, note, notes, reunion, chiffre, chiffres,
+                ecart, ecarts, point, points, suivi, merci, svp, stp, demain, semaine, semaines, mois, annee,
+                annees, debut, fin, milieu, tous, toutes, ensemble, autour, proche, proches, environ, entre,
+                avant, apres, depuis, pendant, grande, grand, petite, petit, terre, ville, village, villages]
 
 # Régions et provinces (champ « région » du référentiel) -> communes correspondantes.
 regions:

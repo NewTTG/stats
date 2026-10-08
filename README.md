@@ -169,10 +169,18 @@ quelque chose, elle pose une question avec des réponses en un clic.
   (un lecteur restreint ne se voit proposer aucun lieu hors de son périmètre). Un lieu
   cité hors périmètre ou inconnu n'est jamais calculé en silence sur le périmètre : la
   question « « Dumbéa » n'est pas dans votre périmètre. » propose « Voir mon périmètre
-  (Koné) », avec le même message que le lieu existe ailleurs ou non. Sans restriction, un
-  code inconnu (« PIM999 ») donne « Lieu non reconnu ». Correspondance approchée : communes
-  et événements d'abord, puis noms de sites (seuil 0,85) ; « Konee » (nom 4G du site KONE)
-  demande « commune Koné ou site KONE ? ».
+  (Koné) », avec le même message que le lieu existe ailleurs ou non. Pour un lecteur
+  restreint, cette détection ne s'appuie que sur des sources publiques (communes,
+  régions / provinces, y compris par correspondance approchée : « Koumak ») et sur la forme
+  des mots (code « AAA999 », trigramme en capitales, mot placé après « à », « au », « sur »…) :
+  un nom de site ou un mot d'événement hors périmètre répond exactement comme un mot
+  inventé (pas d'oracle d'existence). Sans restriction, un code inconnu (« PIM999 ») donne
+  « Lieu non reconnu ». Un mot capitalisé en milieu de phrase (« Urgent », « Brousse ») n'est
+  un lieu probable qu'après une préposition de lieu (à, au, aux, sur, de, du, pour, en) ou
+  s'il ressemble à un lieu connu. Correspondance approchée : communes et événements d'abord,
+  puis noms de sites (seuil 0,85), noms de 5 lettres au moins, jamais les mots courants de
+  `mots_courants` (« marché », « contre ») ; « Konee » (nom 4G du site KONE) demande
+  « commune Koné ou site KONE ? ».
 - **Dates** : aujourd'hui, hier, cette semaine, la semaine dernière, les N derniers jours,
   ce mois-ci, le mois dernier, « septembre », « septembre 2025 », « du 1er au 15
   septembre », « du 01/09 au 15/09 », « le 14/09 », « le week-end du 14 », « semaine 38 »
