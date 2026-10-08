@@ -7,6 +7,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
+from .recherche.dates import libelle_fenetre
 from .service import Resultat
 from .statut import statut
 
@@ -18,6 +19,11 @@ FONDS_STATUT = {
     "critique": PatternFill("solid", fgColor="F8C4C4"),
 }
 FORMAT_PERIODE = {"heure": "dd/mm/yyyy hh\\h", "jour": "dd/mm/yyyy", "semaine": "dd/mm/yyyy", "mois": "mm/yyyy"}
+# Plafond de l'onglet « Données » (par techno) : au-delà, mention dans l'onglet Paramètres.
+LIGNES_MAX = 200_000
+LIBELLES_TEMPS = {"heure": "par heure", "jour": "par jour", "semaine": "par semaine", "mois": "par mois"}
+LIBELLES_ESPACE = {"global": "ensemble du périmètre", "commune": "par commune", "site": "par site",
+                   "secteur": "par secteur", "cellule": "par cellule"}
 
 
 def _valeur(v):
@@ -26,20 +32,27 @@ def _valeur(v):
     return float(v)
 
 
-def _ajouter(ws, valeurs):
-    """Ajoute une ligne ; un texte commençant par « = » reste du texte (pas de formule)."""
+def _ajouter(ws, valeurs) -> int:
+    """Ajoute une ligne et renvoie son numéro ; un texte commençant par « = » reste du texte.
+
+    Le numéro vient du compteur d'``append`` : jamais de ``ws.max_row`` (coût linéaire par
+    ligne, donc quadratique sur un export).
+    """
     ws.append(valeurs)
-    for c in ws[ws.max_row]:
-        if isinstance(c.value, str) and c.value.startswith("="):
-            c.data_type = "s"
+    ligne = ws._current_row
+    for j, v in enumerate(valeurs, start=1):
+        if isinstance(v, str) and v.startswith("="):
+            ws.cell(row=ligne, column=j).data_type = "s"
+    return ligne
 
 
 def _entete(ws, titres):
-    _ajouter(ws, titres)
-    for c in ws[ws.max_row]:
+    ligne = _ajouter(ws, titres)
+    for j in range(1, len(titres) + 1):
+        c = ws.cell(row=ligne, column=j)
         c.font, c.fill = ENTETE, FOND_ENTETE
         c.alignment = Alignment(wrap_text=True, vertical="center")
-    ws.freeze_panes = f"A{ws.max_row + 1}"
+    ws.freeze_panes = f"A{ligne + 1}"
 
 
 def _largeurs(ws, largeurs):
@@ -47,8 +60,7 @@ def _largeurs(ws, largeurs):
         ws.column_dimensions[get_column_letter(i)].width = l
 
 
-def _cellules_kpi(ws, kpis, valeurs, premiere_col):
-    ligne = ws.max_row
+def _cellules_kpi(ws, ligne, kpis, valeurs, premiere_col):
     for j, (k, v) in enumerate(zip(kpis, valeurs)):
         c = ws.cell(row=ligne, column=premiere_col + j)
         c.number_format = "0.00"
@@ -68,9 +80,9 @@ def parametres(resultat: Resultat) -> list[tuple[str, str]]:
         ("Technologies", ", ".join(req.techno)),
         ("Périmètre", f"{req.perimetre.type} : {', '.join(req.perimetre.valeurs) or 'tout le réseau'}"),
         ("Période", f"du {req.periode.debut:%d/%m/%Y} au {req.periode.fin:%d/%m/%Y}"),
-        ("Fenêtre horaire", req.fenetre_horaire),
-        ("Granularité temporelle", req.granularite_temps),
-        ("Granularité spatiale", req.granularite_espace),
+        ("Fenêtre horaire", libelle_fenetre(req.fenetre_horaire)),
+        ("Granularité temporelle", LIBELLES_TEMPS.get(req.granularite_temps, req.granularite_temps)),
+        ("Granularité spatiale", LIBELLES_ESPACE.get(req.granularite_espace, req.granularite_espace)),
     ]
 
 
@@ -87,9 +99,14 @@ def construire(resultat: Resultat) -> bytes:
             lignes.append((f"Cellules {r.techno} sans donnée", ", ".join(r.cellules_sans_donnees)))
     for a in resultat.avertissements:
         lignes.append(("Avertissement", a))
+    for r in resultat.par_techno:
+        if len(r.table) > LIGNES_MAX:
+            lignes.append((f"Données {r.techno}", f"onglet limité aux {LIGNES_MAX:,} premières lignes sur "
+                                                   f"{len(r.table):,} : réduire la période ou le niveau de détail."
+                           .replace(",", " ")))
     for l in lignes:
-        _ajouter(ws, l)
-        ws.cell(row=ws.max_row, column=1).font = Font(bold=True)
+        ligne = _ajouter(ws, l)
+        ws.cell(row=ligne, column=1).font = Font(bold=True)
     _largeurs(ws, [28, 90])
 
     for r in resultat.par_techno:
@@ -98,22 +115,23 @@ def construire(resultat: Resultat) -> bytes:
         ws = wb.create_sheet(f"Synthèse {r.techno}")
         _entete(ws, ["Entité", *titres])
         vals = [_valeur(r.synthese_globale.get(k.code)) for k in r.kpis]
-        _ajouter(ws, ["Ensemble du périmètre", *vals])
-        ws.cell(row=ws.max_row, column=1).font = Font(bold=True)
-        _cellules_kpi(ws, r.kpis, vals, 2)
-        for entite, valeurs in r.synthese.iterrows():
-            vals = [_valeur(valeurs[k.code]) for k in r.kpis]
-            _ajouter(ws, [entite, *vals])
-            _cellules_kpi(ws, r.kpis, vals, 2)
+        ligne = _ajouter(ws, ["Ensemble du périmètre", *vals])
+        ws.cell(row=ligne, column=1).font = Font(bold=True)
+        _cellules_kpi(ws, ligne, r.kpis, vals, 2)
+        codes = [k.code for k in r.kpis]
+        for entite, *valeurs in r.synthese[codes].itertuples(name=None):
+            vals = [_valeur(v) for v in valeurs]
+            _cellules_kpi(ws, _ajouter(ws, [entite, *vals]), r.kpis, vals, 2)
         _largeurs(ws, [30, *[18] * len(titres)])
 
         ws = wb.create_sheet(f"Données {r.techno}")
         _entete(ws, ["Période", "Entité", *titres])
-        for (periode, entite), valeurs in r.table.iterrows():
-            vals = [_valeur(valeurs[k.code]) for k in r.kpis]
-            _ajouter(ws, [periode.to_pydatetime(), entite, *vals])
-            ws.cell(row=ws.max_row, column=1).number_format = FORMAT_PERIODE[req.granularite_temps]
-            _cellules_kpi(ws, r.kpis, vals, 3)
+        format_periode = FORMAT_PERIODE[req.granularite_temps]
+        for (periode, entite), *valeurs in r.table[codes].head(LIGNES_MAX).itertuples(name=None):
+            vals = [_valeur(v) for v in valeurs]
+            ligne = _ajouter(ws, [periode.to_pydatetime(), entite, *vals])
+            ws.cell(row=ligne, column=1).number_format = format_periode
+            _cellules_kpi(ws, ligne, r.kpis, vals, 3)
         _largeurs(ws, [18, 30, *[18] * len(titres)])
         if ws.max_row > 1:
             ws.auto_filter.ref = ws.dimensions

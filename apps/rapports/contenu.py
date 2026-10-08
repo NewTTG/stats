@@ -8,6 +8,7 @@ from openpyxl.utils import get_column_letter
 
 from apps.evenements.analyse import NIVEAUX, Analyse
 from apps.kpi.export_excel import FONDS_STATUT, parametres
+from apps.kpi.recherche.affichage import causes
 from apps.kpi.service import Resultat
 from apps.kpi.views import donnees_graphiques
 
@@ -64,13 +65,30 @@ def pptx_requete(resultat: Resultat) -> bytes:
         deck.tableau(f"{res.techno} — synthèse sur la période ({res.cellules_demandees} cellules)",
                      ["KPI", "Valeur", "Unité", "Statut"], lignes, statuts, largeurs=[5, 2, 1.2, 1.5])
         graphes = donnees_graphiques(res, gran)
+        # Demande « causes » : une diapo Pareto par KPI parent, pas une diapo par cause.
+        pareto = {c["parent"].code: c for c in causes(res, gran, resultat.requete.granularite_espace)}
+        decomposes = {k.code for k in res.kpis if k.decomposition_de in pareto}
         for k, g in zip(res.kpis, graphes["kpis"]):
+            if k.code in decomposes:
+                continue
             v = res.synthese_globale.get(k.code)
             commentaire = f"{k.libelle} : {nombre(v)} {k.unite} sur l'ensemble de la période et du périmètre."
             if graphes["tronque"]:
                 commentaire += " Graphique limité aux 12 premières entités."
             deck.graphique(f"{res.techno} — {g['titre']}", graphes["periodes"],
                            [{"nom": s["nom"], "valeurs": s["valeurs"]} for s in g["series"]], commentaire)
+            if k.code in pareto:
+                c = pareto[k.code]
+                principale = c["barres"][0] if c["barres"] else None
+                commentaire = f"{k.libelle} : {c['total_texte']} {k.unite} au total."
+                if principale:
+                    commentaire += (f" Première cause : {principale['libelle'].lower()} "
+                                    f"({nombre(principale['part'], 1)} % des coupures).")
+                if c["negligeables"]:
+                    commentaire += f" Négligeables : {', '.join(c['negligeables'])}."
+                deck.barres(f"{res.techno} — {k.libelle} : répartition par cause",
+                            [b["libelle"] for b in c["barres"]], [round(b["part"], 2) for b in c["barres"]],
+                            commentaire)
     if resultat.avertissements:
         deck.texte("Avertissements", resultat.avertissements)
     _annexe(deck, resultat.par_techno)
