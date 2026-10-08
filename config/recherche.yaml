@@ -19,6 +19,11 @@ technos_implicites:
   LTE: [e rab, erab, prb, prbs, s1, csfb, cqi, enb, enodeb, mme, volte]
   WCDMA: [hsdpa, hsupa, hspa, cssr, rab, erlang, erlangs, erl, rnc, nodeb]
 
+# Termes qui ajoutent leur techno même quand une autre est citée : « appels 3G et CSFB » =
+# appels 3G + appels CSFB (4G). (« drop E-RAB 3G » reste en 3G : E-RAB n'est pas listé ici.)
+technos_ajoutees:
+  LTE: [csfb]
+
 # Sigles et termes techniques : jamais pris pour un lieu (ni trigramme, ni nom approché),
 # jamais signalés comme incompris.
 termes_techniques: [hsdpa, hsupa, hspa, cssr, rrc, rab, prb, prbs, cqi, csfb, volte, e rab, erab, s1, kpi, kpis, dl,
@@ -115,7 +120,7 @@ intentions:
     mots: [rrc, taux rrc, setup rrc, connexion rrc, succes rrc, taux de succes rrc, reussite rrc, rrc sr, rrc setup,
            etablissement rrc, taux d etablissement rrc, acces rrc, echec rrc, echecs rrc, taux d echec rrc,
            taux d echecs rrc, echec de connexion rrc, echecs de connexion rrc, echec d etablissement rrc,
-           rrc echec, rrc echecs, rejet rrc, rejets rrc]
+           rrc echec, rrc echecs, rejet rrc, rejets rrc, taux d acces rrc, taux d acces au rrc]
     kpis:
       LTE: [lte_rrc_setup_sr]
       WCDMA: [wcdma_rrc_cs_sr, wcdma_rrc_ps_sr]
@@ -123,7 +128,7 @@ intentions:
   s1:
     libelle: Signalisation S1
     mots: [s1, signalisation s1, succes s1, taux de succes s1, reussite s1, taux s1, s1 sr, s1 setup, setup s1,
-           echec s1, echecs s1, taux d echec s1,
+           echec s1, echecs s1, taux d echec s1, taux d acces s1,
            taux de succes de signalisation s1, succes de signalisation s1, interface s1]
     technos_defaut: [LTE]
     kpis:
@@ -133,6 +138,7 @@ intentions:
     libelle: Établissement E-RAB
     mots: [succes e rab, taux de succes e rab, reussite e rab, etablissement e rab, taux d etablissement e rab,
            echec e rab, echecs e rab, taux d echec e rab, echec erab, echecs erab, taux d echec erab,
+           taux d acces e rab, taux d acces erab,
            e rab setup, setup e rab, e rab sr, acces e rab, e rab initial, succes erab, taux de succes erab,
            etablissement erab, erab setup, setup erab, erab sr, acces erab, erab initial]
     technos_defaut: [LTE]
@@ -142,7 +148,7 @@ intentions:
   rab:
     libelle: Établissement RAB
     mots: [succes rab, taux de succes rab, reussite rab, etablissement rab, taux d etablissement rab, rab setup,
-           echec rab, echecs rab, taux d echec rab,
+           echec rab, echecs rab, taux d echec rab, taux d acces rab,
            setup rab, rab sr, acces rab]
     technos_defaut: [WCDMA]
     kpis:
@@ -184,6 +190,15 @@ intentions:
     kpis:
       WCDMA: [wcdma_appels_voix, wcdma_speech_traffic, wcdma_duree_appel]
       LTE: [lte_csfb_appels]
+
+  appels_etablis:
+    libelle: Appels établis
+    absorbe: {voix: appels_etablis}
+    mots: [appels etablis, appel etabli, appels aboutis, appel abouti, appels reussis, appel reussi,
+           appels connectes, nombre d appels etablis]
+    technos_defaut: [WCDMA]
+    kpis:
+      WCDMA: [wcdma_appels_voix]
 
   tentatives_voix:
     libelle: Tentatives d'appel
@@ -300,6 +315,8 @@ regions:
   - libelle: Province Sud
     mots: [province sud]
     regions: [SUD, GRD NEA 1, NEA]
+  # « sud » seul garde ce sens (Sud hors Grand Nouméa) ; « Province Sud » (lue avant le
+  # vocabulaire, où « province » est neutre) couvre toutes les communes de la province.
   - libelle: Sud (hors Grand Nouméa)
     mots: [sud, region sud, brousse sud]
     regions: [SUD]

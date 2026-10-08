@@ -44,6 +44,8 @@ class Vocabulaire:
     mots: Correspondeur = field(default_factory=Correspondeur, repr=False)
     # Terme -> techno qu'il implique (« E-RAB » -> LTE) quand la demande n'en cite aucune.
     implicites: Correspondeur = field(default_factory=Correspondeur, repr=False)
+    # Terme -> techno ajoutée même si une autre est citée (« appels 3G et CSFB » -> + LTE).
+    ajoutees: Correspondeur = field(default_factory=Correspondeur, repr=False)
 
     def est_terme_technique(self, mot: str) -> bool:
         return normaliser(mot) in self.termes_techniques
@@ -83,6 +85,11 @@ def charger_vocabulaire(chemin: Path) -> Vocabulaire:
     )
     for mot, d in (brut.get("indisponibles") or {}).items():
         voc.indisponibles.ajouter(str(mot), (str(d["libelle"]), bool(d.get("techno"))))
+    for techno, mots in (brut.get("technos_ajoutees") or {}).items():
+        if techno not in TECHNOS:
+            raise ValueError(f"technos_ajoutees : techno inconnue {techno!r}")
+        for mot in mots:
+            voc.ajoutees.ajouter(str(mot), techno)
     for techno, mots in (brut.get("technos_implicites") or {}).items():
         if techno not in TECHNOS:
             raise ValueError(f"technos_implicites : techno inconnue {techno!r}")

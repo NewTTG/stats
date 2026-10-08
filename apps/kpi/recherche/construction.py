@@ -13,7 +13,7 @@ from apps.comptes.acces import kpis_autorises
 
 from ..catalogue import DefinitionKpi, catalogue
 from .dates import (LIBELLES_ESPACE, LIBELLES_TEMPS, PRESETS, Periode, granularite_par_defaut, libelle_fenetre,
-                    preset)
+                    preset, semaine_numero)
 from .interpretation import GLOBAL, Demande, Interpretation, Lieu, Option, Puce, Question
 from .lieux import ResolveurLieux
 from .vocabulaire import LIBELLES_TECHNO, TECHNOS, causes_de, kpis_intention, vocabulaire
@@ -204,6 +204,12 @@ def construire(demande: Demande, contexte: Contexte, aujourdhui: date, *, source
         params["periode"] = {"debut": periode.debut, "fin": periode.fin}
     else:
         options = [Option(PRESETS[c], {"periode": c}) for c in QUESTION_PERIODE]
+        semaine = semaine_numero(demande.semaine_suggeree, aujourdhui) if demande.semaine_suggeree else None
+        if semaine:  # « Nouméa S40 » : « Semaine 40 » en premier
+            lundi, dimanche = semaine
+            options.insert(0, Option(f"Semaine {demande.semaine_suggeree}",
+                                     {"debut": lundi.isoformat(), "fin": dimanche.isoformat()},
+                                     detail=f"{lundi:%d/%m} → {dimanche:%d/%m/%Y}"))
         interp.questions.append(Question("periode", "Sur quelle période ?", options, saisie="dates"))
 
     # Fenêtre horaire

@@ -382,7 +382,8 @@ footer.pied-page { border-top: 1px solid var(--bord); color: var(--texte-3); fon
   table.anomalies td.techno, table.anomalies td.entite, table.anomalies td.regle { font-size: .82rem;
     color: var(--texte-2); }
   table.anomalies td.entite { font-weight: 700; color: var(--marine); overflow-wrap: break-word; }
-  table.anomalies td.regle::before { content: "· "; }
+  /* Séparateur en fin de segment (jamais en début de ligne quand la règle passe à la ligne). */
+  table.anomalies td.entite::after { content: "\00a0·"; font-weight: 400; color: var(--texte-2); }
   table.anomalies td.detail { flex-basis: 100%; font-size: .88rem; line-height: 1.4; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

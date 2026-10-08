@@ -205,6 +205,31 @@ class ResolveurLieux:
                 ambiguites.append(Ambiguite(mots, list(candidats)))
         return lieux, ambiguites
 
+    def resoudre_regions(self, texte: Texte) -> tuple[list[Lieu], list[Ambiguite]]:
+        """Régions et provinces (« Province Sud », « province des Îles », « nord »).
+
+        À chercher AVANT le vocabulaire : « province » et « région » y sont des mots neutres,
+        et « Province Sud » réduit à « sud » deviendrait « Sud (hors Grand Nouméa) ». Une
+        province couvre toutes ses communes (Province Sud = Sud + Grand Nouméa) ; « sud »
+        seul garde le sens « Sud (hors Grand Nouméa) ».
+        """
+        lieux: list[Lieu] = []
+        ambiguites: list[Ambiguite] = []
+        for indices, candidats in self.regions.trouver(texte):
+            uniques = list(dict.fromkeys(candidats))
+            if len(uniques) == 1:
+                if uniques[0] not in lieux:
+                    lieux.append(uniques[0])
+            else:
+                ambiguites.append(Ambiguite(" ".join(texte.origines[i] for i in indices), uniques))
+        if self.restreint:  # région sans commune visible (source publique) : question
+            for indices, _candidats in self.regions_hors.trouver(texte):
+                indices = self._avec_province(texte, indices)
+                texte.consommer(indices)
+                mots = " ".join(dict.fromkeys(texte.origines[j] for j in indices))
+                ambiguites.append(Ambiguite(mots, [], hors_perimetre=True))
+        return lieux, ambiguites
+
     def resoudre(self, texte: Texte) -> tuple[list[Lieu], list[Ambiguite], list[str]]:
         """Lieux non ambigus, ambiguïtés, notes (mots reconnus consommés dans ``texte``)."""
         lieux: list[Lieu] = []
@@ -225,11 +250,9 @@ class ResolveurLieux:
             mots = " ".join(dict.fromkeys(texte.origines[j] for j in indices))
             ambiguites.append(Ambiguite(mots, [], hors_perimetre=True))
 
-        for indices, candidats in self.regions.trouver(texte):
-            ajouter(indices, candidats)
-        if self.restreint:  # « Province Sud » sans commune visible : source publique
-            for indices, _candidats in self.regions_hors.trouver(texte):
-                hors_perimetre(self._avec_province(texte, indices))
+        lieux_regions, ambiguites_regions = self.resoudre_regions(texte)  # (déjà fait par les règles)
+        lieux += lieux_regions
+        ambiguites += ambiguites_regions
         for indices, candidats in self.communes.trouver(texte):
             ajouter(indices, candidats)
         if self.restreint:  # commune hors périmètre : question, jamais de calcul en silence

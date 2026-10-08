@@ -349,6 +349,8 @@ def requete(request):
             nombre = interp.demande.classement_nombre if interp and interp.demande else None
             ctx["blocs"] = affichage.blocs(resultat, nombre)
             ctx["avertissements"] = affichage.avertissements(resultat)
+            # Résultat vide (aucune donnée) : pas de boutons Excel / PowerPoint.
+            ctx["donnees_presentes"] = any(b["lignes_total"] for b in ctx["blocs"])
             ctx["lien_export"] = "?" + urlencode([*get.lists(), ("export", ["xlsx"])], doseq=True)
             ctx["requete_params"] = [(k, v if isinstance(v, list) else [v])
                                      for k, v in champs_depuis_requete(req).items()]  # rapport PowerPoint (POST)
