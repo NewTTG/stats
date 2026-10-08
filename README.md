@@ -172,7 +172,9 @@ quelque chose, elle pose une question avec des réponses en un clic.
   (un lecteur restreint ne se voit proposer aucun lieu hors de son périmètre). Provinces
   lues avant le vocabulaire : « Province Sud » = toutes ses communes, Grand Nouméa compris ;
   « Province Nord », « Province des Îles » ; « sud » seul garde le sens « Sud (hors Grand
-  Nouméa) » (choix documenté dans `config/recherche.yaml`). Un lieu
+  Nouméa) » (choix documenté dans `config/recherche.yaml`). Grand Nouméa = Nouméa, Dumbéa,
+  Mont-Dore, Païta : une commune à cheval sur deux régions n'est rattachée qu'à sa région
+  majoritaire (le plus de sites), donc Sud et Grand Nouméa ne se recouvrent pas. Un lieu
   cité hors périmètre ou inconnu n'est jamais calculé en silence sur le périmètre : la
   question « « Dumbéa » n'est pas dans votre périmètre. » propose « Voir mon périmètre
   (Koné) », avec le même message que le lieu existe ailleurs ou non. Pour un lecteur

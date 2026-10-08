@@ -105,10 +105,18 @@ class ResolveurLieux:
                 if nom in self.communes_visibles:
                     self.communes.ajouter(v, lieu)
 
-        # Régions / provinces -> communes correspondantes (visibles).
+        # Régions / provinces -> communes correspondantes (visibles). Chaque commune n'est
+        # rattachée qu'à sa région majoritaire (le plus de sites, tout le référentiel ; à
+        # égalité, l'ordre alphabétique) : Mont-Dore et Païta, qui ont un site en SUD, restent
+        # au Grand Nouméa, et « sud » ne recouvre pas le Grand Nouméa.
+        sites_par_commune_region = defaultdict(lambda: defaultdict(int))
+        for commune, region in Site.objects.values_list("commune", "region"):
+            sites_par_commune_region[commune][region] += 1
         communes_par_region = defaultdict(set)
-        for s in self.sites.values():
-            communes_par_region[s.region].add(s.commune)
+        for commune in self.communes_visibles:
+            comptes = sites_par_commune_region[commune]
+            region = min(comptes, key=lambda r: (-comptes[r], r))
+            communes_par_region[region].add(commune)
         self.regions = Correspondeur()
         self.regions_hors = Correspondeur()  # régions sans commune visible (source publique)
         for r in self.voc.regions:
@@ -210,8 +218,10 @@ class ResolveurLieux:
 
         À chercher AVANT le vocabulaire : « province » et « région » y sont des mots neutres,
         et « Province Sud » réduit à « sud » deviendrait « Sud (hors Grand Nouméa) ». Une
-        province couvre toutes ses communes (Province Sud = Sud + Grand Nouméa) ; « sud »
-        seul garde le sens « Sud (hors Grand Nouméa) ».
+        province couvre toutes ses communes (Province Sud = Sud + Grand Nouméa, sans
+        recouvrement) ; « sud » seul garde le sens « Sud (hors Grand Nouméa) ». Une commune
+        à cheval sur deux régions n'appartient qu'à sa région majoritaire : le Grand Nouméa
+        est Nouméa, Dumbéa, Mont-Dore et Païta, même si Mont-Dore et Païta ont un site en SUD.
         """
         lieux: list[Lieu] = []
         ambiguites: list[Ambiguite] = []

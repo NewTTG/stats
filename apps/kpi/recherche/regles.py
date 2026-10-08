@@ -94,6 +94,7 @@ def analyser(texte: str, aujourdhui: date, contexte: Contexte) -> tuple[Demande,
             d.techno.append(techno)
     if not d.techno:  # « drop E-RAB » = 4G, « CSSR » = 3G (sans consommer : le vocabulaire suit)
         d.techno = [techno for _indices, technos in voc.implicites.trouver(t, consommer=False) for techno in technos]
+        d.techno_implicite = bool(d.techno)
     else:  # « appels 3G et CSFB » : le CSFB ajoute la 4G à la 3G citée
         d.techno += [techno for _indices, technos in voc.ajoutees.trouver(t, consommer=False) for techno in technos]
     d.techno = [x for x in ("LTE", "WCDMA") if x in d.techno]
