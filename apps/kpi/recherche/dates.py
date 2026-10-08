@@ -65,6 +65,28 @@ def _annee_par_defaut(mois: int, jour: int | None, aujourdhui: date) -> int:
     return annee - 1 if candidat > aujourdhui else annee
 
 
+def semaine_numero(numero: int, aujourdhui: date) -> tuple[date, date] | None:
+    """Lundi et dimanche de la semaine ISO ``numero`` (année courante, ou précédente si à venir)."""
+    try:
+        lundi = date.fromisocalendar(aujourdhui.year, numero, 1)
+        if lundi > aujourdhui:
+            lundi = date.fromisocalendar(aujourdhui.year - 1, numero, 1)
+    except ValueError:
+        return None
+    return lundi, lundi + timedelta(days=6)
+
+
+def semaine_suggeree(texte) -> int | None:
+    """« Nouméa S40 » sans contexte de date : pas une période, mais « Semaine 40 » est proposée
+    en premier dans la question (jamais « S1 », l'interface S1, consommée avant)."""
+    for i in texte.libres():
+        m = re.fullmatch(r"s(\d{1,2})", texte.mots[i])
+        if m and 2 <= int(m[1]) <= 53:
+            texte.consommer([i])
+            return int(m[1])
+    return None
+
+
 def preset(code: str, aujourdhui: date) -> Periode | None:
     hier = aujourdhui - timedelta(days=1)
     if code == "hier":
@@ -143,6 +165,24 @@ def _motifs(aujourdhui: date):
         d = _date(int(m[1]), int(m[2]), a1 or a2, aujourdhui)
         f = _date(int(m[4]), int(m[5]), a2 or a1, aujourdhui)
         return (d, f, f"du {d:%d/%m} au {f:%d/%m}") if d and f else None
+
+    def semaine_du(m):  # la semaine du 5 octobre / du 05/10 [2026] : du lundi au dimanche contenant ce jour
+        if m[2] and m[2] in MOIS:
+            d = _date(int(m[1]), MOIS[m[2]], int(m[3]) if m[3] else None, aujourdhui)
+        elif m[4]:
+            d = _date(int(m[4]), int(m[5]), int(m[6]) if m[6] else None, aujourdhui)
+        else:
+            d = jour_seul_date(int(m[1]))
+        if not d:
+            return None
+        lundi = d - timedelta(days=d.weekday())
+        return lundi, lundi + timedelta(days=6), f"semaine du {_fmt(lundi)}"
+
+    def jour_seul_date(jour):
+        mois, an = aujourdhui.month, aujourdhui.year
+        if jour > aujourdhui.day:
+            mois, an = (mois - 1 or 12), (an if mois > 1 else an - 1)
+        return _date(jour, mois, an, aujourdhui)
 
     def week_end_du(m):  # le week-end du 14 [septembre] [2026]
         jour = int(m[1])
@@ -258,13 +298,16 @@ def _motifs(aujourdhui: date):
         (r"(?:du |entre le |entre )?(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))? " + sep + r" (?:le )?(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?",
          entre_numeriques),
         (rf"(?:le |ce )?(?:week end|weekend|we) (?:du |de )?{_JOUR}(?: ({_MOIS}))?(?: {_AN})?", week_end_du),
+        (rf"(?:la |pendant la |sur la |de la |cette )?semaine (?:du |de )(?:lundi )?(?:{_JOUR}(?![/\d])(?: ({_MOIS}))?(?: {_AN})?"
+         r"|(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?)", semaine_du),
         (r"(\d{4})-(\d{2})-(\d{2})", iso),
         # « semaine 38 », « sem. 38 », « sem 38 » ; « S40 », « S 40 », « s.40 » seulement avec un
         # contexte de date : précédé de « en », « la », « de la », « pendant la », « depuis la »,
         # « sur la », « à partir de la », ou suivi d'une année (« S40 2026 »). Jamais « S1 »
         # (interface S1) : écrire « semaine 1 ».
         (r"(?:la |en |de la |pendant la )?(?:semaine|sem) ?(\d{1,2})(?: (\d{4}))?", semaine_iso),
-        (r"(?:la|en|de la|pendant la|depuis la|sur la|a partir de la) s ?([2-9]|\d{2})(?: (\d{4}))?", semaine_iso),
+        (r"(?:la|en|de la|pendant la|depuis la|sur la|a partir de la|semaine|la semaine) s ?([2-9]|\d{2})"
+         r"(?: (\d{4}))?", semaine_iso),
         (r"s ?([2-9]|\d{2}) (\d{4})", semaine_iso),
         (rf"(?:le |du |au )?{_NOM_JOUR}{_JOUR} ({_MOIS})(?: {_AN})?", jour_mois),
         (rf"(?:le |du |au )?{_NOM_JOUR}(\d{{1,2}})/(\d{{1,2}})(?:/(\d{{2,4}}))?", jour_numerique),
@@ -293,7 +336,7 @@ def _motifs(aujourdhui: date):
 
 # Motifs désignant un point de départ possible après « depuis » (« depuis septembre »,
 # « depuis le 15/09 », « depuis lundi », « depuis la semaine 38 », « depuis 2025 »).
-_POINTS_DE_DEPART = ("week_end_du", "iso", "semaine_iso", "jour_mois", "jour_numerique", "jour_seul", "mois_annee",
+_POINTS_DE_DEPART = ("week_end_du", "semaine_du", "iso", "semaine_iso", "jour_mois", "jour_numerique", "jour_seul", "mois_annee",
                      "jour_semaine", "mois_seul", "annee")
 
 

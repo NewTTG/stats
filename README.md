@@ -169,7 +169,10 @@ quelque chose, elle pose une question avec des réponses en un clic.
   citées → résultat par commune.
 - **Lieux** : communes (accents et tirets tolérés), régions / provinces, codes et noms de
   site, trigrammes, secteurs, cellules, événements — limités au périmètre de l'utilisateur
-  (un lecteur restreint ne se voit proposer aucun lieu hors de son périmètre). Un lieu
+  (un lecteur restreint ne se voit proposer aucun lieu hors de son périmètre). Provinces
+  lues avant le vocabulaire : « Province Sud » = toutes ses communes, Grand Nouméa compris ;
+  « Province Nord », « Province des Îles » ; « sud » seul garde le sens « Sud (hors Grand
+  Nouméa) » (choix documenté dans `config/recherche.yaml`). Un lieu
   cité hors périmètre ou inconnu n'est jamais calculé en silence sur le périmètre : la
   question « « Dumbéa » n'est pas dans votre périmètre. » propose « Voir mon périmètre
   (Koné) », avec le même message que le lieu existe ailleurs ou non. Pour un lecteur
@@ -188,7 +191,9 @@ quelque chose, elle pose une question avec des réponses en un clic.
   ce mois-ci, le mois dernier, « septembre », « septembre 2025 », « du 1er au 15
   septembre », « du 01/09 au 15/09 », « le 14/09 », « le week-end du 14 », « semaine 38 »
   ou « sem. 38 » ; « S40 », « S 40 », « s.40 » seulement avec un contexte de date (« en S40 »,
-  « la S40 », « pendant la S40 », « S40 2026 ») et jamais « S1 » (interface S1), « 2025 », « ce
+  « la S40 », « semaine S40 », « S40 2026 ») et jamais « S1 » (interface S1) ; « Nouméa S40 »
+  sans contexte : question de période avec « Semaine 40 » en premier ; « la semaine du 5
+  octobre » (ou « du 05/10 ») = du lundi au dimanche contenant ce jour ; « 2025 », « ce
   week-end », « le week-end dernier ». Jours de la semaine (« jeudi », « samedi
   dernier », « mardi passé ») : toujours le jour le plus récent **strictement avant
   aujourd'hui** (jamais aujourd'hui ni l'avenir) ; un jeudi, « jeudi » = jeudi de la

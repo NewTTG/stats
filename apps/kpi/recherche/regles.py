@@ -10,7 +10,7 @@ import re
 from datetime import date
 
 from .construction import Contexte, construire
-from .dates import extraire_fenetre, extraire_granularites, extraire_periode
+from .dates import extraire_fenetre, extraire_granularites, extraire_periode, semaine_suggeree
 from .interpretation import Demande, Interpretation
 from .texte import Texte
 from .vocabulaire import vocabulaire
@@ -94,6 +94,8 @@ def analyser(texte: str, aujourdhui: date, contexte: Contexte) -> tuple[Demande,
             d.techno.append(techno)
     if not d.techno:  # « drop E-RAB » = 4G, « CSSR » = 3G (sans consommer : le vocabulaire suit)
         d.techno = [techno for _indices, technos in voc.implicites.trouver(t, consommer=False) for techno in technos]
+    else:  # « appels 3G et CSFB » : le CSFB ajoute la 4G à la 3G citée
+        d.techno += [techno for _indices, technos in voc.ajoutees.trouver(t, consommer=False) for techno in technos]
     d.techno = [x for x in ("LTE", "WCDMA") if x in d.techno]
     # KPI ou technologie absents des données (« SINR », « 2G ») : note, la demande continue.
     for _indices, valeurs in voc.indisponibles.trouver(t):
@@ -101,12 +103,18 @@ def analyser(texte: str, aujourdhui: date, contexte: Contexte) -> tuple[Demande,
             notes.append(f"La {libelle} n'est pas dans les données : technologies disponibles, 4G et 3G."
                          if est_techno else f"KPI « {libelle} » non disponible dans les données.")
 
+    # Provinces et régions avant le vocabulaire (« province », « région » y sont neutres).
+    lieux_regions, ambiguites_regions = contexte.lieux.resoudre_regions(t)
+
     d.intentions = _intentions(voc, voc.mots.trouver(t), d)
+    if d.periode is None:  # « Nouméa S40 » : « Semaine 40 » proposée en premier (après « S1 » = interface)
+        d.semaine_suggeree = semaine_suggeree(t)
 
     lieux, ambiguites, notes_lieux = contexte.lieux.resoudre(t)
     lieux_ev, ambiguites_ev = contexte.lieux.lieux_evenements(t, evenements)
-    d.lieux = lieux_ev + [lieu for lieu in lieux if lieu not in lieux_ev]
-    d.ambiguites = ambiguites_ev + ambiguites
+    lieux = lieux_ev + lieux_regions + lieux
+    d.lieux = list(dict.fromkeys(lieux))
+    d.ambiguites = ambiguites_ev + ambiguites_regions + ambiguites
     notes += notes_lieux
 
     non_compris = [m for m in t.non_compris() if not re.fullmatch(r"[\d/:\-]+", m)]
