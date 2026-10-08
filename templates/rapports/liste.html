@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 {% block titre %}Mes rapports — Stats KPI réseau{% endblock %}
+{% block entete %}{% if rafraichir %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
 {% block contenu %}
-{% if rafraichir %}<meta http-equiv="refresh" content="5">{% endif %}
+<div class="entete-page"><h1>Mes rapports</h1></div>
 <section class="carte">
-  <h2>Mes rapports</h2>
   {% if rapports %}
   <div class="table-defil"><table>
-    <thead><tr><th>Demandé le</th><th>Rapport</th><th>Format</th><th>État</th><th></th></tr></thead>
+    <thead><tr><th scope="col">Demandé le</th><th scope="col">Rapport</th><th scope="col">Format</th><th scope="col">État</th><th scope="col"><span class="sr-only">Téléchargement</span></th></tr></thead>
     <tbody>{% for r in rapports %}
-      <tr><td>{{ r.cree_le|date:"d/m/Y H:i" }}</td><td>{{ r.titre }}</td><td>{{ r.get_format_display }}</td>
+      <tr><td>{{ r.cree_le|date:"d/m/Y H:i" }}</td><td style="white-space: normal;">{{ r.titre }}</td><td>{{ r.get_format_display }}</td>
         <td>{% if r.statut == "termine" %}<span class="etiquette ok">Terminé</span>
             {% elif r.statut == "erreur" %}<span class="etiquette critique" title="{{ r.message }}">Erreur</span> <span class="aide">{{ r.message }}</span>
             {% else %}<span class="etiquette alerte">{{ r.get_statut_display }}…</span>{% endif %}</td>
-        <td>{% if r.statut == "termine" %}<a href="{% url 'rapports:telecharger' r.pk %}">Télécharger</a>{% endif %}</td></tr>
+        <td>{% if r.statut == "termine" %}<a class="bouton secondaire petit" href="{% url 'rapports:telecharger' r.pk %}">Télécharger</a>{% endif %}</td></tr>
     {% endfor %}</tbody>
   </table></div>
-  {% if rafraichir %}<p class="aide">Page actualisée automatiquement toutes les 5 secondes pendant la génération.</p>{% endif %}
-  {% else %}<p>Aucun rapport. Lancez-en un depuis l'écran de requête ou un événement.</p>{% endif %}
+  {% if rafraichir %}<p class="aide" style="margin-top: .75rem;">Page actualisée automatiquement toutes les 5 secondes pendant la génération.</p>{% endif %}
+  {% else %}<p>Aucun rapport. Lancez-en un depuis un résultat de recherche ou un événement.</p>{% endif %}
 </section>
 {% endblock %}

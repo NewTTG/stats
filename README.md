@@ -4,9 +4,11 @@ Application web interne de statistiques de trafic et de qualité radio, avec pé
 de données par utilisateur et exports Excel / PowerPoint. Cahier des charges :
 [`brief_app_kpi_reseau.md`](brief_app_kpi_reseau.md).
 
-**État : phase 2** — phase 1 (référentiel, catalogue KPI, moteur de calcul, écran de
-requête, périmètres d'accès, export Excel) + événements avec détection d'anomalies,
-rapports PowerPoint / Excel en tâche de fond, KPI WCDMA, seuils réglables dans l'admin.
+**État : phase 2 + recherche en langage libre** — phase 1 (référentiel, catalogue KPI,
+moteur de calcul, périmètres d'accès, export Excel) + événements avec détection
+d'anomalies, rapports PowerPoint / Excel en tâche de fond, KPI WCDMA, seuils réglables
+dans l'admin ; barre de recherche en langage libre (règles locales, IA facultative) et
+base de démonstration synthétique utilisable sans accès à la base KPI.
 Données décrites dans [`docs/schema.md`](docs/schema.md), questions ouvertes dans
 [`docs/questions.md`](docs/questions.md).
 
@@ -37,6 +39,9 @@ python manage.py import_referentiel OPT_Network_Database_V2.xlsx --cellules lte_
 # 5. (une fois) Événements initiaux depuis l'onglet Cluster — créneaux à renseigner ensuite dans l'admin
 python manage.py import_clusters OPT_Network_Database_V2.xlsx
 
+# 5 bis. Sans accès à la base KPI : données de démonstration (≈ 20 s, ≈ 650 Mo dans data/)
+python manage.py charger_demo_kpi --jours 30
+
 # 6. Lancement : application + worker des rapports (deux terminaux)
 python manage.py runserver             # http://localhost:8000
 python manage.py qcluster              # génère les rapports PowerPoint / Excel
@@ -51,7 +56,7 @@ immédiatement, pendant la requête.
 Le fichier `.env` est lu automatiquement. Renseigner `APP_DB_HOST` (et les autres
 `APP_DB_*`) pour utiliser PostgreSQL plutôt que SQLite.
 
-Tests : `pytest`.
+Tests : `pytest` (aucun appel réseau : l'API IA est simulée).
 
 ### Avec Docker (serveur)
 
@@ -70,11 +75,16 @@ sont conservés dans le volume `media`.
 
 ### Ce que l'on peut faire aujourd'hui
 
-- **Requête KPI** (page d'accueil, http://localhost:8000) : technologie, périmètre
-  (commune, site, trigramme, secteur, cellule), période, fenêtre horaire, pas de temps,
-  niveau d'agrégation, KPI → synthèse sur toute la période (ratio de sommes) avec statut
-  OK / alerte / critique, graphiques d'évolution (ECharts), tableau détaillé avec seuils
-  en couleur et liste des cellules du périmètre sans données. Nécessite `KPI_DB_*` dans `.env`.
+- **Recherche en langage libre** (page d'accueil, http://localhost:8000) : « Drop 3G à
+  Nouméa la semaine dernière », « Causes de coupure 4G à Koné hier », « Débit 4G par site
+  à Dumbéa les 7 derniers jours »… (voir [Recherche](#recherche-en-langage-libre)). Résultat :
+  cartes KPI (valeur sur toute la période en ratio de sommes, statut OK / alerte /
+  critique, ≈ si approximatif), répartition par cause (Pareto + barres empilées, reste
+  « Non ventilé »), classement des entités les plus dégradées, courbes avec seuils,
+  tableau détaillé et cellules sans données repliables.
+- **Recherche avancée** (formulaire repliable, pré-rempli par la recherche) : technologie,
+  périmètre (commune, site, trigramme, secteur, cellule, événement), période, fenêtre
+  horaire, pas de temps, niveau d'agrégation, KPI.
 - **Export Excel** (bouton sur l'écran de résultat) : onglet *Paramètres* (requête,
   cellules sans données, avertissements), par technologie un onglet *Synthèse*
   (ensemble du périmètre puis chaque entité, sur toute la période) et un onglet
@@ -123,6 +133,79 @@ référence). Ses diapositives d'exemple sont ignorées et les dispositions non
 utilisées retirées du fichier produit (≈ 2 Mo au lieu de 10). Sans modèle, la
 charte bleu marine / ambre est dessinée par le code.
 
+## Recherche en langage libre
+
+La barre de recherche transforme le texte en requête (même objet que le formulaire,
+validé par Pydantic) puis exécute directement. Elle ne bloque jamais : s'il manque
+quelque chose, elle pose une question avec des réponses en un clic.
+
+- **Compris** : chaque élément reconnu (techno · KPI · lieu · période · pas · niveau ·
+  heures) est une puce cliquable pour le modifier ; les mots non compris sont listés.
+- **Questions** : période absente (Hier, 7 derniers jours, Semaine dernière…, ou dates
+  libres), KPI non reconnu (Drop, Taux d'accès, Débit, Trafic data, Appels, SMS,
+  Disponibilité, Congestion), lieu ambigu (trigramme partagé `CHT`, événements en double).
+- **Vocabulaire** dans [`config/recherche.yaml`](config/recherche.yaml) : intentions →
+  synonymes → KPI par techno. Les causes de coupure ne sont pas listées : « causes »,
+  « pourquoi » ajoutent les KPI du catalogue dont `decomposition_de` est le KPI retenu.
+- **Lieux** : communes (accents et tirets tolérés), régions / provinces, codes et noms de
+  site, trigrammes, secteurs, cellules, événements — limités au périmètre de l'utilisateur
+  (un lecteur restreint ne se voit proposer aucun lieu hors de son périmètre).
+- **Dates** : aujourd'hui, hier, cette semaine, la semaine dernière, les N derniers jours,
+  ce mois-ci, le mois dernier, « septembre », « septembre 2025 », « du 1er au 15
+  septembre », « du 01/09 au 15/09 », « le 14/09 », « le week-end du 14 », « 2025 ».
+  Heures : « 18h-22h », « entre 7h et 20h », « soirée », « en journée ». « Heure chargée »
+  est reconnue mais pas encore calculée (journée complète, avec une note).
+- **URL partageable, sans état** : `/?q=…` ; les paramètres explicites (`periode=7j`,
+  `debut` / `fin`, `techno`, `kpis`, `perimetre_type` / `perimetre_valeurs`,
+  `granularite_temps`, `granularite_espace`, `fenetre_horaire`) priment sur le texte.
+  Les paramètres du formulaire historique fonctionnent toujours.
+- Exports Excel et rapport PowerPoint depuis tout résultat ; chaque recherche est tracée
+  dans le journal d'audit (texte, IA ou non, requête produite) et apparaît dans « Mes
+  dernières recherches ». Suggestions de lieux en JSON : `/suggestions/?q=nou`.
+- Fonctionne sans JavaScript (formulaires GET) ; JavaScript sert aux graphiques (ECharts
+  servi localement).
+
+### Recherche IA (facultative)
+
+Avec `GROQ_API_KEY` renseignée, une case **✨ Recherche IA** apparaît sous la barre.
+Cochée, le texte est interprété par l'API Groq (compatible OpenAI, modèle
+`GROQ_MODEL`, température 0, réponse JSON imposée). Le modèle ne reçoit que le texte et
+la description du modèle de requête (codes KPI, types de périmètre…) : jamais de donnée
+KPI ; il ne produit que le JSON de requête, jamais de SQL. Les lieux qu'il renvoie sont
+re-résolus localement (périmètre de l'utilisateur) et la requête est validée par
+Pydantic. En cas d'erreur (réseau, clé, délai, JSON invalide), l'interprétation locale
+prend le relais avec la note « Recherche IA indisponible ».
+
+## Données de démonstration
+
+Sans `KPI_DB_HOST`, l'application lit la base SQLite `data/kpi_demo.sqlite3`
+(`KPI_DEMO_SQLITE`) si elle existe : mêmes tables et noms de colonnes que la base KPI
+(limités aux colonnes du catalogue), générées par :
+
+```bash
+python manage.py charger_demo_kpi [--jours 30] [--sortie data/kpi_demo.sqlite3] [--graine 42]
+```
+
+À partir des 4 extraits CSV (une journée chacun) : profil horaire semaine / week-end,
+bruit, succès ≤ tentatives, causes de coupure cohérentes, journalier = agrégat de
+l'horaire, et quelques incidents déterministes (site coupé quelques heures, pic de
+coupures sur un site, congestion PRB en soirée) listés à la fin de la commande et dans
+le bandeau. Un bandeau « Données de démonstration (synthétiques) » est affiché sur toutes
+les pages. Dès que `KPI_DB_HOST` est renseigné, la base PostgreSQL est utilisée.
+
+## Variables d'environnement
+
+| Variable | Rôle |
+|---|---|
+| `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS` | Django |
+| `APP_DB_*` | base applicative PostgreSQL (vide : SQLite local) |
+| `KPI_DB_*` | base KPI PostgreSQL en lecture seule |
+| `KPI_DEMO_SQLITE` | base de démonstration (défaut `data/kpi_demo.sqlite3`), utilisée sans `KPI_DB_HOST` |
+| `GROQ_API_KEY` | clé de l'API Groq ; vide = pas de recherche IA (jamais dans le dépôt) |
+| `GROQ_MODEL` | modèle (défaut `llama-3.3-70b-versatile`) |
+| `GROQ_TIMEOUT` | délai de réponse en secondes (défaut 10) |
+| `PPTX_MODELE`, `Q_SYNC`, `Q_WORKERS` | rapports |
+
 ## Droits d'accès
 
 - superutilisateur ou membre du groupe **Admin** ou **Analyste** : tout le réseau, tous les KPI ;
@@ -149,13 +232,15 @@ python scripts/explorer_schema.py   # depuis la racine du dépôt ; lecture seul
 
 | Chemin | Rôle |
 |---|---|
-| `config/` | settings Django, `kpi_catalogue.yaml` |
+| `config/` | settings Django, `kpi_catalogue.yaml`, vocabulaire de recherche `recherche.yaml` |
 | `apps/comptes/` | périmètres d'accès, journal d'audit |
 | `apps/referentiel/` | sites / secteurs / cellules importés du xlsx, décodage des noms de cellules |
-| `apps/kpi/` | modèle de requête (Pydantic), catalogue, moteur de calcul, seuils réglables |
+| `apps/kpi/` | modèle de requête (Pydantic), catalogue, moteur de calcul, seuils réglables, écran de recherche |
+| `apps/kpi/recherche/` | recherche en langage libre : règles (`regles.py`), IA (`ia.py`), lieux, dates |
+| `apps/kpi/management/commands/charger_demo_kpi.py` | base KPI de démonstration (SQLite) |
 | `apps/evenements/` | événements, analyse contre référence, règles de détection (`detection.py`) |
 | `apps/rapports/` | PowerPoint / Excel, tâche django-q2, historique |
-| `static/vendor/` | ECharts, servi localement (aucun CDN) |
+| `static/` | feuille de style, script des graphiques ; `vendor/` : ECharts servi localement (aucun CDN) |
 | `docs/` | documentation phase 0 |
 | `tests/` | pytest (données synthétiques uniquement) |
 
