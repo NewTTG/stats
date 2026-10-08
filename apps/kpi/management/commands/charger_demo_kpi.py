@@ -271,9 +271,9 @@ class Generateur:
             elif inc.nature == "drop":
                 for c in self.parts:
                     if re.search(r"UeLost|OutOfSync", c):
-                        boost[c][sel] = 9.0
+                        boost[c][sel] = 25.0
                     elif re.search(r"EnbHo|Sho", c):
-                        boost[c][sel] = 5.0
+                        boost[c][sel] = 10.0
             elif inc.nature == "congestion":
                 congestion[sel] = True
 
@@ -413,17 +413,21 @@ def _sites(bases: dict[str, pd.DataFrame]) -> dict[str, dict]:
     return sites
 
 
-def _choisir(sites, rng, communes, besoin):
-    candidats = sorted(code for code, s in sites.items() if besoin(s) and s["commune"] in communes)
+def _choisir(sites, rng, communes, besoin, techno="LTE"):
+    """Un site parmi les 3 plus chargés des communes préférées (visible dans les agrégats)."""
+    candidats = [code for code, s in sites.items() if besoin(s) and s["commune"] in communes]
     if not candidats:
-        candidats = sorted(code for code, s in sites.items() if besoin(s))
+        candidats = [code for code, s in sites.items() if besoin(s)]
     if not candidats:
         return None
+    candidats = sorted(candidats, key=lambda c: (-sites[c]["volume"][techno], c))[:3]
     return candidats[int(rng.integers(len(candidats)))]
 
 
 def planifier_incidents(bases, debut: date, fin: date, rng) -> list[Incident]:
     sites = _sites(bases)
+    for s in sites.values():
+        s["volume"] = {t: float(bases[t].loc[s[t], TECHNOS[t].volume].sum()) if s[t] else 0.0 for t in TECHNOS}
 
     def borne(j: date) -> date:
         return min(max(j, debut), fin)
@@ -441,12 +445,12 @@ def planifier_incidents(bases, debut: date, fin: date, rng) -> list[Incident]:
     if code:
         s, jour = sites[code], borne(fin - timedelta(days=20))
         incidents.append(Incident("drop", f"Pic de coupures 4G sur {s['nom']} ({code}, {s['commune']}) le {jour:%d/%m}",
-                                  "LTE", s["LTE"][:4], [jour], list(range(7, 23)), s["commune"]))
-    code = _choisir(sites, rng, {"NOUMEA"}, lambda s: len(s["WCDMA"]) >= 2)
+                                  "LTE", s["LTE"][:6], [jour], list(range(7, 23)), s["commune"]))
+    code = _choisir(sites, rng, {"NOUMEA"}, lambda s: len(s["WCDMA"]) >= 2, "WCDMA")
     if code:
         s, jour = sites[code], borne(lundi - timedelta(days=6))
         incidents.append(Incident("drop", f"Pic de coupures voix 3G sur {s['nom']} ({code}, {s['commune']}) "
-                                  f"le {jour:%d/%m}", "WCDMA", s["WCDMA"][:4], [jour], list(range(7, 23)), s["commune"]))
+                                  f"le {jour:%d/%m}", "WCDMA", s["WCDMA"][:6], [jour], list(range(7, 23)), s["commune"]))
     code = _choisir(sites, rng, {"DUMBEA"}, lambda s: len(s["LTE"]) >= 2)
     if code:
         s = sites[code]
