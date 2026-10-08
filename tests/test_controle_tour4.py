@@ -334,3 +334,11 @@ def test_taux_de_succes_ecart_sur_le_taux_d_echec():
                          index=pd.MultiIndex.from_product([["KON552"], range(4)], names=["entite", "semaine"]))
     [a] = detection.anomalies_ecarts("LTE", valeurs, references, hebdo, [acces], sigma=2, pct=20)
     assert a.gravite == "critique" and "taux d'échec 2,50 % contre 0,30 %, +733 %" in a.message
+
+
+def test_lieu_apres_preposition_et_article(ctx3):  # noqa: F811
+    """« sur la Grande Terre » : l'article ne masque pas la préposition (rejeu du tour 4)."""
+    q = _question_lieu(interpreter("drop 4G sur la Grande Terre hier", J, ctx3))
+    assert q and q.texte.startswith("Lieu non reconnu : « Grande Terre »")
+    i = interpreter("drop 4G sur la carte hier", J, ctx3)  # mot courant en minuscules : non compris
+    assert _question_lieu(i) is None and i.non_compris == ["carte"]

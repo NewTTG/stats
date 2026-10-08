@@ -40,6 +40,7 @@ _AVANT_LIEU = {"a", "au", "aux", "sur", "vers", "chez", "pres", "commune", "site
 # (ou s'il ressemble à un lieu connu) : « Urgent », « Tendance », « Cordialement » ne le sont pas.
 _AVANT_LIEU_MAJUSCULE = _AVANT_LIEU | {"de", "du", "d", "des", "pour", "en"}
 _AVANT_REGION = {"province", "provinces", "region", "regions"}
+_ARTICLES = {"la", "le", "les", "l"}
 # Correspondance approchée : noms de 5 lettres au moins (« marché » n'est pas « Maré »).
 LONGUEUR_MIN_APPROCHE = 5
 # Mots reliant un mot générique d'événement à une commune (« foire de Bourail »).
@@ -348,9 +349,9 @@ class ResolveurLieux:
         libres = texte.libres()
         for n, i in enumerate(libres):
             mot = texte.mots[i]
-            if (texte.consomme[i] or mot in MOTS_VIDES or self.voc.est_terme_technique(mot)
-                    or mot in self.voc.mots_courants):
+            if texte.consomme[i] or mot in MOTS_VIDES or self.voc.est_terme_technique(mot):
                 continue
+            courant = mot in self.voc.mots_courants  # jamais rapproché d'un nom de lieu
             origine = texte.origines[i]
             if self._code(mot):
                 texte.consommer([i])
@@ -374,7 +375,8 @@ class ResolveurLieux:
                     and texte.mots[suivant] not in self.voc.mots_courants):
                 essais.insert(0, ([i, suivant], f"{mot} {texte.mots[suivant]}"))
             trouve = None
-            for noms, seuil in ((self.approches, SEUIL_APPROCHE), (self.approches_sites, SEUIL_APPROCHE_SITES)):
+            for noms, seuil in () if courant else ((self.approches, SEUIL_APPROCHE),
+                                                   (self.approches_sites, SEUIL_APPROCHE_SITES)):
                 for indices, essai in essais:
                     proches = difflib.get_close_matches(essai, list(noms), n=CANDIDATS_APPROCHES, cutoff=seuil)
                     if proches:
@@ -388,11 +390,11 @@ class ResolveurLieux:
                 mots = " ".join(dict.fromkeys(texte.origines[j] for j in indices))
                 candidats = list(dict.fromkeys(candidats))[:CANDIDATS_APPROCHES]
                 ambiguites.append(Ambiguite(mots, candidats, non_reconnu=True))
-            elif self.approches_publiques and difflib.get_close_matches(
+            elif not courant and self.approches_publiques and difflib.get_close_matches(
                     mot, list(self.approches_publiques), n=1, cutoff=SEUIL_APPROCHE):
                 texte.consommer([i])  # proche d'une commune hors périmètre (publique) : même question
                 ambiguites.append(Ambiguite(origine, [], hors_perimetre=True))
-            elif self._ressemble_a_un_lieu(texte, i):
+            elif self._ressemble_a_un_lieu(texte, i) and not (courant and not origine[:1].isupper()):
                 indices = self._groupe(texte, i)
                 texte.consommer(indices)
                 ambiguites.append(Ambiguite(" ".join(texte.origines[j] for j in indices), [], non_reconnu=True))
@@ -423,9 +425,12 @@ class ResolveurLieux:
         """Mot placé comme un lieu : après « à », « au », « sur »… ; capitalisé, après une
         préposition de lieu (« de », « du », « pour », « en » en plus). Jamais d'après
         l'existence du mot dans le référentiel."""
-        if i == 0:
+        j = i - 1
+        while j > 0 and texte.mots[j] in _ARTICLES:  # « sur la Grande Terre », « à l'Île… »
+            j -= 1
+        if j < 0:
             return False
-        precedent = texte.mots[i - 1]
+        precedent = texte.mots[j]
         majuscule = texte.origines[i][:1].isupper() and self._majuscules_significatives(texte)
         return precedent in _AVANT_LIEU or (majuscule and precedent in _AVANT_LIEU_MAJUSCULE)
 
