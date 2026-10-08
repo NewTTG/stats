@@ -317,6 +317,9 @@ regions:
     regions: [SUD, GRD NEA 1, NEA]
   # « sud » seul garde ce sens (Sud hors Grand Nouméa) ; « Province Sud » (lue avant le
   # vocabulaire, où « province » est neutre) couvre toutes les communes de la province.
+  # Chaque commune n'est rattachée qu'à sa région majoritaire (le plus de sites ; à égalité,
+  # ordre alphabétique) : Mont-Dore et Païta, qui ont chacune un site en SUD, restent au
+  # Grand Nouméa, et Sud + Grand Nouméa = Province Sud, sans recouvrement.
   - libelle: Sud (hors Grand Nouméa)
     mots: [sud, region sud, brousse sud]
     regions: [SUD]
