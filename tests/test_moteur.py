@@ -81,3 +81,91 @@ def test_denominateur_nul_donne_nan():
 def test_debit_nul_ne_produit_pas_inf():
     df = pd.DataFrame({"volume": [0.0, 10.0], "thp_kbps": [0.0, 1_000.0]})
     assert agreger(df, [DEBIT], par=[])["thp"].iloc[0] == pytest.approx(1.0)
+
+
+# ------------------------------------------------- KPI composites, causes, plafond
+
+def _catalogue(tmp_path, kpis):
+    import yaml
+
+    from apps.kpi.catalogue import charger_catalogue
+
+    chemin = tmp_path / "catalogue.yaml"
+    chemin.write_text(yaml.safe_dump({"kpis": kpis}, allow_unicode=True), encoding="utf-8")
+    return charger_catalogue(chemin)
+
+
+RRC = {"code": "rrc", "libelle": "RRC", "techno": "WCDMA", "unite": "%", "categorie": "accessibilite",
+       "numerateur": "rrc_succ", "denominateur": "rrc_att", "facteur": 100, "sens": "haut_est_mieux"}
+RAB = {"code": "rab", "libelle": "RAB", "techno": "WCDMA", "unite": "%", "categorie": "accessibilite",
+       "numerateur": "rab_succ", "denominateur": "rab_att", "facteur": 100, "sens": "haut_est_mieux"}
+CSSR = {"code": "cssr", "libelle": "Accès", "techno": "WCDMA", "unite": "%", "categorie": "accessibilite",
+        "produit_de": ["rrc", "rab"], "facteur": 100, "sens": "haut_est_mieux"}
+
+
+def test_composite_produit_des_ratios_de_sommes(tmp_path):
+    cat = _catalogue(tmp_path, [RRC, RAB, CSSR])
+    # A : RRC 50/100, RAB 50/50 ; B : RRC 10/10, RAB 1/10.
+    df = pd.DataFrame({"cell": ["A", "B"], "rrc_succ": [50, 10], "rrc_att": [100, 10],
+                       "rab_succ": [50, 1], "rab_att": [50, 10]})
+    res = agreger(df, [cat["cssr"]], par=[])["cssr"].iloc[0]
+    attendu = (60 / 110) * (51 / 60) * 100
+    assert res == pytest.approx(attendu)
+    produits_par_ligne = [0.5 * 1.0, 1.0 * 0.1]
+    assert res != pytest.approx(np.mean(produits_par_ligne) * 100)  # pas une moyenne de produits
+    assert not cat["cssr"].additif
+
+
+def test_composite_avec_ses_composants_demandes(tmp_path):
+    cat = _catalogue(tmp_path, [RRC, RAB, CSSR])
+    df = pd.DataFrame({"rrc_succ": [9], "rrc_att": [10], "rab_succ": [8], "rab_att": [10]})
+    res = agreger(df, [cat["rrc"], cat["cssr"], cat["rab"]], par=[]).iloc[0]
+    assert res["rrc"] == pytest.approx(90) and res["rab"] == pytest.approx(80)
+    assert res["cssr"] == pytest.approx(72)
+
+
+def test_composite_colonnes_utilisees(tmp_path):
+    from apps.kpi.service import colonnes_utilisees
+
+    cat = _catalogue(tmp_path, [RRC, RAB, CSSR])
+    assert colonnes_utilisees([cat["cssr"]]) == ["rab_att", "rab_succ", "rrc_att", "rrc_succ"]
+
+
+@pytest.mark.parametrize("modif, message", [
+    ({"produit_de": ["rrc", "inconnu"]}, "inconnu"),
+    ({"produit_de": ["rrc", "vol"]}, "additif"),
+    ({"produit_de": ["rrc", "rab"], "numerateur": "x"}, "exclut"),
+    ({"produit_de": ["rrc"]}, "au moins deux"),
+])
+def test_composite_invalide(tmp_path, modif, message):
+    vol = {"code": "vol", "libelle": "Vol", "techno": "WCDMA", "unite": "Mo", "categorie": "trafic",
+           "numerateur": "v", "sens": "haut_est_mieux"}
+    with pytest.raises(ValueError, match=message):
+        _catalogue(tmp_path, [RRC, RAB, vol, {**CSSR, **modif}])
+
+
+def test_decomposition_parent_inconnu(tmp_path):
+    cause = {**RRC, "code": "cause", "decomposition_de": "absent"}
+    with pytest.raises(ValueError, match="decomposition_de"):
+        _catalogue(tmp_path, [RRC, cause])
+
+
+def test_plafond_ligne_a_ligne():
+    dispo = DefinitionKpi(code="dispo", libelle="Dispo", techno="LTE", unite="%", categorie="disponibilite",
+                          numerateur="dispo_p", denominateur="1", plafond=100, sens="haut_est_mieux")
+    df = pd.DataFrame({"dispo_p": [248.0, 50.0]})
+    assert agreger(df, [dispo], par=[])["dispo"].iloc[0] == pytest.approx(75)
+
+
+def test_reference_evenement_composite_non_additive(tmp_path):
+    """Référence d'un composite = ratio de sommes sur les semaines, pas la moyenne des semaines."""
+    from apps.evenements.analyse import _valeurs
+
+    cat = _catalogue(tmp_path, [RRC, RAB, CSSR])
+    df = pd.DataFrame({
+        "cell": ["A"] * 3, "semaine": [0, 1, 2],
+        "rrc_succ": [10, 10, 100], "rrc_att": [10, 20, 100],
+        "rab_succ": [10, 10, 100], "rab_att": [10, 10, 100],
+    })
+    _, reference, _ = _valeurs(df, [cat["cssr"]], ["cell"])
+    assert reference.loc["A", "cssr"] == pytest.approx(110 / 120 * 100)

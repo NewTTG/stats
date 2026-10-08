@@ -376,13 +376,24 @@ kpis:
   - code: wcdma_speech_traffic
     libelle: Trafic voix
     techno: WCDMA
-    unite: Erl
+    unite: Erl·h
     categorie: trafic
     numerateur: SpeechTrafficDay_erlg
     sens: haut_est_mieux
     note: >-
-      Somme des Erlangs horaires : sur plusieurs heures, c'est un volume en Erl·h (à
-      confirmer, cf. docs/questions.md).
+      Somme des Erlangs horaires (Erl·h). Sur une heure, c'est l'Erlang moyen de l'heure ;
+      la table journalière publie la somme de la journée (≈ 2 min par appel sur l'extrait).
+
+  - code: wcdma_duree_appel
+    libelle: Durée moyenne d'appel voix (3G)
+    techno: WCDMA
+    unite: s
+    categorie: trafic
+    numerateur: SpeechTrafficDay_erlg * 3600
+    denominateur: NbrSpeechCalls
+    sens: haut_est_mieux
+    qualite: reconstruit
+    note: Trafic voix (Erl·h) converti en secondes, divisé par les appels établis.
 
   - code: wcdma_cs_drop
     libelle: Taux de coupure appels voix (3G)
