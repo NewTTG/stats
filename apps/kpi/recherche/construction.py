@@ -107,6 +107,22 @@ def _libelle_periode(p: Periode) -> str:
     return f"{p.libelle} · {dates}" if p.libelle and not p.libelle.startswith(("Du ", "Le ")) else dates
 
 
+def niveau_comparaison(demande: Demande) -> str | None:
+    """Niveau spatial implicite d'une comparaison de lieux.
+
+    Plusieurs communes citées (« Koumac et Poum ») ou « comparaison / comparer / vs » avec
+    des communes -> par commune ; « comparer » des sites -> par site.
+    """
+    lieux = [lieu for lieu in demande.lieux if lieu.type != "global"]
+    types = {lieu.type for lieu in lieux}
+    nb_valeurs = sum(len(lieu.valeurs) for lieu in lieux)
+    if types == {"commune"} and (len(lieux) >= 2 or (demande.comparaison and nb_valeurs >= 2)):
+        return "commune"
+    if demande.comparaison and types and types <= {"site", "commune", "trigramme"} and nb_valeurs >= 2:
+        return "site"
+    return None
+
+
 def _periode_evenement(lieu: Lieu) -> Periode | None:
     from apps.evenements.models import Creneau
 
@@ -181,7 +197,8 @@ def construire(demande: Demande, contexte: Contexte, aujourdhui: date, *, source
     temps = demande.granularite_temps or (granularite_par_defaut(periode.jours) if periode else None)
     if temps:
         params["granularite_temps"] = temps
-    espace = demande.granularite_espace or ("site" if demande.classement else "global")
+    compare = None if demande.granularite_espace or demande.classement else niveau_comparaison(demande)
+    espace = demande.granularite_espace or ("site" if demande.classement else compare or "global")
     params["granularite_espace"] = espace
 
     # Puces (ce qui a été compris, modifiable)
@@ -200,7 +217,7 @@ def construire(demande: Demande, contexte: Contexte, aujourdhui: date, *, source
     if temps:
         interp.compris.append(Puce("granularite_temps", LIBELLES_TEMPS[temps], defaut=not demande.granularite_temps))
     interp.compris.append(Puce("granularite_espace", LIBELLES_ESPACE[espace],
-                               defaut=not demande.granularite_espace and not demande.classement))
+                               defaut=not demande.granularite_espace and not demande.classement and not compare))
     interp.compris.append(Puce("fenetre_horaire", demande.fenetre_libelle or libelle_fenetre(fenetre),
                                defaut=not demande.fenetre))
     interp.notes = list(dict.fromkeys(interp.notes))

@@ -35,7 +35,14 @@ class Vocabulaire:
     pas_trigrammes: set[str]
     exemples: list[str]
     qualificatifs: dict[str, list[str]] = field(default_factory=dict)
+    # Sigles (« HSDPA », « PRB »…) : jamais un lieu ; mots normalisés (un ou plusieurs mots).
+    termes_techniques: set[str] = field(default_factory=set)
     mots: Correspondeur = field(default_factory=Correspondeur, repr=False)
+    # Terme -> techno qu'il implique (« E-RAB » -> LTE) quand la demande n'en cite aucune.
+    implicites: Correspondeur = field(default_factory=Correspondeur, repr=False)
+
+    def est_terme_technique(self, mot: str) -> bool:
+        return normaliser(mot) in self.termes_techniques
 
     def libelle_commune(self, nom: str) -> str:
         return (self.communes.get(nom) or {}).get("libelle") or nom.title()
@@ -67,7 +74,13 @@ def charger_vocabulaire(chemin: Path) -> Vocabulaire:
         pas_trigrammes={normaliser(str(m)) for m in brut.get("pas_trigrammes", [])},
         exemples=list(brut.get("exemples", [])),
         qualificatifs={k: [str(m) for m in v] for k, v in (brut.get("qualificatifs") or {}).items()},
+        termes_techniques={normaliser(str(m)) for m in brut.get("termes_techniques") or []},
     )
+    for techno, mots in (brut.get("technos_implicites") or {}).items():
+        if techno not in TECHNOS:
+            raise ValueError(f"technos_implicites : techno inconnue {techno!r}")
+        for mot in mots:
+            voc.implicites.ajouter(str(mot), techno)
     for code, intention in intentions.items():
         for cible in intention.absorbe.values():
             if cible not in intentions:
@@ -85,6 +98,9 @@ def charger_vocabulaire(chemin: Path) -> Vocabulaire:
     for code, mots in voc.qualificatifs.items():
         for mot in mots:
             voc.mots.ajouter(mot, ("qualificatif", code))
+    for mot in voc.termes_techniques:  # sigles sans intention propre : reconnus, sans effet
+        if mot not in voc.mots:
+            voc.mots.ajouter(mot, ("neutre", None))
     return voc
 
 

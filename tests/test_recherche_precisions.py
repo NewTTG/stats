@@ -57,7 +57,7 @@ def test_volume_data_reste_du_trafic(ctx):  # noqa: F811
     ("drop 4G semaine 38", date(2026, 9, 14), date(2026, 9, 20)),
     ("drop 4G en semaine 2", date(2026, 1, 5), date(2026, 1, 11)),
     ("drop 4G semaine 50", date(2025, 12, 8), date(2025, 12, 14)),  # à venir : année précédente
-    ("drop 4G S38 2025", date(2025, 9, 15), date(2025, 9, 21)),
+    ("drop 4G sem. 38 2025", date(2025, 9, 15), date(2025, 9, 21)),
 ])
 def test_semaine_iso(ctx, phrase, debut, fin):  # noqa: F811
     p = interpreter(phrase, J, ctx).params["periode"]

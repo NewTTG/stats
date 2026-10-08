@@ -11,7 +11,19 @@
 
 technos:
   LTE: [4g, lte, eutran, e utran]
-  WCDMA: [3g, umts, wcdma, hspa, hsdpa, utran]
+  WCDMA: [3g, umts, wcdma, hspa, hsdpa, hsupa, utran]
+
+# Termes qui désignent une techno sans la nommer : appliqués seulement si la demande ne
+# cite aucune techno (« drop E-RAB » = 4G, « CSSR » = 3G ; « 3G » ou « 4G » explicite prime).
+technos_implicites:
+  LTE: [e rab, erab, prb, prbs, s1, csfb, cqi, enb, enodeb, mme, volte]
+  WCDMA: [hsdpa, hsupa, hspa, cssr, rab, erlang, erlangs, erl, rnc, nodeb]
+
+# Sigles et termes techniques : jamais pris pour un lieu (ni trigramme, ni nom approché),
+# jamais signalés comme incompris.
+termes_techniques: [hsdpa, hsupa, hspa, cssr, rrc, rab, prb, prbs, cqi, csfb, volte, e rab, erab, s1, kpi, kpis, dl,
+                    ul, lte, wcdma, umts, 3g, 4g, sms, erlang, erlangs, mme, enb, enodeb, nodeb, rnc, ho, irat, iho,
+                    sho, ifho, pssr, gsm, 2g, 5g, nr, ran, oss, bts, rbs, erbs]
 
 # intention -> libellé, mots, KPI par techno.
 # technos_defaut : technos retenues quand la demande n'en précise pas (défaut : les deux).
@@ -80,10 +92,36 @@ intentions:
   rrc:
     libelle: Succès RRC
     absorbe: {voix: rrc, data: rrc}
-    mots: [rrc, taux rrc, setup rrc, connexion rrc]
+    mots: [rrc, taux rrc, setup rrc, connexion rrc, succes rrc, taux de succes rrc, reussite rrc, rrc sr, rrc setup,
+           etablissement rrc, taux d etablissement rrc, acces rrc]
     kpis:
       LTE: [lte_rrc_setup_sr]
       WCDMA: [wcdma_rrc_cs_sr, wcdma_rrc_ps_sr]
+
+  s1:
+    libelle: Signalisation S1
+    mots: [s1, signalisation s1, succes s1, taux de succes s1, reussite s1, taux s1, s1 sr, s1 setup, setup s1,
+           taux de succes de signalisation s1, succes de signalisation s1, interface s1]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_s1_sig_sr]
+
+  erab:
+    libelle: Établissement E-RAB
+    mots: [succes e rab, taux de succes e rab, reussite e rab, etablissement e rab, taux d etablissement e rab,
+           e rab setup, setup e rab, e rab sr, acces e rab, e rab initial, succes erab, taux de succes erab,
+           etablissement erab, erab setup, setup erab, erab sr, acces erab, erab initial]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_init_erab_sr]
+
+  rab:
+    libelle: Établissement RAB
+    mots: [succes rab, taux de succes rab, reussite rab, etablissement rab, taux d etablissement rab, rab setup,
+           setup rab, rab sr, acces rab]
+    technos_defaut: [WCDMA]
+    kpis:
+      WCDMA: [wcdma_rab_cs_sr, wcdma_rab_ps_sr]
 
   debit:
     libelle: Débit
@@ -167,7 +205,9 @@ intentions:
     libelle: Congestion
     famille: true
     mots: [congestion, congestions, congestionne, congestionnes, sature, saturee, saturation, saturations, prb,
-           charge, chargee, encombrement, surcharge, surcharges, occupation]
+           prbs, prb dl, prbs dl, prb downlink, utilisation prb, utilisation des prb, utilisation prb dl, taux prb,
+           occupation prb, charge prb, prb dl util, prb util, charge, chargee, encombrement, surcharge, surcharges,
+           occupation]
     technos_defaut: [LTE]
     kpis:
       LTE: [lte_prb_dl_util]
@@ -194,6 +234,9 @@ modificateurs:
   heure_chargee: [heure chargee, heures chargees, heure de pointe, heures de pointe, busy hour, hc]
   global: [reseau, partout, global, globale, globalement, tout le reseau, ensemble du reseau, territoire,
            nouvelle caledonie, caledonie, pays, national]
+  # Plusieurs communes (ou sites) comparées : résultat par commune (ou par site).
+  comparaison: [comparaison, comparaisons, comparer, compare, comparez, comparatif, comparatifs, vs, versus,
+                face a face]
 
 # Mots courants sans effet sur la requête : reconnus, jamais signalés comme incompris.
 neutres: [kpi, kpis, stat, stats, statistique, statistiques, indicateur, indicateurs, evolution, courbe, courbes,
@@ -205,8 +248,9 @@ neutres: [kpi, kpis, stat, stats, statistique, statistiques, indicateur, indicat
           utilisateur, utilisateurs, client, clients, cellule, cellules, site, sites, commune, communes, secteur,
           secteurs, zone, zones, ville, region, province, quelle, quel, quels, quelles, comment, ya, eu, avoir,
           ete, fait, faire, merci, stp, svp, please, show, me, the, of, at, in, for, rate, radio, mobile, reseaux,
-          compare, comparer, detail, details, detaille, operateur, opt, journee, journees, jour, jours, periode,
-          nb, nbre, quantite, erab, volte, rab, oss, enodeb, nodeb, rnc]
+          detail, details, detaille, operateur, opt, journee, journees, jour, jours, periode,
+          nb, nbre, quantite, erab, e rab, volte, rab, oss, enodeb, nodeb, rnc, succes, reussite, taux de succes,
+          taux de reussite, signalisation, sr]
 
 # Régions et provinces (champ « région » du référentiel) -> communes correspondantes.
 regions:

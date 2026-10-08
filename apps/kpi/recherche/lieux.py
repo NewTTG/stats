@@ -210,6 +210,9 @@ class ResolveurLieux:
                 continue
             texte.consommer([i])
 
+        # Termes techniques (« HSDPA », « PRB », « RNC ») : jamais un lieu.
+        texte.consommer(i for i in texte.libres() if self.voc.est_terme_technique(texte.mots[i]))
+
         # Trigrammes (3 caractères) ; mots courants seulement s'ils sont écrits en majuscules.
         for i in texte.libres():
             mot = texte.mots[i]

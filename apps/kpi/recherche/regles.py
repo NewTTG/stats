@@ -37,6 +37,8 @@ def _intentions(voc, correspondances, d: Demande) -> list[str]:
                     d.heure_chargee = True
                 elif code == "global":
                     d.global_demande = True
+                elif code == "comparaison":
+                    d.comparaison = True
         if intentions or qualificatif:
             elements.append((intentions, qualificatif))
 
@@ -87,8 +89,11 @@ def analyser(texte: str, aujourdhui: date, contexte: Contexte) -> tuple[Demande,
 
     for techno, mots in voc.technos.items():
         motif = "|".join(re.escape(m) for m in sorted(mots, key=len, reverse=True))
-        if any(True for _ in t.chercher(re.compile(rf"\b(?:{motif})\b"))) and techno not in d.techno:
+        # Toutes les occurrences sont consommées (« 3G HSDPA » : « HSDPA » aussi).
+        if list(t.chercher(re.compile(rf"\b(?:{motif})\b"))) and techno not in d.techno:
             d.techno.append(techno)
+    if not d.techno:  # « drop E-RAB » = 4G, « CSSR » = 3G (sans consommer : le vocabulaire suit)
+        d.techno = [techno for _indices, technos in voc.implicites.trouver(t, consommer=False) for techno in technos]
     d.techno = [x for x in ("LTE", "WCDMA") if x in d.techno]
 
     d.intentions = _intentions(voc, voc.mots.trouver(t), d)

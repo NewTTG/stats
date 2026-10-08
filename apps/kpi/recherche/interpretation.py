@@ -84,6 +84,7 @@ class Demande:
     granularite_espace: str | None = None
     classement: bool = False
     heure_chargee: bool = False
+    comparaison: bool = False  # « comparaison », « comparer », « vs »
 
 
 @dataclass

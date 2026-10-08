@@ -156,13 +156,24 @@ quelque chose, elle pose une question avec des réponses en un clic.
   « pourquoi » ajoutent les KPI du catalogue dont `decomposition_de` est le KPI retenu.
   « voix » / « data » précisent une intention (« taux de coupure voix » = coupures voix
   3G seules, « accès data » = accès data) au lieu d'ajouter les appels ou le volume.
+  Sigles : « S1 » (signalisation S1), « RRC », « E-RAB » (drop ou établissement selon le
+  contexte), « PRB DL » (congestion). Sans techno citée, certains termes l'impliquent
+  (`technos_implicites`) : E-RAB, PRB, S1, CSFB, CQI → 4G ; HSDPA, HSUPA, CSSR, RAB,
+  Erlang → 3G. Les sigles (`termes_techniques` : HSDPA, RRC, PRB, KPI, DL…) ne sont
+  jamais pris pour un lieu. « comparaison », « comparer », « vs » ou plusieurs communes
+  citées → résultat par commune.
 - **Lieux** : communes (accents et tirets tolérés), régions / provinces, codes et noms de
   site, trigrammes, secteurs, cellules, événements — limités au périmètre de l'utilisateur
   (un lecteur restreint ne se voit proposer aucun lieu hors de son périmètre).
 - **Dates** : aujourd'hui, hier, cette semaine, la semaine dernière, les N derniers jours,
   ce mois-ci, le mois dernier, « septembre », « septembre 2025 », « du 1er au 15
-  septembre », « du 01/09 au 15/09 », « le 14/09 », « le week-end du 14 », « semaine 38 »,
-  « 2025 ». Période limitée à 400 jours en horaire et 10 ans en journalier ; si les
+  septembre », « du 01/09 au 15/09 », « le 14/09 », « le week-end du 14 », « semaine 38 »
+  ou « sem. 38 » (jamais « S38 » seul : « S1 » est l'interface S1), « 2025 », « ce
+  week-end », « le week-end dernier ». Jours de la semaine (« jeudi », « samedi
+  dernier », « mardi passé ») : toujours le jour le plus récent **strictement avant
+  aujourd'hui** (jamais aujourd'hui ni l'avenir) ; un jeudi, « jeudi » = jeudi de la
+  semaine précédente et « samedi dernier » = samedi précédent. « depuis septembre »,
+  « depuis le 15/09 », « depuis lundi » : de cette date à hier. Période limitée à 400 jours en horaire et 10 ans en journalier ; si les
   données ne couvrent qu'une partie de la période, un avertissement donne les dates
   réellement disponibles.
   Heures : « 18h-22h », « entre 7h et 20h », « soirée », « en journée ». « Heure chargée »
