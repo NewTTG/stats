@@ -95,6 +95,11 @@ def analyser(texte: str, aujourdhui: date, contexte: Contexte) -> tuple[Demande,
     if not d.techno:  # « drop E-RAB » = 4G, « CSSR » = 3G (sans consommer : le vocabulaire suit)
         d.techno = [techno for _indices, technos in voc.implicites.trouver(t, consommer=False) for techno in technos]
     d.techno = [x for x in ("LTE", "WCDMA") if x in d.techno]
+    # KPI ou technologie absents des données (« SINR », « 2G ») : note, la demande continue.
+    for _indices, valeurs in voc.indisponibles.trouver(t):
+        for libelle, est_techno in valeurs:
+            notes.append(f"La {libelle} n'est pas dans les données : technologies disponibles, 4G et 3G."
+                         if est_techno else f"KPI « {libelle} » non disponible dans les données.")
 
     d.intentions = _intentions(voc, voc.mots.trouver(t), d)
 

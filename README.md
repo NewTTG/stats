@@ -184,7 +184,8 @@ quelque chose, elle pose une question avec des réponses en un clic.
 - **Dates** : aujourd'hui, hier, cette semaine, la semaine dernière, les N derniers jours,
   ce mois-ci, le mois dernier, « septembre », « septembre 2025 », « du 1er au 15
   septembre », « du 01/09 au 15/09 », « le 14/09 », « le week-end du 14 », « semaine 38 »
-  ou « sem. 38 » (jamais « S38 » seul : « S1 » est l'interface S1), « 2025 », « ce
+  ou « sem. 38 » ; « S40 », « S 40 », « s.40 » seulement avec un contexte de date (« en S40 »,
+  « la S40 », « pendant la S40 », « S40 2026 ») et jamais « S1 » (interface S1), « 2025 », « ce
   week-end », « le week-end dernier ». Jours de la semaine (« jeudi », « samedi
   dernier », « mardi passé ») : toujours le jour le plus récent **strictement avant
   aujourd'hui** (jamais aujourd'hui ni l'avenir) ; un jeudi, « jeudi » = jeudi de la

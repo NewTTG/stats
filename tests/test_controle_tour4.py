@@ -159,3 +159,59 @@ def test_faux_rapprochements(ctx3):  # noqa: F811
     assert i.params["granularite_espace"] == "commune"
     i = interpreter("drop 4G Maree hier", J, ctx)  # nom de 4 lettres : jamais approché
     assert not any(o.libelle == "Maré" for q in i.questions for o in q.options)
+
+
+# ------------------------------------------------------------------ mineurs : vocabulaire et granularités
+
+@pytest.mark.parametrize("phrase,sigle", [
+    ("Nouméa SINR hier", "SINR"), ("RSRP Nouméa hier", "RSRP"), ("Nouméa RSRP hier", "RSRP"),
+    ("BLER 4G Nouméa hier", "BLER"), ("MIMO Nouméa hier", "MIMO"), ("RSRQ Nouméa hier", "RSRQ"),
+    ("CQI Nouméa hier", "CQI"), ("VoLTE Nouméa hier", "VoLTE"),
+])
+def test_kpi_indisponible_note_et_lieu_garde(ctx3, phrase, sigle):  # noqa: F811
+    i = interpreter(phrase, J, ctx3)
+    assert f"KPI « {sigle} » non disponible dans les données." in i.notes
+    assert i.params["perimetre"] == {"type": "commune", "valeurs": ["NOUMEA"]} and _question_lieu(i) is None
+    assert sigle not in i.non_compris
+
+
+@pytest.mark.parametrize("phrase,libelle", [("drop 2G Nouméa hier", "2G"), ("drop GSM Nouméa hier", "2G (GSM)"),
+                                            ("drop EDGE Nouméa hier", "2G (EDGE)")])
+def test_2g_absente_puis_technos_disponibles(ctx3, phrase, libelle):  # noqa: F811
+    i = interpreter(phrase, J, ctx3)
+    assert f"La {libelle} n'est pas dans les données : technologies disponibles, 4G et 3G." in i.notes
+    assert i.params["techno"] == ["LTE", "WCDMA"] and i.complete and _question_lieu(i) is None
+
+
+@pytest.mark.parametrize("phrase,semaine", [
+    ("drop 4G Nouméa en S40", 40), ("drop 4G Nouméa la S 40", 40), ("drop 4G Nouméa s.40 2026", 40),
+    ("drop 4G Nouméa pendant la S38", 38), ("drop 4G Nouméa sem. 40", 40), ("drop 4G Nouméa semaine 40", 40),
+    ("drop 4G Nouméa S40", None),  # sans contexte de date : pas une semaine
+    ("drop 4G Nouméa en S1", None),  # « S1 » reste l'interface S1
+])
+def test_semaine_s_avec_contexte_de_date(ctx3, phrase, semaine):  # noqa: F811
+    from datetime import date as d
+
+    p = interpreter(phrase, J, ctx3).params.get("periode")
+    if semaine is None:
+        assert p is None
+    else:
+        lundi = d.fromisocalendar(2026, semaine, 1)
+        assert (p["debut"], p["fin"]) == (lundi, d.fromisocalendar(2026, semaine, 7))
+    assert interpreter("drop 4G Nouméa S1 hier", J, ctx3).params["kpis"] == ["lte_erab_drop", "lte_s1_sig_sr"]
+
+
+def test_taux_d_echec_rrc_sans_composite(ctx3):  # noqa: F811
+    i = interpreter("quel est le taux d'échec RRC en 3G à Koné depuis lundi", J, ctx3)
+    assert i.params["kpis"] == ["wcdma_rrc_cs_sr", "wcdma_rrc_ps_sr"] and i.non_compris == []
+
+
+@pytest.mark.parametrize("phrase,niveau", [
+    ("utilisation PRB DL des secteurs du site PIM123 le 2 octobre", "secteur"),
+    ("drop 4G des cellules du site KON552 hier", "cellule"),
+    ("disponibilité des sites 3G de Koné la semaine dernière", "site"),
+    ("les 10 cellules 4G avec le pire débit montant à Païta ce mois-ci", "cellule"),
+    ("drop 4G au site KON552 hier", "global"),  # « au site X » : un lieu, pas un niveau
+])
+def test_niveau_des_sites_secteurs_cellules(ctx3, phrase, niveau):  # noqa: F811
+    assert interpreter(phrase, J, ctx3).params["granularite_espace"] == niveau

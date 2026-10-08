@@ -23,7 +23,27 @@ technos_implicites:
 # jamais signalés comme incompris.
 termes_techniques: [hsdpa, hsupa, hspa, cssr, rrc, rab, prb, prbs, cqi, csfb, volte, e rab, erab, s1, kpi, kpis, dl,
                     ul, lte, wcdma, umts, 3g, 4g, sms, erlang, erlangs, mme, enb, enodeb, nodeb, rnc, ho, irat, iho,
-                    sho, ifho, pssr, gsm, 2g, 5g, nr, ran, oss, bts, rbs, erbs]
+                    sho, ifho, pssr, gsm, 2g, 5g, nr, ran, oss, bts, rbs, erbs, sinr, bler, mimo, edge, rsrp, rsrq,
+                    rscp, ecno, ec io, gprs]
+
+# KPI ou technologies cités mais absents des données : une note le dit, la demande continue
+# (« Nouméa SINR hier » garde Nouméa ; « drop 2G » -> note puis les technos disponibles).
+# terme normalisé -> libellé affiché ; « techno: true » pour une technologie absente.
+indisponibles:
+  sinr: {libelle: SINR}
+  bler: {libelle: BLER}
+  mimo: {libelle: MIMO}
+  rsrp: {libelle: RSRP}
+  rsrq: {libelle: RSRQ}
+  rscp: {libelle: RSCP}
+  ecno: {libelle: Ec/No}
+  cqi: {libelle: CQI}
+  volte: {libelle: VoLTE}
+  2g: {libelle: 2G, techno: true}
+  gsm: {libelle: 2G (GSM), techno: true}
+  edge: {libelle: 2G (EDGE), techno: true}
+  gprs: {libelle: 2G (GPRS), techno: true}
+  5g: {libelle: 5G, techno: true}
 
 # intention -> libellé, mots, KPI par techno.
 # technos_defaut : technos retenues quand la demande n'en précise pas (défaut : les deux).
@@ -93,7 +113,9 @@ intentions:
     libelle: Succès RRC
     absorbe: {voix: rrc, data: rrc}
     mots: [rrc, taux rrc, setup rrc, connexion rrc, succes rrc, taux de succes rrc, reussite rrc, rrc sr, rrc setup,
-           etablissement rrc, taux d etablissement rrc, acces rrc]
+           etablissement rrc, taux d etablissement rrc, acces rrc, echec rrc, echecs rrc, taux d echec rrc,
+           taux d echecs rrc, echec de connexion rrc, echecs de connexion rrc, echec d etablissement rrc,
+           rrc echec, rrc echecs, rejet rrc, rejets rrc]
     kpis:
       LTE: [lte_rrc_setup_sr]
       WCDMA: [wcdma_rrc_cs_sr, wcdma_rrc_ps_sr]
@@ -101,6 +123,7 @@ intentions:
   s1:
     libelle: Signalisation S1
     mots: [s1, signalisation s1, succes s1, taux de succes s1, reussite s1, taux s1, s1 sr, s1 setup, setup s1,
+           echec s1, echecs s1, taux d echec s1,
            taux de succes de signalisation s1, succes de signalisation s1, interface s1]
     technos_defaut: [LTE]
     kpis:
@@ -109,6 +132,7 @@ intentions:
   erab:
     libelle: Établissement E-RAB
     mots: [succes e rab, taux de succes e rab, reussite e rab, etablissement e rab, taux d etablissement e rab,
+           echec e rab, echecs e rab, taux d echec e rab, echec erab, echecs erab, taux d echec erab,
            e rab setup, setup e rab, e rab sr, acces e rab, e rab initial, succes erab, taux de succes erab,
            etablissement erab, erab setup, setup erab, erab sr, acces erab, erab initial]
     technos_defaut: [LTE]
@@ -118,6 +142,7 @@ intentions:
   rab:
     libelle: Établissement RAB
     mots: [succes rab, taux de succes rab, reussite rab, etablissement rab, taux d etablissement rab, rab setup,
+           echec rab, echecs rab, taux d echec rab,
            setup rab, rab sr, acces rab]
     technos_defaut: [WCDMA]
     kpis:

@@ -259,8 +259,13 @@ def _motifs(aujourdhui: date):
          entre_numeriques),
         (rf"(?:le |ce )?(?:week end|weekend|we) (?:du |de )?{_JOUR}(?: ({_MOIS}))?(?: {_AN})?", week_end_du),
         (r"(\d{4})-(\d{2})-(\d{2})", iso),
-        # « semaine 38 », « sem. 38 », « sem 38 » ; jamais « S38 » seul (« S1 » = interface S1).
+        # « semaine 38 », « sem. 38 », « sem 38 » ; « S40 », « S 40 », « s.40 » seulement avec un
+        # contexte de date : précédé de « en », « la », « de la », « pendant la », « depuis la »,
+        # « sur la », « à partir de la », ou suivi d'une année (« S40 2026 »). Jamais « S1 »
+        # (interface S1) : écrire « semaine 1 ».
         (r"(?:la |en |de la |pendant la )?(?:semaine|sem) ?(\d{1,2})(?: (\d{4}))?", semaine_iso),
+        (r"(?:la|en|de la|pendant la|depuis la|sur la|a partir de la) s ?([2-9]|\d{2})(?: (\d{4}))?", semaine_iso),
+        (r"s ?([2-9]|\d{2}) (\d{4})", semaine_iso),
         (rf"(?:le |du |au )?{_NOM_JOUR}{_JOUR} ({_MOIS})(?: {_AN})?", jour_mois),
         (rf"(?:le |du |au )?{_NOM_JOUR}(\d{{1,2}})/(\d{{1,2}})(?:/(\d{{2,4}}))?", jour_numerique),
         (rf"(?:le|du|depuis le) {_NOM_JOUR}(\d{{1,2}})(?:er|e|eme)?", jour_seul),
