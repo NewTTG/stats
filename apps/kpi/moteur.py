@@ -26,15 +26,27 @@ def _evaluer(df: pd.DataFrame, expression: str) -> pd.Series:
     return valeur.astype(float).replace([np.inf, -np.inf], np.nan)
 
 
+def ratios_simples(kpis: list[DefinitionKpi]) -> list[DefinitionKpi]:
+    """KPI à numérateur / dénominateur à calculer : ceux demandés et les composants
+    des KPI composites (``produit_de``), sans doublon."""
+    vus: dict[str, DefinitionKpi] = {}
+    for k in kpis:
+        for c in (k.composants if k.produit_de else [k]):
+            vus.setdefault(c.code, c)
+    return list(vus.values())
+
+
 def composantes(df: pd.DataFrame, kpis: list[DefinitionKpi]) -> pd.DataFrame:
-    """Ajoute les colonnes numérateur / dénominateur de chaque KPI.
+    """Ajoute les colonnes numérateur / dénominateur de chaque KPI (composants inclus).
 
     Une ligne dont une composante n'est pas calculable (donnée absente) reste NaN :
     elle est exclue des sommes, ce qui distingue « pas de données » de « valeur nulle ».
     """
     sortie = pd.DataFrame(index=df.index)
-    for k in kpis:
+    for k in ratios_simples(kpis):
         num = _evaluer(df, k.numerateur)
+        if k.plafond is not None:
+            num = num.clip(upper=k.plafond)
         if k.denominateur is None:
             sortie[_num(k.code)] = num
             sortie[_den(k.code)] = np.where(num.isna(), np.nan, 1.0)
@@ -50,7 +62,8 @@ def agreger(df: pd.DataFrame, kpis: list[DefinitionKpi], par: list[str]) -> pd.D
     """Agrège ``df`` selon les colonnes ``par`` (liste vide => agrégat global).
 
     Renvoie, pour chaque KPI : la valeur, et les sommes num/den (utiles pour les tests
-    et pour ré-agréger sans perte).
+    et pour ré-agréger sans perte). Un KPI composite vaut le produit des ratios de sommes
+    de ses composants : jamais la moyenne de produits calculés ligne à ligne.
     """
     comp = composantes(df, kpis)
     if par:
@@ -58,10 +71,17 @@ def agreger(df: pd.DataFrame, kpis: list[DefinitionKpi], par: list[str]) -> pd.D
         sommes = comp.groupby(par, dropna=False).sum(min_count=1)
     else:
         sommes = comp.sum(min_count=1).to_frame().T
+    def ratio(k: DefinitionKpi) -> pd.Series:
+        return sommes[_num(k.code)] / sommes[_den(k.code)].replace(0, np.nan)
+
     for k in kpis:
-        num, den = sommes[_num(k.code)], sommes[_den(k.code)]
-        if k.denominateur is None:
-            sommes[k.code] = num * k.facteur
+        if k.produit_de:
+            valeur = ratio(k.composants[0])
+            for c in k.composants[1:]:
+                valeur = valeur * ratio(c)
+            sommes[k.code] = valeur * k.facteur
+        elif k.additif:
+            sommes[k.code] = sommes[_num(k.code)] * k.facteur
         else:
-            sommes[k.code] = (num / den.replace(0, np.nan)) * k.facteur
+            sommes[k.code] = ratio(k) * k.facteur
     return sommes

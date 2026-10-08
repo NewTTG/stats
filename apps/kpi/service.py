@@ -10,7 +10,7 @@ from apps.comptes.acces import cellules_autorisees, kpis_autorises
 from apps.referentiel.models import Cellule
 
 from .catalogue import DefinitionKpi, catalogue
-from .moteur import agreger
+from .moteur import agreger, ratios_simples
 from .requete import RequeteKpi
 from .source import lire
 
@@ -44,7 +44,7 @@ class Resultat:
 
 def colonnes_utilisees(kpis: list[DefinitionKpi]) -> list[str]:
     noms = set()
-    for k in kpis:
+    for k in ratios_simples(kpis):
         for expr in (k.numerateur, k.denominateur or ""):
             noms.update(_IDENT.findall(expr))
     return sorted(noms)
