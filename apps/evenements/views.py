@@ -21,7 +21,7 @@ def liste(request):
 
 def _graphiques(res):
     return {"instants": res.instants, "kpis": [
-        {"titre": f"{c.kpi.libelle} ({c.kpi.unite})", "seuils": c.kpi.seuils.model_dump(),
+        {"titre": f"{c.kpi.libelle} ({c.kpi.unite})", "unite": c.kpi.unite, "seuils": c.kpi.seuils.model_dump(),
          "evenement": c.evenement, "reference": c.reference, "min": c.ref_min, "max": c.ref_max}
         for c in res.courbes]}
 

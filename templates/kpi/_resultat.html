@@ -35,7 +35,7 @@
     {% for c in bloc.cartes %}
     <article class="carte-kpi {{ c.statut }}">
       <div class="libelle">{{ c.kpi.libelle }}</div>
-      <div class="valeur">{{ c.texte }}<small>{{ c.unite }}</small></div>
+      <div class="valeur {{ c.taille }}"><span class="nombre-kpi">{{ c.texte }}</span> <small class="unite">{{ c.unite }}</small></div>
       <div class="pied">
         {% if c.statut == "ok" %}<span class="statut ok">OK</span>{% elif c.statut == "alerte" %}<span class="statut alerte">Alerte</span>{% elif c.statut == "critique" %}<span class="statut critique">Critique</span>{% endif %}
         {% if c.approx or c.kpi.note %}
@@ -67,7 +67,7 @@
           </li>
           {% endfor %}
         </ol>
-        {% if cause.negligeables %}<p class="aide" style="margin-top: .6rem;">Négligeables (&lt; 0,1 %) : {{ cause.negligeables|join:", " }}.</p>{% endif %}
+        {% if cause.negligeables %}<p class="aide" style="margin-top: .6rem;">Négligeables (&lt; {{ cause.seuil_negligeable }} % des coupures) : {{ cause.negligeables|join:", " }}.</p>{% endif %}
         {% if cause.non_ventile %}<p class="aide">« Non ventilé » : coupures sans cause publiée (taux total − somme des causes).</p>{% endif %}
       </div>
       <div>
@@ -109,9 +109,9 @@
   {% endif %}
 
   <details class="repliable">
-    <summary>Tableau détaillé ({{ bloc.lignes|length }} ligne{{ bloc.lignes|length|pluralize }})</summary>
+    <summary>Tableau détaillé ({% if bloc.lignes_tronquees %}{{ bloc.lignes_texte }} premières lignes sur {{ bloc.lignes_total_texte }}{% else %}{{ bloc.lignes_total_texte }} ligne{{ bloc.lignes_total|pluralize }}{% endif %})</summary>
     <div class="contenu">
-      {% if bloc.lignes_tronquees %}<p class="aide">Affichage limité aux {{ bloc.lignes|length }} premières lignes : l'export Excel est complet.</p>{% endif %}
+      {% if bloc.lignes_tronquees %}<p class="aide">Affichage limité aux {{ bloc.lignes_texte }} premières lignes sur {{ bloc.lignes_total_texte }} : l'export Excel contient tout le tableau.</p>{% endif %}
       <div class="table-defil">
         <table>
           <thead><tr><th scope="col">Période</th><th scope="col">Entité</th>

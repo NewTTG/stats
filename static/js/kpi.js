@@ -10,8 +10,21 @@
 
   function nombre(v, unite) {
     if (v === null || v === undefined || isNaN(v)) return "—";
-    var d = Math.abs(v) >= 100 ? 0 : (Math.abs(v) >= 10 ? 1 : 2);
+    var a = Math.abs(v), d = a >= 100 ? 0 : a >= 10 ? 1 : a >= 0.1 || a === 0 ? 2 : 3;
     return v.toLocaleString("fr-FR", { maximumFractionDigits: d, minimumFractionDigits: 0 }) + (unite ? " " + unite : "");
+  }
+
+  /* Graduation d'axe : valeur exacte du repère (jamais deux libellés identiques). */
+  function graduation(v) {
+    return (Math.round(v * 1e6) / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 6 });
+  }
+
+  /* Légende des seuils dans le sous-titre : jamais superposée aux courbes. */
+  function sousTitreSeuils(seuils) {
+    var morceaux = [];
+    if (seuils.alerte !== null) morceaux.push("{a|━ ━} alerte " + nombre(seuils.alerte));
+    if (seuils.critique !== null) morceaux.push("{c|━ ━} critique " + nombre(seuils.critique));
+    return morceaux.join("     ");
   }
 
   function initialiser(div, option) {
@@ -49,7 +62,7 @@
   }
 
   function axeY(bornes) {
-    return Object.assign({ type: "value", axisLabel: { color: "#5f6878", fontSize: 11, formatter: function (v) { return nombre(v); } },
+    return Object.assign({ type: "value", axisLabel: { color: "#5f6878", fontSize: 11, formatter: graduation },
                            splitLine: { lineStyle: { color: "#eef1f6" } } }, bornes);
   }
 
@@ -70,27 +83,27 @@
     });
     donnees.kpis.forEach(function (g, n) {
       var seuils = [];
-      // Étiquettes aux deux extrémités (alerte à droite, critique à gauche) : jamais superposées.
-      var etiquette = { formatter: "{b}", color: "#4b5567", fontSize: 11 };
-      if (g.seuils.alerte !== null) seuils.push({ yAxis: g.seuils.alerte, name: "alerte", lineStyle: { color: AMBRE, type: "dashed", width: 1.5 },
-                                                  label: Object.assign({ position: "insideEndTop" }, etiquette) });
-      if (g.seuils.critique !== null) seuils.push({ yAxis: g.seuils.critique, name: "critique", lineStyle: { color: ROUGE, type: "dashed", width: 1.5 },
-                                                    label: Object.assign({ position: "insideStartTop" }, etiquette) });
+      if (g.seuils.alerte !== null) seuils.push({ yAxis: g.seuils.alerte, name: "alerte", lineStyle: { color: AMBRE, type: "dashed", width: 1.5 } });
+      if (g.seuils.critique !== null) seuils.push({ yAxis: g.seuils.critique, name: "critique", lineStyle: { color: ROUGE, type: "dashed", width: 1.5 } });
+      var legende = sousTitreSeuils(g.seuils);
       var plusieurs = g.series.length > 1;
       var series = g.series.map(function (s, i) {
         var serie = { name: s.nom, type: "line", data: s.valeurs, connectNulls: false, smooth: false,
                       showSymbol: s.valeurs.length < 40, symbolSize: 5, lineStyle: { width: plusieurs ? 1.8 : 2.5 },
                       emphasis: { focus: "series" } };
         if (!plusieurs) serie.areaStyle = { color: "rgba(20,40,75,.06)" };
-        if (i === 0 && seuils.length) serie.markLine = { symbol: "none", silent: true, label: etiquette, data: seuils };
+        if (i === 0 && seuils.length) serie.markLine = { symbol: "none", silent: true, label: { show: false }, data: seuils };
         return serie;
       });
       initialiser(cibles[n], {
         color: PALETTE,
-        title: { text: g.titre + " (" + g.unite + ")", left: 4, top: 2, textStyle: { fontSize: 13, color: MARINE, fontWeight: 600 } },
+        title: { text: g.titre + " (" + g.unite + ")", left: 4, top: 2, itemGap: 6,
+                 textStyle: { fontSize: 13, color: MARINE, fontWeight: 600 },
+                 subtext: legende, subtextStyle: { fontSize: 11, color: "#4b5567",
+                   rich: { a: { color: AMBRE, fontWeight: 700 }, c: { color: ROUGE, fontWeight: 700 } } } },
         tooltip: { trigger: "axis", valueFormatter: function (v) { return nombre(v, g.unite); } },
         legend: plusieurs ? { type: "scroll", bottom: 0, textStyle: { fontSize: 11 } } : { show: false },
-        grid: { left: 8, right: 16, top: 40, bottom: plusieurs ? 40 : 12, containLabel: true },
+        grid: { left: 8, right: 16, top: legende ? 60 : 40, bottom: plusieurs ? 40 : 12, containLabel: true },
         xAxis: { type: "category", data: donnees.periodes, boundaryGap: false, axisLabel: { color: "#5f6878", fontSize: 11 },
                  axisLine: { lineStyle: { color: "#c3ccda" } } },
         yAxis: axeY(bornesAxe(g)),
@@ -102,12 +115,17 @@
   function causes(div) {
     var g = JSON.parse(document.getElementById(div.dataset.source).textContent);
     var noms = g.series.map(function (s) { return s.nom; });
+    // Légende complète sur plusieurs lignes (pas de pagination) : hauteur adaptée.
+    var largeur = Math.max(div.clientWidth || 600, 200);
+    var occupe = noms.reduce(function (t, n) { return t + n.length * 6.3 + 38; }, 0);
+    var lignes = Math.max(1, Math.ceil(occupe / (largeur - 24)));
+    div.style.height = (300 + 22 * (lignes - 1)) + "px";
     initialiser(div, {
       color: PALETTE.slice(0, noms.length - 1).concat(noms[noms.length - 1] === "Non ventilé" ? ["#aab3c2"] : [PALETTE[noms.length - 1]]),
       title: { text: "Par " + g.par + " (" + g.unite + ")", left: 4, top: 2, textStyle: { fontSize: 13, color: MARINE, fontWeight: 600 } },
       tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: function (v) { return nombre(v, g.unite); } },
-      legend: { type: "scroll", bottom: 0, textStyle: { fontSize: 11 } },
-      grid: { left: 8, right: 16, top: 40, bottom: 44, containLabel: true },
+      legend: { type: "plain", bottom: 0, left: "center", width: largeur - 24, itemGap: 12, textStyle: { fontSize: 11 } },
+      grid: { left: 8, right: 16, top: 40, bottom: 18 + 22 * lignes, containLabel: true },
       xAxis: { type: "category", data: g.axe, axisLabel: { color: "#5f6878", fontSize: 11 } },
       yAxis: axeY({}),
       series: g.series.map(function (s) {
