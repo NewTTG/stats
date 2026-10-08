@@ -106,6 +106,9 @@ KPI_DB = {
 # générée par « python manage.py charger_demo_kpi ».
 KPI_DEMO_SQLITE = Path(env("KPI_DEMO_SQLITE") or BASE_DIR / "data" / "kpi_demo.sqlite3")
 
+# Recherche en langage libre : interprétation par règles locales (config/recherche.yaml).
+RECHERCHE_VOCABULAIRE_PATH = BASE_DIR / "config" / "recherche.yaml"
+
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "kpi:requete"
 LOGOUT_REDIRECT_URL = "login"
