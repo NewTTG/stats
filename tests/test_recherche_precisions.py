@@ -57,7 +57,7 @@ def test_volume_data_reste_du_trafic(ctx):  # noqa: F811
     ("drop 4G semaine 38", date(2026, 9, 14), date(2026, 9, 20)),
     ("drop 4G en semaine 2", date(2026, 1, 5), date(2026, 1, 11)),
     ("drop 4G semaine 50", date(2025, 12, 8), date(2025, 12, 14)),  # à venir : année précédente
-    ("drop 4G S38 2025", date(2025, 9, 15), date(2025, 9, 21)),
+    ("drop 4G sem. 38 2025", date(2025, 9, 15), date(2025, 9, 21)),
 ])
 def test_semaine_iso(ctx, phrase, debut, fin):  # noqa: F811
     p = interpreter(phrase, J, ctx).params["periode"]
@@ -122,6 +122,8 @@ def test_approche_dans_le_perimetre_seulement(ref_recherche):  # noqa: F811
     Perimetre.objects.create(nom="Païta", communes=["PAITA"]).utilisateurs.add(lecteur)
     ctx = Contexte.pour(lecteur)
     q = interpreter("drop 4G à Koumak hier", J, ctx).questions[0]
-    assert [o.libelle for o in q.options] == ["Tout le réseau"]  # Koumac hors périmètre : jamais proposé
+    # Koumac hors périmètre : jamais proposé, même message qu'un lieu inexistant.
+    assert q.texte == "« Koumak » n'est pas dans votre périmètre."
+    assert [o.libelle for o in q.options] == ["Voir mon périmètre (Païta)"]
     q = interpreter("drop 4G à Pita hier", J, ctx).questions[0]
-    assert [o.libelle for o in q.options] == ["Païta", "Tout le réseau"]
+    assert [o.libelle for o in q.options] == ["Païta", "Voir mon périmètre (Païta)"]
