@@ -70,13 +70,12 @@
     });
     donnees.kpis.forEach(function (g, n) {
       var seuils = [];
-      // Étiquettes de part et d'autre des lignes : lisibles même si les deux seuils sont proches.
-      var dessus = g.seuils.critique !== null && g.seuils.alerte !== null && g.seuils.critique > g.seuils.alerte;
+      // Étiquettes aux deux extrémités (alerte à droite, critique à gauche) : jamais superposées.
       var etiquette = { formatter: "{b}", color: "#4b5567", fontSize: 11 };
       if (g.seuils.alerte !== null) seuils.push({ yAxis: g.seuils.alerte, name: "alerte", lineStyle: { color: AMBRE, type: "dashed", width: 1.5 },
-                                                  label: Object.assign({ position: dessus ? "insideEndBottom" : "insideEndTop" }, etiquette) });
+                                                  label: Object.assign({ position: "insideEndTop" }, etiquette) });
       if (g.seuils.critique !== null) seuils.push({ yAxis: g.seuils.critique, name: "critique", lineStyle: { color: ROUGE, type: "dashed", width: 1.5 },
-                                                    label: Object.assign({ position: dessus ? "insideEndTop" : "insideEndBottom" }, etiquette) });
+                                                    label: Object.assign({ position: "insideStartTop" }, etiquette) });
       var plusieurs = g.series.length > 1;
       var series = g.series.map(function (s, i) {
         var serie = { name: s.nom, type: "line", data: s.valeurs, connectNulls: false, smooth: false,
