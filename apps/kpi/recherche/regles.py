@@ -16,6 +16,56 @@ from .texte import Texte
 from .vocabulaire import vocabulaire
 
 
+def _intentions(voc, correspondances, d: Demande) -> list[str]:
+    """Intentions reconnues, dans l'ordre ; applique les modificateurs à ``d``.
+
+    Un qualificatif (« voix », « appel », « data ») précise une intention présente qui
+    l'accepte (drop -> drop voix, accès -> accès data, durée d'appel…) au lieu d'ouvrir
+    l'intention Appels / Trafic : « taux de coupure voix » ne demande pas les appels.
+    """
+    elements = []  # (intentions du mot, qualificatif du mot)
+    for _indices, valeurs in correspondances:
+        intentions = [code for nature, code in valeurs if nature == "intention"]
+        qualificatif = next((code for nature, code in valeurs if nature == "qualificatif"), None)
+        for nature, code in valeurs:
+            if nature == "modificateur":
+                if code == "causes":
+                    d.causes = True
+                elif code == "classement":
+                    d.classement = True
+                elif code == "heure_chargee":
+                    d.heure_chargee = True
+                elif code == "global":
+                    d.global_demande = True
+        if intentions or qualificatif:
+            elements.append((intentions, qualificatif))
+
+    absorbantes = {i for intentions, _ in elements for i in intentions if voc.intentions[i].absorbe}
+    precisions: list[str] = []  # qualificatifs absorbés
+    resultat: list[str] = []
+    for intentions, qualificatif in elements:
+        mot_qualificatif = qualificatif and all(not voc.intentions[i].absorbe for i in intentions)
+        if mot_qualificatif and any(qualificatif in voc.intentions[i].absorbe for i in absorbantes):
+            precisions.append(qualificatif)  # « voix » précise une intention présente
+            continue
+        resultat += intentions
+    sortie: list[str] = []
+    for code in resultat:
+        absorbe = voc.intentions[code].absorbe
+        cibles = [absorbe[q] for q in precisions if q in absorbe]
+        if code in absorbe.values():  # intention déjà précise (drop voix) : gardée, + les autres précisions
+            cibles = [code, *cibles]
+        for cible in cibles or [code]:
+            if cible not in sortie:
+                sortie.append(cible)
+    # « Drop voix » / « drop data » précisent « drop » : on ne garde que la précision.
+    if {"drop_voix", "drop_data"} & set(sortie):
+        sortie = [i for i in sortie if i != "drop"]
+    if {"acces_voix", "acces_data"} & set(sortie):
+        sortie = [i for i in sortie if i != "acces"]
+    return sortie
+
+
 def analyser(texte: str, aujourdhui: date, contexte: Contexte) -> tuple[Demande, list[str], list[str]]:
     """(demande comprise, mots non compris, notes)."""
     voc = vocabulaire()
@@ -41,24 +91,7 @@ def analyser(texte: str, aujourdhui: date, contexte: Contexte) -> tuple[Demande,
             d.techno.append(techno)
     d.techno = [x for x in ("LTE", "WCDMA") if x in d.techno]
 
-    for _indices, valeurs in voc.mots.trouver(t):
-        for nature, code in valeurs:
-            if nature == "intention" and code not in d.intentions:
-                d.intentions.append(code)
-            elif nature == "modificateur":
-                if code == "causes":
-                    d.causes = True
-                elif code == "classement":
-                    d.classement = True
-                elif code == "heure_chargee":
-                    d.heure_chargee = True
-                elif code == "global":
-                    d.global_demande = True
-    # « Drop voix » / « drop data » précisent « drop » : on ne garde que la précision.
-    if {"drop_voix", "drop_data"} & set(d.intentions):
-        d.intentions = [i for i in d.intentions if i != "drop"]
-    if "acces_voix" in d.intentions or "acces_data" in d.intentions:
-        d.intentions = [i for i in d.intentions if i != "acces"]
+    d.intentions = _intentions(voc, voc.mots.trouver(t), d)
 
     lieux, ambiguites, notes_lieux = contexte.lieux.resoudre(t)
     for indices, candidats in evenements:
