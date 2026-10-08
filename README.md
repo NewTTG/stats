@@ -120,6 +120,9 @@ sont conservés dans le volume `media`.
 - Écart significatif : dégradation de plus de 20 % **et** de plus de 2 écarts-types
   (sur les semaines de référence) **et** d'au moins `ecart_min` (catalogue, unité du KPI :
   0,1 pt pour les coupures, 0,5 pt pour les taux d'accès…) ; critique au-delà de 40 %.
+  Pour un taux de succès borné à 100 % (en %, « haut est mieux », accessibilité,
+  disponibilité, mobilité), les 20 % s'entendent sur le taux d'échec : 99,7 → 97,5 % =
+  échecs de 0,3 à 2,5 %, +733 %, donc significatif ; 99,7 → 99,6 % reste sous `ecart_min`.
   Pourcentages réglables dans l'admin.
 - Un lecteur restreint ne voit que les cellules et KPI de son périmètre.
 

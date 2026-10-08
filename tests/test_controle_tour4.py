@@ -304,3 +304,33 @@ def test_vue_tableau_detaille_wbr(base_recherche, client):  # noqa: F811
     client.force_login(User.objects.create_superuser("admin_wbr"))
     html = client.get("/", {"q": "drop 4G par site à Nouméa la semaine dernière"}).content.decode()
     assert "BAIE_<wbr>DES_<wbr>CITRONS" in html
+
+
+# ------------------------------------------------------------------ défaut antérieur : écart des taux de succès
+
+def test_taux_de_succes_ecart_sur_le_taux_d_echec():
+    import pandas as pd
+
+    from apps.evenements import detection
+    from apps.kpi.catalogue import catalogue_yaml
+
+    cat = catalogue_yaml()
+    acces = cat["lte_acces"]  # %, haut_est_mieux, accessibilité, ecart_min 0,5
+    assert detection.taux_de_succes(acces) and not detection.taux_de_succes(cat["lte_erab_drop"])
+    assert not detection.taux_de_succes(cat["lte_dl_user_thp"])  # débit : pas un taux borné
+    assert round(detection.ecart_detection(acces, 97.5, 99.7)) == 733  # 0,3 % -> 2,5 % d'échec
+    semaines = [99.7, 99.65, 99.75, 99.7]
+    assert detection.ecart_significatif(acces, 97.5, 99.7, semaines, sigma=2, pct=20)
+    assert not detection.ecart_significatif(acces, 99.6, 99.7, semaines, sigma=2, pct=20)  # < ecart_min
+    assert not detection.ecart_significatif(acces, 99.8, 99.7, semaines, sigma=2, pct=20)  # amélioration
+    # Toujours combiné aux 2 σ : semaines très dispersées -> pas d'anomalie.
+    assert not detection.ecart_significatif(acces, 97.5, 99.7, [99.7, 95.0, 99.9, 97.0], sigma=2, pct=20)
+    # Les autres KPI gardent l'écart relatif brut (drop : 1,3 -> 1,6 %).
+    assert detection.ecart_detection(cat["lte_erab_drop"], 1.6, 1.3) == pytest.approx(23.08, abs=0.01)
+    # Anomalie : critique (+733 % ≥ 2 × 20 %), message avec le taux d'échec.
+    valeurs = pd.DataFrame({"lte_acces": [97.5]}, index=["KON552"])
+    references = pd.DataFrame({"lte_acces": [99.7]}, index=["KON552"])
+    hebdo = pd.DataFrame({"lte_acces": semaines},
+                         index=pd.MultiIndex.from_product([["KON552"], range(4)], names=["entite", "semaine"]))
+    [a] = detection.anomalies_ecarts("LTE", valeurs, references, hebdo, [acces], sigma=2, pct=20)
+    assert a.gravite == "critique" and "taux d'échec 2,50 % contre 0,30 %, +733 %" in a.message
