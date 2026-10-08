@@ -1,7 +1,9 @@
 """Mise en forme d'un résultat pour l'écran : cartes KPI, courbes, causes, classement."""
 
 import math
+import re
 
+from ..export_excel import LIGNES_MAX as LIGNES_MAX_EXPORT
 from ..service import Resultat, ResultatTechno
 from .vocabulaire import LIBELLES_TECHNO
 
@@ -190,27 +192,39 @@ def causes(res: ResultatTechno, granularite_temps: str, granularite_espace: str)
     return sortie
 
 
-def classement(res: ResultatTechno, conv=None) -> list[dict]:
-    """Entités les plus dégradées, pour les KPI de qualité seulement (pas les volumes,
-    nombres d'appels ou durées, qui ne se « dégradent » pas)."""
+def _volume(k) -> bool:
+    """Volume de trafic additif (data, Erlang, SMS, appels) : classé « les plus chargés ».
+
+    Une durée moyenne d'appel (non additive) n'a pas de sens d'ordre utile : jamais classée.
+    """
+    return k.categorie == "trafic" and k.additif
+
+
+def classement(res: ResultatTechno, conv=None, nombre: int | None = None) -> list[dict]:
+    """Classement des entités : « Les plus dégradés » pour les KPI de qualité (pire d'abord),
+    « Les plus chargés » pour les volumes de trafic (plus grand d'abord) ; ``nombre`` lignes
+    (« top 5 », « les 10 cellules »), 10 par défaut."""
     if res.synthese is None or res.synthese.empty or len(res.synthese) < 2:
         return []
     conv = conv or conversions(res)
     sortie = []
     for k in res.kpis:
-        if k.decomposition_de or not _qualite(k):
+        if k.decomposition_de or not (_qualite(k) or _volume(k)):
             continue
         serie = res.synthese[k.code].dropna()
         if serie.empty:
             continue
-        tri = serie.sort_values(ascending=k.sens == "haut_est_mieux").head(CLASSEMENT_MAX)
+        volume = _volume(k)
+        croissant = False if volume else k.sens == "haut_est_mieux"
+        tri = serie.sort_values(ascending=croissant).head(nombre or CLASSEMENT_MAX)
         maximum = max(abs(serie).max(), 1e-12)
         diviseur = conv[k.code][0]
         lignes = []
         for entite, v in tri.items():
             lignes.append({"entite": entite, "valeur": v, "texte": ESPACE_FINE.join(formater(v, k.unite, diviseur)),
                            "statut": k.statut(valeur(v)), "largeur": round(100 * abs(v) / maximum, 1)})
-        sortie.append({"kpi": k, "lignes": lignes, "total": len(serie), "titre": "Les plus dégradés"})
+        sortie.append({"kpi": k, "lignes": lignes, "total": len(serie),
+                       "titre": "Les plus chargés" if volume else "Les plus dégradés"})
     return sortie
 
 
@@ -226,7 +240,28 @@ def lignes_table(res: ResultatTechno, granularite_temps: str) -> tuple[list[dict
     return lignes, len(res.table)
 
 
-def blocs(resultat: Resultat) -> list[dict]:
+def avertissements(resultat: Resultat) -> list[str]:
+    """Avertissements du résultat, un message identique pour la 4G et la 3G n'étant affiché
+    qu'une fois (« LTE et WCDMA : données disponibles du … »)."""
+    technos_par_message: dict[str, list[str]] = {}
+    ordre: list[str] = []
+    for a in resultat.avertissements:
+        m = re.match(r"^(LTE|WCDMA) : (.*)$", a, re.S)
+        cle = m[2] if m else a
+        if cle not in technos_par_message:
+            technos_par_message[cle] = []
+            ordre.append(cle)
+        if m:
+            technos_par_message[cle].append(m[1])
+    return [f"{' et '.join(technos_par_message[c])} : {c}" if technos_par_message[c] else c for c in ordre]
+
+
+def _aucune_donnee_signalee(resultat: Resultat, techno: str) -> bool:
+    """« LTE : aucune donnée sur la période demandée » : pas de second message dans le bloc."""
+    return any(a.startswith(f"{techno} : aucune donnée") for a in resultat.avertissements)
+
+
+def blocs(resultat: Resultat, nombre: int | None = None) -> list[dict]:
     req = resultat.requete
     sortie = []
     for res in resultat.par_techno:
@@ -240,12 +275,16 @@ def blocs(resultat: Resultat) -> list[dict]:
             "graphiques": graphiques(res, req.granularite_temps, conv),
             "id_graphiques": f"graphiques-{res.techno}",
             "causes": causes(res, req.granularite_temps, req.granularite_espace),
-            "classement": classement(res, conv) if req.granularite_espace != "global" else [],
+            "classement": classement(res, conv, nombre) if req.granularite_espace != "global" else [],
             "lignes": lignes,
             "lignes_total": total,
             "lignes_tronquees": total > len(lignes),
             "lignes_total_texte": _fr(total, 0),
             "lignes_texte": _fr(len(lignes), 0),
+            # L'export Excel est plafonné (LIGNES_MAX_EXPORT lignes de données par techno).
+            "export_complet": total <= LIGNES_MAX_EXPORT,
+            "export_max_texte": _fr(LIGNES_MAX_EXPORT, 0),
+            "aucune_donnee_signalee": _aucune_donnee_signalee(resultat, res.techno),
             "espace": req.granularite_espace,
         })
     return sortie

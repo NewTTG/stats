@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static kpi_extras %}
 {% block titre %}{{ evenement.nom }} — Stats KPI réseau{% endblock %}
 {% block contenu %}
 <div class="entete-page">
@@ -66,12 +66,15 @@
 <section class="carte">
   <h2>Anomalies détectées ({{ analyse.anomalies|length }})</h2>
   {% if analyse.anomalies %}
-  <div class="table-defil"><table>
+  {# Sur petit écran (≤ 600 px), chaque anomalie devient une carte empilée (CSS « table.anomalies »). #}
+  <div class="table-defil"><table class="anomalies">
     <thead><tr><th>Gravité</th><th>Techno</th><th>{% if niveau == "site" %}Site{% else %}Secteur{% endif %}</th><th>Règle</th><th>Détail</th></tr></thead>
     <tbody>{% for a in analyse.anomalies %}
-      <tr><td><span class="etiquette {{ a.gravite }}">{{ a.gravite|capfirst }}</span></td><td>{{ a.techno }}</td><td>{{ a.entite }}</td>
-        <td>{% for code, libelle in regles.items %}{% if code == a.regle %}{{ libelle }}{% endif %}{% endfor %}</td>
-        <td style="white-space: normal;">{{ a.message }}</td></tr>
+      <tr><td class="gravite"><span class="etiquette {{ a.gravite }}">{{ a.gravite|capfirst }}</span></td>
+        <td class="techno" data-etiquette="Techno">{{ a.techno }}</td>
+        <td class="entite" data-etiquette="{% if niveau == "site" %}Site{% else %}Secteur{% endif %}">{{ a.entite|coupure }}</td>
+        <td class="regle" data-etiquette="Règle">{% for code, libelle in regles.items %}{% if code == a.regle %}{{ libelle }}{% endif %}{% endfor %}</td>
+        <td class="detail" style="white-space: normal;">{{ a.message }}</td></tr>
     {% endfor %}</tbody>
   </table></div>
   {% else %}<p>Aucune anomalie.</p>{% endif %}
@@ -83,8 +86,8 @@
   <div class="table-defil"><table>
     <thead><tr><th>#</th><th>Techno</th><th>{% if niveau == "site" %}Site{% else %}Secteur{% endif %}</th><th>Critiques</th><th>Alertes</th><th>Concerne</th></tr></thead>
     <tbody>{% for c in analyse.classement %}
-      <tr><td>{{ forloop.counter }}</td><td>{{ c.techno }}</td><td>{{ c.entite }}</td><td class="nombre">{{ c.critiques }}</td>
-        <td class="nombre">{{ c.alertes }}</td><td style="white-space: normal;">{{ c.kpis|join:", " }}</td></tr>
+      <tr><td>{{ forloop.counter }}</td><td>{{ c.techno }}</td><td>{{ c.entite|coupure }}</td><td class="nombre">{{ c.critiques }}</td>
+        <td class="nombre">{{ c.alertes }}</td><td class="concerne">{{ c.kpis|join:", " }}</td></tr>
     {% endfor %}</tbody>
   </table></div>
 </section>

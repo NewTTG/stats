@@ -80,7 +80,9 @@ sont conservés dans le volume `media`.
   à Dumbéa les 7 derniers jours »… (voir [Recherche](#recherche-en-langage-libre)). Résultat :
   cartes KPI (valeur sur toute la période en ratio de sommes, statut OK / alerte /
   critique, ≈ si approximatif), répartition par cause (Pareto + barres empilées, reste
-  « Non ventilé »), classement des entités les plus dégradées, courbes avec seuils,
+  « Non ventilé »), classement des entités (« Les plus dégradés » pour la qualité, « Les plus
+  chargés » pour les volumes de trafic ; « top 5 », « les 10 cellules » fixent le nombre de
+  lignes, 10 par défaut ; la durée moyenne d'appel n'est pas classée), courbes avec seuils,
   tableau détaillé et cellules sans données repliables.
 - **Recherche avancée** (formulaire repliable, pré-rempli par la recherche) : technologie,
   périmètre (commune, site, trigramme, secteur, cellule, événement), période, fenêtre
@@ -118,6 +120,9 @@ sont conservés dans le volume `media`.
 - Écart significatif : dégradation de plus de 20 % **et** de plus de 2 écarts-types
   (sur les semaines de référence) **et** d'au moins `ecart_min` (catalogue, unité du KPI :
   0,1 pt pour les coupures, 0,5 pt pour les taux d'accès…) ; critique au-delà de 40 %.
+  Pour un taux de succès borné à 100 % (en %, « haut est mieux », accessibilité,
+  disponibilité, mobilité), les 20 % s'entendent sur le taux d'échec : 99,7 → 97,5 % =
+  échecs de 0,3 à 2,5 %, +733 %, donc significatif ; 99,7 → 99,6 % reste sous `ecart_min`.
   Pourcentages réglables dans l'admin.
 - Un lecteur restreint ne voit que les cellules et KPI de son périmètre.
 
@@ -167,14 +172,23 @@ quelque chose, elle pose une question avec des réponses en un clic.
   (un lecteur restreint ne se voit proposer aucun lieu hors de son périmètre). Un lieu
   cité hors périmètre ou inconnu n'est jamais calculé en silence sur le périmètre : la
   question « « Dumbéa » n'est pas dans votre périmètre. » propose « Voir mon périmètre
-  (Koné) », avec le même message que le lieu existe ailleurs ou non. Sans restriction, un
-  code inconnu (« PIM999 ») donne « Lieu non reconnu ». Correspondance approchée : communes
-  et événements d'abord, puis noms de sites (seuil 0,85) ; « Konee » (nom 4G du site KONE)
-  demande « commune Koné ou site KONE ? ».
+  (Koné) », avec le même message que le lieu existe ailleurs ou non. Pour un lecteur
+  restreint, cette détection ne s'appuie que sur des sources publiques (communes,
+  régions / provinces, y compris par correspondance approchée : « Koumak ») et sur la forme
+  des mots (code « AAA999 », trigramme en capitales, mot placé après « à », « au », « sur »…) :
+  un nom de site ou un mot d'événement hors périmètre répond exactement comme un mot
+  inventé (pas d'oracle d'existence). Sans restriction, un code inconnu (« PIM999 ») donne
+  « Lieu non reconnu ». Un mot capitalisé en milieu de phrase (« Urgent », « Brousse ») n'est
+  un lieu probable qu'après une préposition de lieu (à, au, aux, sur, de, du, pour, en) ou
+  s'il ressemble à un lieu connu. Correspondance approchée : communes et événements d'abord,
+  puis noms de sites (seuil 0,85), noms de 5 lettres au moins, jamais les mots courants de
+  `mots_courants` (« marché », « contre ») ; « Konee » (nom 4G du site KONE) demande
+  « commune Koné ou site KONE ? ».
 - **Dates** : aujourd'hui, hier, cette semaine, la semaine dernière, les N derniers jours,
   ce mois-ci, le mois dernier, « septembre », « septembre 2025 », « du 1er au 15
   septembre », « du 01/09 au 15/09 », « le 14/09 », « le week-end du 14 », « semaine 38 »
-  ou « sem. 38 » (jamais « S38 » seul : « S1 » est l'interface S1), « 2025 », « ce
+  ou « sem. 38 » ; « S40 », « S 40 », « s.40 » seulement avec un contexte de date (« en S40 »,
+  « la S40 », « pendant la S40 », « S40 2026 ») et jamais « S1 » (interface S1), « 2025 », « ce
   week-end », « le week-end dernier ». Jours de la semaine (« jeudi », « samedi
   dernier », « mardi passé ») : toujours le jour le plus récent **strictement avant
   aujourd'hui** (jamais aujourd'hui ni l'avenir) ; un jeudi, « jeudi » = jeudi de la

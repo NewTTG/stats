@@ -87,6 +87,7 @@ class Demande:
     classement: bool = False
     heure_chargee: bool = False
     comparaison: bool = False  # « comparaison », « comparer », « vs »
+    classement_nombre: int | None = None  # « top 5 », « les 10 cellules » : lignes du classement
 
 
 @dataclass

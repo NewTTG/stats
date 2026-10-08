@@ -259,8 +259,13 @@ def _motifs(aujourdhui: date):
          entre_numeriques),
         (rf"(?:le |ce )?(?:week end|weekend|we) (?:du |de )?{_JOUR}(?: ({_MOIS}))?(?: {_AN})?", week_end_du),
         (r"(\d{4})-(\d{2})-(\d{2})", iso),
-        # « semaine 38 », « sem. 38 », « sem 38 » ; jamais « S38 » seul (« S1 » = interface S1).
+        # « semaine 38 », « sem. 38 », « sem 38 » ; « S40 », « S 40 », « s.40 » seulement avec un
+        # contexte de date : précédé de « en », « la », « de la », « pendant la », « depuis la »,
+        # « sur la », « à partir de la », ou suivi d'une année (« S40 2026 »). Jamais « S1 »
+        # (interface S1) : écrire « semaine 1 ».
         (r"(?:la |en |de la |pendant la )?(?:semaine|sem) ?(\d{1,2})(?: (\d{4}))?", semaine_iso),
+        (r"(?:la|en|de la|pendant la|depuis la|sur la|a partir de la) s ?([2-9]|\d{2})(?: (\d{4}))?", semaine_iso),
+        (r"s ?([2-9]|\d{2}) (\d{4})", semaine_iso),
         (rf"(?:le |du |au )?{_NOM_JOUR}{_JOUR} ({_MOIS})(?: {_AN})?", jour_mois),
         (rf"(?:le |du |au )?{_NOM_JOUR}(\d{{1,2}})/(\d{{1,2}})(?:/(\d{{2,4}}))?", jour_numerique),
         (rf"(?:le|du|depuis le) {_NOM_JOUR}(\d{{1,2}})(?:er|e|eme)?", jour_seul),
@@ -396,23 +401,45 @@ LIBELLES_ESPACE = {"global": "global", "commune": "par commune", "site": "par si
                    "cellule": "par cellule"}
 
 
-def extraire_granularites(texte) -> tuple[str | None, str | None, bool]:
-    """(granularité temps, granularité espace, classement demandé)."""
+def extraire_granularites(texte) -> tuple[str | None, str | None, bool, int | None]:
+    """(granularité temps, granularité espace, classement demandé, nombre de lignes du classement).
+
+    « top 10 des sites », « les 10 cellules », « 5 pires secteurs », « sites les plus
+    chargés » -> niveau + classement (+ nombre) ; « des secteurs du site X », « les sites
+    du Sud » -> niveau seul.
+    """
     temps = None
     for motif, code in GRANULARITES_TEMPS:
         if list(texte.chercher(re.compile(rf"\b(?:{motif})\b"))):  # toutes les occurrences sont consommées
             temps = temps or code
-    espace, classement = None, False
+    espace, classement, nombre = None, False, None
     entites = "|".join(ESPACES)
-    classe = re.compile(rf"\b(?:les |le |la )?(?:(?:top|pire|pires|classement)(?: \d{{1,3}})?(?: des| de| du)? ({entites})"
-                        rf"|({entites}) (?:les |le )?(?:plus )?(?:degrades?|degradees?|mauvais(?:es)?|touches?|touchees?))\b")
+    qualificatif = (r"(?:degrades?|degradees?|mauvais(?:es)?|touches?|touchees?|charges?|chargees?|sollicites?"
+                    r"|sollicitees?|utilises?|utilisees?|actifs?|actives?)")
+    classe = re.compile(
+        rf"\b(?:les |le |la )?(?:top|pire|pires|classement)(?: (\d{{1,3}}))?(?: des| de| du)?(?: pires?)? ({entites})\b"
+        rf"|\b(?:les |des )?(\d{{1,3}}) (pires? |plus mauvais(?:es)? )?({entites})\b"
+        rf"|\b({entites}) (?:les |le |la )?(?:plus |moins )?{qualificatif}\b")
     for m in texte.chercher(classe):
-        espace, classement = ESPACES[m[1] or m[2]], True
+        if m[2]:  # top 10 des sites, pires secteurs
+            espace, classement, nombre = ESPACES[m[2]], True, m[1] or nombre
+        elif m[5]:  # les 10 cellules, 5 pires sites
+            espace, nombre, classement = ESPACES[m[5]], m[3], classement or bool(m[4])
+        else:  # sites les plus chargés
+            espace, classement = ESPACES[m[6]], True
     for m in texte.chercher(re.compile(rf"\b(?:par|pour chaque|chaque|detail par|niveau) ({entites})\b")):
         espace = espace or ESPACES[m[1]]
-    for _m in texte.chercher(re.compile(r"\b(?:top \d{1,3}|top|pires?|classement|palmares|les plus degrades?)\b")):
+    for m in texte.chercher(re.compile(r"\b(?:top (\d{1,3})|top|pires?|classement|palmares|les plus degrades?)\b")):
+        classement, nombre = True, m[1] or nombre
+    # « le plus de trafic », « le plus d'appels » : classement ; le volume reste à lire (intention).
+    if list(texte.chercher(re.compile(r"\b(?:le |les )?plus d(?:e)?(?= (?:trafic|volume|volumes|data|donnees|appels"
+                                      r"|sms|communications|consommation)\b)"))):
         classement = True
-    return temps, espace, classement
+    # « des secteurs du site PIM123 », « les sites du Sud », « toutes les cellules » : niveau seul.
+    for m in texte.chercher(re.compile(r"\b(?:des|les|aux|ses|tous les|toutes les) (sites|secteurs|cellules)\b")):
+        espace = espace or ESPACES[m[1]]
+    nombre = int(nombre) if nombre and 1 <= int(nombre) <= 100 else None
+    return temps, espace, classement, nombre
 
 
 def granularite_par_defaut(jours: int) -> str:

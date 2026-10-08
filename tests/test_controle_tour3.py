@@ -248,7 +248,7 @@ def _question_lieu(i):
 @pytest.mark.parametrize("phrase,texte", [
     ("drop 4G au CHT hier", "CHT"),  # trigramme hors périmètre
     ("débit 4G CHT hier", "CHT"),
-    ("carnaval drop 4G hier", "carnaval"),  # mot d'événement hors périmètre
+    ("drop 4G au carnaval hier", "carnaval"),  # mot placé comme un lieu (même question pour un mot inventé)
     ("débit 4G PIM123 hier", "PIM123"),  # code de site hors périmètre
     ("débit 4G PIM999 hier", "PIM999"),  # code inexistant : même message
     ("drop 4G Dumbea hier", "Dumbea"),  # commune hors périmètre
@@ -256,7 +256,7 @@ def _question_lieu(i):
     ("drop 4G Foire de Bourail", "Foire de Bourail"),  # événement hors périmètre
     ("drop 4G fête de Bourail hier", "fête de Bourail"),  # pas d'événement : la commune emporte « fête de »
     ("débit 4G PIC MARTIN hier", "PIC MARTIN"),  # nom de site en deux mots
-    ("débit 4G pic martin hier", "pic martin"),
+    ("débit 4G à Pic Martin hier", "Pic Martin"),  # après « à » : question, quel que soit le nom
     ("drop 4G Pouembou hier", "Pouembou"),  # jamais GREEN_ACRE_BT (nom 3G POUEMBOUTbb)
     ("drop 4G Nouméaa hier", "Nouméaa"),
     ("débit 3G HSDPA La Foa samedi dernier", "La Foa"),  # article du nom de commune compris
@@ -320,7 +320,7 @@ def test_vue_lecteur_question_hors_perimetre(client, base_recherche):  # noqa: F
     lecteur = User.objects.create_user("lec3")
     Perimetre.objects.create(nom="Païta", communes=["PAITA"]).utilisateurs.add(lecteur)
     client.force_login(lecteur)
-    for q, texte in [("drop 4G au CHT hier", "CHT"), ("carnaval drop 4G hier", "carnaval")]:
+    for q, texte in [("drop 4G au CHT hier", "CHT"), ("drop 4G au carnaval hier", "carnaval")]:
         html = client.get("/", {"q": q}).content.decode()
         assert f"« {texte} » n&#x27;est pas dans votre périmètre." in html
         assert "Voir mon périmètre (Païta)" in html and "Synthèse sur la période" not in html
@@ -370,4 +370,4 @@ def test_tableau_detaille_entite_dans_la_colonne_figee(client, base_recherche): 
     html = client.get("/", {"q": "drop 4G par site à Nouméa hier"}).content.decode()
     assert '<th scope="col">Période<span class="sur-mobile"> · entité</span></th>' in html
     assert '<th scope="col" class="hors-mobile">Entité</th>' in html
-    assert re.search(r'<td>[^<]+<span class="sur-mobile entite-ligne">[^<]+</span></td><td class="hors-mobile">', html)
+    assert re.search(r'<td>[^<]+<span class="sur-mobile entite-ligne">(?:[^<]|<wbr>)+</span></td><td class="hors-mobile">', html)

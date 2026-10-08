@@ -132,13 +132,14 @@ def _kpis_par_techno(cat, codes_choisis, technos_demandees=()):
     return groupes
 
 
-def _exemples(user, aujourdhui) -> list[str]:
-    """Exemples de l'accueil : lieux du périmètre d'un lecteur restreint (m10) ; en
-    démonstration, « hier » remplacé par le dernier jour disponible si la base est ancienne."""
+def _exemples(user, aujourdhui, contexte=None) -> list[str]:
+    """Exemples (accueil, texte indicatif de la barre, ``/suggestions/``) : lieux du périmètre
+    d'un lecteur restreint (m10) ; en démonstration, « hier » remplacé par le dernier jour
+    disponible si la base est ancienne."""
     voc = vocabulaire()
     exemples = list(voc.exemples)
     if not voit_tout_le_reseau(user):
-        visibles = [voc.libelle_commune(c) for c in Contexte.pour(user).lieux.communes_visibles]
+        visibles = [voc.libelle_commune(c) for c in (contexte or Contexte.pour(user)).lieux.communes_visibles]
         connues = sorted({voc.libelle_commune(c) for c in voc.communes}, key=len, reverse=True)
         sortie = []
         for n, e in enumerate(exemples):
@@ -235,7 +236,9 @@ def _entree_recente(action: str, r) -> tuple[str, str, dict] | None:
         requete = _requete_tracee(r) if r.get("ia") else None
         # Recherche IA : on rejoue la requête résolue (pas de nouvel appel au modèle).
         params = {"q": q, **(champs_depuis_requete(requete) if requete else parametres)}
-        cle = json.dumps(["q", q.lower(), params], sort_keys=True, ensure_ascii=False)
+        # Dédoublonné par texte : la plus récente des recherches au même texte est gardée
+        # (deux entrées identiques à l'écran rejoueraient des paramètres différents).
+        cle = json.dumps(["q", " ".join(q.lower().split())], ensure_ascii=False)
         return q, cle, params
     requete = _requete_tracee(r)
     if requete is None:
@@ -295,6 +298,7 @@ def requete(request):
                   else construire(Demande(), contexte, aujourdhui))
         interp = avec_parametres(interp, get, contexte, aujourdhui)
         ctx["interp"] = interp
+        ctx["exemples"] = _exemples(request.user, aujourdhui, contexte)  # texte indicatif de la barre (m10)
         if get.get("ia") == "1":  # liens : requête résolue, sans nouvel appel IA
             get = _parametres_resolus(q, interp.params)
         ctx["form"] = RequeteForm(initial=champs_depuis_params(interp.params), kpis_visibles=visibles)
@@ -342,7 +346,9 @@ def requete(request):
             ctx["requete"] = req
             puce = interp.puce("perimetre") if interp else None
             ctx["resume_lieu"] = puce.libelle if puce else (", ".join(req.perimetre.valeurs) or "tout le réseau autorisé")
-            ctx["blocs"] = affichage.blocs(resultat)
+            nombre = interp.demande.classement_nombre if interp and interp.demande else None
+            ctx["blocs"] = affichage.blocs(resultat, nombre)
+            ctx["avertissements"] = affichage.avertissements(resultat)
             ctx["lien_export"] = "?" + urlencode([*get.lists(), ("export", ["xlsx"])], doseq=True)
             ctx["requete_params"] = [(k, v if isinstance(v, list) else [v])
                                      for k, v in champs_depuis_requete(req).items()]  # rapport PowerPoint (POST)
@@ -355,6 +361,7 @@ def requete(request):
 def suggestions(request):
     """Autocomplétion légère : lieux accessibles (communes, sites, événements) et exemples."""
     q = request.GET.get("q", "")[:100]
-    lieux = Contexte.pour(request.user).lieux.suggestions(q, limite=15)
-    exemples = [e for e in vocabulaire().exemples if not q or q.lower() in e.lower()]
+    contexte = Contexte.pour(request.user)
+    lieux = contexte.lieux.suggestions(q, limite=15)
+    exemples = [e for e in _exemples(request.user, timezone.localdate(), contexte) if not q or q.lower() in e.lower()]
     return JsonResponse({"lieux": lieux, "exemples": exemples})

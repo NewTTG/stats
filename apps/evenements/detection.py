@@ -50,9 +50,37 @@ def _degradation(kpi: DefinitionKpi, valeur: float, reference: float) -> bool:
     return valeur < reference if kpi.sens == "haut_est_mieux" else valeur > reference
 
 
+# Taux bornés à 100 % où « haut est mieux » : l'écart relatif se lit sur le taux d'échec.
+CATEGORIES_TAUX_DE_SUCCES = {"accessibilite", "disponibilite", "mobilite"}
+
+
+def taux_de_succes(kpi: DefinitionKpi) -> bool:
+    """Taux de succès, d'accès ou de disponibilité (en %, borné à 100, « haut est mieux »)."""
+    return kpi.unite == "%" and kpi.sens == "haut_est_mieux" and kpi.categorie in CATEGORIES_TAUX_DE_SUCCES
+
+
+def ecart_detection(kpi: DefinitionKpi, valeur, reference) -> float | None:
+    """Écart relatif (%) utilisé par la détection.
+
+    Pour un taux de succès proche de 100 %, l'écart relatif brut écrase tout (99,7 -> 97,5 %
+    = -2,2 %) : il est calculé sur le complément, le taux d'échec (0,3 -> 2,5 % = +733 %).
+    Ailleurs : écart relatif de la valeur elle-même.
+    """
+    valeur, reference = _nombre(valeur), _nombre(reference)
+    if valeur is None or reference is None:
+        return None
+    if taux_de_succes(kpi):
+        echec, echec_ref = 100 - valeur, 100 - reference
+        if echec_ref <= 0:
+            return math.inf if echec > 0 else 0.0
+        return (echec - echec_ref) / echec_ref * 100
+    return ecart_pct(valeur, reference)
+
+
 def ecart_significatif(kpi: DefinitionKpi, valeur, reference, hebdo: list, sigma: float, pct: float) -> bool:
     """Dégradation par rapport à la référence : plus de ``pct`` % ET plus de ``sigma`` écarts-types
-    ET au moins ``kpi.ecart_min`` en valeur absolue (si défini au catalogue).
+    ET au moins ``kpi.ecart_min`` en valeur absolue (si défini au catalogue). Pour un taux de
+    succès, les ``pct`` % s'entendent sur le taux d'échec (voir ``ecart_detection``).
 
     ``hebdo`` : valeurs de chaque semaine de référence. Avec moins de deux semaines
     (ou des semaines identiques), seul le critère en % s'applique.
@@ -60,7 +88,7 @@ def ecart_significatif(kpi: DefinitionKpi, valeur, reference, hebdo: list, sigma
     valeur, reference = _nombre(valeur), _nombre(reference)
     if valeur is None or reference is None or not _degradation(kpi, valeur, reference):
         return False
-    ecart = ecart_pct(valeur, reference)
+    ecart = ecart_detection(kpi, valeur, reference)
     if ecart is None or abs(ecart) < pct:
         return False
     if kpi.ecart_min is not None and abs(valeur - reference) < kpi.ecart_min:
@@ -104,11 +132,13 @@ def anomalies_ecarts(techno: str, valeurs: pd.DataFrame, references: pd.DataFram
         for k in kpis:
             v, ref = ligne.get(k.code), references.at[entite, k.code]
             if ecart_significatif(k, v, ref, list(semaines[k.code]) if k.code in semaines else [], sigma, pct):
-                e = ecart_pct(v, ref)
-                gravite = "critique" if abs(e) >= 2 * pct else "alerte"
-                res.append(Anomalie(gravite, "ecart", techno, str(entite),
-                                    f"{k.libelle} {_fmt(v)} {k.unite} contre {_fmt(ref)} {k.unite} en référence ({e:+.0f} %)",
-                                    k, _nombre(v), _nombre(ref)))
+                e, ed = ecart_pct(v, ref), ecart_detection(k, v, ref)
+                gravite = "critique" if abs(ed) >= 2 * pct else "alerte"
+                message = f"{k.libelle} {_fmt(v)} {k.unite} contre {_fmt(ref)} {k.unite} en référence ({e:+.0f} %"
+                if taux_de_succes(k):  # l'écart qui compte : celui du taux d'échec
+                    hausse = "apparition" if math.isinf(ed) else f"{ed:+.0f} %"
+                    message += f" ; taux d'échec {_fmt(100 - v)} % contre {_fmt(100 - ref)} %, {hausse}"
+                res.append(Anomalie(gravite, "ecart", techno, str(entite), message + ")", k, _nombre(v), _nombre(ref)))
     return res
 
 

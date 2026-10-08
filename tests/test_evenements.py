@@ -34,7 +34,9 @@ DROP = DefinitionKpi(code="drop", libelle="Drop", techno="LTE", unite="%", categ
 def test_ecart_significatif_sens_et_pourcentage():
     assert detection.ecart_significatif(RRC, 70, 99, [99, 98.5, 99.5], sigma=2, pct=20)
     assert not detection.ecart_significatif(RRC, 99, 70, [70, 71], sigma=2, pct=20)  # amélioration
-    assert not detection.ecart_significatif(RRC, 90, 99, [99, 98.5], sigma=2, pct=20)  # -9 % < 20 %
+    # Taux de succès : écart lu sur le taux d'échec (1 % -> 10 % = +900 %), plus le brut (-9 %).
+    assert detection.ecart_significatif(RRC, 90, 99, [99, 98.5], sigma=2, pct=20)
+    assert not detection.ecart_significatif(RRC, 98.9, 99, [99, 98.5, 99.2], sigma=2, pct=20)  # échecs +10 %
     assert detection.ecart_significatif(DROP, 3, 1, [1, 1.1], sigma=2, pct=20)
 
 

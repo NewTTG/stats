@@ -37,6 +37,10 @@ class Vocabulaire:
     qualificatifs: dict[str, list[str]] = field(default_factory=dict)
     # Sigles (« HSDPA », « PRB »…) : jamais un lieu ; mots normalisés (un ou plusieurs mots).
     termes_techniques: set[str] = field(default_factory=set)
+    # Mots courants jamais rapprochés d'un lieu (« marché » ≠ Maré, « contre » ≠ Contrôle…).
+    mots_courants: set[str] = field(default_factory=set)
+    # KPI / technos cités mais absents des données (« SINR », « 2G ») -> (libellé, est une techno).
+    indisponibles: Correspondeur = field(default_factory=Correspondeur, repr=False)
     mots: Correspondeur = field(default_factory=Correspondeur, repr=False)
     # Terme -> techno qu'il implique (« E-RAB » -> LTE) quand la demande n'en cite aucune.
     implicites: Correspondeur = field(default_factory=Correspondeur, repr=False)
@@ -75,7 +79,10 @@ def charger_vocabulaire(chemin: Path) -> Vocabulaire:
         exemples=list(brut.get("exemples", [])),
         qualificatifs={k: [str(m) for m in v] for k, v in (brut.get("qualificatifs") or {}).items()},
         termes_techniques={normaliser(str(m)) for m in brut.get("termes_techniques") or []},
+        mots_courants={normaliser(str(m)) for m in brut.get("mots_courants") or []},
     )
+    for mot, d in (brut.get("indisponibles") or {}).items():
+        voc.indisponibles.ajouter(str(mot), (str(d["libelle"]), bool(d.get("techno"))))
     for techno, mots in (brut.get("technos_implicites") or {}).items():
         if techno not in TECHNOS:
             raise ValueError(f"technos_implicites : techno inconnue {techno!r}")
