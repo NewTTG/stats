@@ -114,12 +114,12 @@
       {% if bloc.lignes_tronquees %}<p class="aide">Affichage limité aux {{ bloc.lignes_texte }} premières lignes sur {{ bloc.lignes_total_texte }} : l'export Excel contient tout le tableau.</p>{% endif %}
       <div class="table-defil">
         <table>
-          <thead><tr><th scope="col">Période</th><th scope="col">Entité</th>
+          <thead><tr><th scope="col">Période<span class="sur-mobile"> · entité</span></th><th scope="col" class="hors-mobile">Entité</th>
             {% for k in bloc.res.kpis %}<th scope="col">{{ k.libelle }} ({{ k.unite }}){% if k.qualite == "approx" %} <span title="{{ k.note|default:'Valeur approximative' }}">≈</span>{% endif %}</th>{% endfor %}
           </tr></thead>
           <tbody>
             {% for l in bloc.lignes %}
-            <tr><td>{{ l.periode }}</td><td>{{ l.entite }}</td>
+            <tr><td>{{ l.periode }}<span class="sur-mobile entite-ligne">{{ l.entite }}</span></td><td class="hors-mobile">{{ l.entite }}</td>
               {% for v in l.valeurs %}<td class="nombre {{ v.statut }}">{% if v.valeur is None %}—{% else %}{{ v.valeur|floatformat:"2g" }}{% endif %}</td>{% endfor %}
             </tr>
             {% endfor %}

@@ -2,6 +2,7 @@
 E-RAB, PRB), technos implicites, sigles jamais pris pour un lieu, jours de la semaine,
 « depuis », périmètre restreint, niveau de comparaison, affichage mobile."""
 
+import re
 from datetime import date
 
 import pytest
@@ -347,3 +348,24 @@ def test_approche_communes_avant_sites(ctx3):
     q = _question_lieu(interpreter("drop 4G Pouembou hier", J, ctx3))
     libelles = [o.libelle for o in q.options]
     assert libelles[0] == "Pouembout" and "GREEN_ACRE_BT (ACR584)" not in libelles
+
+
+# ------------------------------------------------------------------ R5 : tableaux à 375 px
+
+def test_css_colonne_figee_etroite_sur_petit_ecran(settings):
+    css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text(encoding="utf-8")
+    bloc = re.search(r"@media \(max-width: 600px\) \{(.*?)\n\}", css, re.S)
+    assert bloc, "règle ≤ 600 px absente"
+    regle = bloc[1]
+    assert ".table-defil table td:first-child" in regle
+    assert "white-space: normal" in regle and "max-width: 40vw" in regle and "width: 6.5rem" in regle
+    assert ".hors-mobile { display: none; }" in regle and ".sur-mobile { display: inline; }" in regle
+    assert re.search(r"^\.sur-mobile \{ display: none; \}", css, re.M)  # caché hors petit écran
+
+
+def test_tableau_detaille_entite_dans_la_colonne_figee(client, base_recherche):  # noqa: F811
+    client.force_login(User.objects.create_superuser("admin3"))
+    html = client.get("/", {"q": "drop 4G par site à Nouméa hier"}).content.decode()
+    assert '<th scope="col">Période<span class="sur-mobile"> · entité</span></th>' in html
+    assert '<th scope="col" class="hors-mobile">Entité</th>' in html
+    assert re.search(r'<td>[^<]+<span class="sur-mobile entite-ligne">[^<]+</span></td><td class="hors-mobile">', html)
