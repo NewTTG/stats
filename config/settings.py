@@ -102,6 +102,9 @@ KPI_DB = {
     "user": env("KPI_DB_USER"),
     "password": env("KPI_DB_PASSWORD"),
 }
+# Sans KPI_DB_HOST : base de démonstration SQLite (données synthétiques) si elle existe,
+# générée par « python manage.py charger_demo_kpi ».
+KPI_DEMO_SQLITE = Path(env("KPI_DEMO_SQLITE") or BASE_DIR / "data" / "kpi_demo.sqlite3")
 
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "kpi:requete"
