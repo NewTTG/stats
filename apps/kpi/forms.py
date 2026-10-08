@@ -1,7 +1,8 @@
 import re
-from datetime import date, timedelta
+from datetime import timedelta
 
 from django import forms
+from django.utils import timezone
 
 from .catalogue import catalogue
 
@@ -22,7 +23,7 @@ _PLAGE = re.compile(r"^(\d{1,2})-(\d{1,2})$")
 
 
 def _hier():
-    return date.today() - timedelta(days=1)
+    return timezone.localdate() - timedelta(days=1)  # fuseau Pacific/Noumea (settings.TIME_ZONE)
 
 
 def fenetre_personnalisee(valeur) -> bool:
