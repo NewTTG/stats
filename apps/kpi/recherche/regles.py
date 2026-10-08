@@ -85,7 +85,7 @@ def analyser(texte: str, aujourdhui: date, contexte: Contexte) -> tuple[Demande,
 
     d.periode, notes_dates = extraire_periode(t, aujourdhui)
     notes += notes_dates
-    d.granularite_temps, d.granularite_espace, d.classement = extraire_granularites(t)
+    d.granularite_temps, d.granularite_espace, d.classement, d.classement_nombre = extraire_granularites(t)
 
     for techno, mots in voc.technos.items():
         motif = "|".join(re.escape(m) for m in sorted(mots, key=len, reverse=True))

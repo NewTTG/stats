@@ -190,27 +190,39 @@ def causes(res: ResultatTechno, granularite_temps: str, granularite_espace: str)
     return sortie
 
 
-def classement(res: ResultatTechno, conv=None) -> list[dict]:
-    """Entités les plus dégradées, pour les KPI de qualité seulement (pas les volumes,
-    nombres d'appels ou durées, qui ne se « dégradent » pas)."""
+def _volume(k) -> bool:
+    """Volume de trafic additif (data, Erlang, SMS, appels) : classé « les plus chargés ».
+
+    Une durée moyenne d'appel (non additive) n'a pas de sens d'ordre utile : jamais classée.
+    """
+    return k.categorie == "trafic" and k.additif
+
+
+def classement(res: ResultatTechno, conv=None, nombre: int | None = None) -> list[dict]:
+    """Classement des entités : « Les plus dégradés » pour les KPI de qualité (pire d'abord),
+    « Les plus chargés » pour les volumes de trafic (plus grand d'abord) ; ``nombre`` lignes
+    (« top 5 », « les 10 cellules »), 10 par défaut."""
     if res.synthese is None or res.synthese.empty or len(res.synthese) < 2:
         return []
     conv = conv or conversions(res)
     sortie = []
     for k in res.kpis:
-        if k.decomposition_de or not _qualite(k):
+        if k.decomposition_de or not (_qualite(k) or _volume(k)):
             continue
         serie = res.synthese[k.code].dropna()
         if serie.empty:
             continue
-        tri = serie.sort_values(ascending=k.sens == "haut_est_mieux").head(CLASSEMENT_MAX)
+        volume = _volume(k)
+        croissant = False if volume else k.sens == "haut_est_mieux"
+        tri = serie.sort_values(ascending=croissant).head(nombre or CLASSEMENT_MAX)
         maximum = max(abs(serie).max(), 1e-12)
         diviseur = conv[k.code][0]
         lignes = []
         for entite, v in tri.items():
             lignes.append({"entite": entite, "valeur": v, "texte": ESPACE_FINE.join(formater(v, k.unite, diviseur)),
                            "statut": k.statut(valeur(v)), "largeur": round(100 * abs(v) / maximum, 1)})
-        sortie.append({"kpi": k, "lignes": lignes, "total": len(serie), "titre": "Les plus dégradés"})
+        sortie.append({"kpi": k, "lignes": lignes, "total": len(serie),
+                       "titre": "Les plus chargés" if volume else "Les plus dégradés"})
     return sortie
 
 
@@ -226,7 +238,7 @@ def lignes_table(res: ResultatTechno, granularite_temps: str) -> tuple[list[dict
     return lignes, len(res.table)
 
 
-def blocs(resultat: Resultat) -> list[dict]:
+def blocs(resultat: Resultat, nombre: int | None = None) -> list[dict]:
     req = resultat.requete
     sortie = []
     for res in resultat.par_techno:
@@ -240,7 +252,7 @@ def blocs(resultat: Resultat) -> list[dict]:
             "graphiques": graphiques(res, req.granularite_temps, conv),
             "id_graphiques": f"graphiques-{res.techno}",
             "causes": causes(res, req.granularite_temps, req.granularite_espace),
-            "classement": classement(res, conv) if req.granularite_espace != "global" else [],
+            "classement": classement(res, conv, nombre) if req.granularite_espace != "global" else [],
             "lignes": lignes,
             "lignes_total": total,
             "lignes_tronquees": total > len(lignes),

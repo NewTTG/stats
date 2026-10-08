@@ -342,7 +342,8 @@ def requete(request):
             ctx["requete"] = req
             puce = interp.puce("perimetre") if interp else None
             ctx["resume_lieu"] = puce.libelle if puce else (", ".join(req.perimetre.valeurs) or "tout le réseau autorisé")
-            ctx["blocs"] = affichage.blocs(resultat)
+            nombre = interp.demande.classement_nombre if interp and interp.demande else None
+            ctx["blocs"] = affichage.blocs(resultat, nombre)
             ctx["lien_export"] = "?" + urlencode([*get.lists(), ("export", ["xlsx"])], doseq=True)
             ctx["requete_params"] = [(k, v if isinstance(v, list) else [v])
                                      for k, v in champs_depuis_requete(req).items()]  # rapport PowerPoint (POST)

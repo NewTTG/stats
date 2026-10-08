@@ -145,7 +145,8 @@ intentions:
     libelle: Trafic data
     famille: true
     mots: [trafic, trafic data, volume, volumes, data, donnees, consommation, payload, internet, go, giga, gigas,
-           octets, telechargement, telechargements, usage]
+           octets, telechargement, telechargements, usage, plus gros consommateurs, plus consommateurs,
+           plus gros volumes, plus fort trafic, plus forts trafics]
     kpis:
       LTE: [lte_payload_dl]
       WCDMA: [wcdma_payload_hs]
@@ -229,8 +230,13 @@ qualificatifs:
 modificateurs:
   causes: [cause, causes, pourquoi, raison, raisons, origine, origines, motif, motifs, ventilation, repartition,
            decomposition, detail des causes, explication, explications]
+  # « Les plus dégradés » pour la qualité, « Les plus chargés » pour les volumes de trafic.
+  # « plus » est un mot vide : « plus chargés » a la clé « chargés » (le singulier « chargée »
+  # reste la congestion) ; « le plus de trafic » est reconnu à part (granularités).
   classement: [pire, pires, classement, top, plus degrade, plus degrades, plus degradee, plus degradees,
-               plus mauvais, moins bons, worst, palmares, les plus touches]
+               plus mauvais, moins bons, worst, palmares, les plus touches, plus charges, plus chargees,
+               plus sollicite, plus sollicites, plus sollicitee, plus sollicitees, plus utilises, plus actifs,
+               plus gros consommateurs, plus consommateurs, plus gros volumes, plus fort trafic, plus forts trafics]
   heure_chargee: [heure chargee, heures chargees, heure de pointe, heures de pointe, busy hour, hc]
   global: [reseau, partout, global, globale, globalement, tout le reseau, ensemble du reseau, territoire,
            nouvelle caledonie, caledonie, pays, national]

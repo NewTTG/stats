@@ -57,7 +57,10 @@ def test_cartes_courbes_et_classement_dans_la_meme_unite(admin, base_recherche):
     assert carte and carte[2] in ("Go", "To", "Mo")
     donnees = re.search(r'id="graphiques-LTE"[^>]*>(.*?)</script>', html, re.S)[1]
     assert f'"unite": "{carte[2]}"' in donnees
-    assert "Classement par site" not in html  # un volume ne se « dégrade » pas (m13)
+    # Un volume ne se « dégrade » pas (m13) : il est classé « les plus chargés » (tour 5, MAJEUR 1).
+    assert "Les plus dégradés — Volume" not in html and "Les plus chargés — Volume DL" in html
+    classement = re.search(r"Les plus chargés — Volume DL</h3>(.*?)</table>", html, re.S)[1]
+    assert carte[2] in classement  # même unité que la carte
 
 
 def test_classement_qualite_seulement(admin, base_recherche):  # noqa: F811

@@ -80,7 +80,9 @@ sont conservés dans le volume `media`.
   à Dumbéa les 7 derniers jours »… (voir [Recherche](#recherche-en-langage-libre)). Résultat :
   cartes KPI (valeur sur toute la période en ratio de sommes, statut OK / alerte /
   critique, ≈ si approximatif), répartition par cause (Pareto + barres empilées, reste
-  « Non ventilé »), classement des entités les plus dégradées, courbes avec seuils,
+  « Non ventilé »), classement des entités (« Les plus dégradés » pour la qualité, « Les plus
+  chargés » pour les volumes de trafic ; « top 5 », « les 10 cellules » fixent le nombre de
+  lignes, 10 par défaut ; la durée moyenne d'appel n'est pas classée), courbes avec seuils,
   tableau détaillé et cellules sans données repliables.
 - **Recherche avancée** (formulaire repliable, pré-rempli par la recherche) : technologie,
   périmètre (commune, site, trigramme, secteur, cellule, événement), période, fenêtre
