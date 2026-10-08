@@ -37,6 +37,10 @@ GLOBAL = Lieu("global", (), "Tout le réseau autorisé")
 class Ambiguite:
     texte: str  # mots saisis
     candidats: list[Lieu]
+    # Lieu non reconnu (faute de frappe, nom inconnu) : candidats approchés, éventuellement aucun.
+    non_reconnu: bool = False
+    # Lieu cité hors du périmètre de l'utilisateur (même question que pour un lieu inconnu).
+    hors_perimetre: bool = False
 
 
 @dataclass
@@ -82,6 +86,9 @@ class Demande:
     granularite_espace: str | None = None
     classement: bool = False
     heure_chargee: bool = False
+    comparaison: bool = False  # « comparaison », « comparer », « vs »
+    classement_nombre: int | None = None  # « top 5 », « les 10 cellules » : lignes du classement
+    semaine_suggeree: int | None = None  # « S40 » sans contexte : proposée dans la question de période
 
 
 @dataclass

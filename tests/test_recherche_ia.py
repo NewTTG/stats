@@ -98,7 +98,10 @@ def test_lieu_et_kpi_inventes(ctx, groq):  # noqa: F811
                     "perimetre": {"type": "commune", "valeurs": ["Atlantis"]}}
     i = interpreter("drop à Atlantis", J, ctx)
     assert i.params["kpis"] == ["lte_erab_drop"] and any("kpi_invente" in n for n in i.notes)
-    assert i.params["perimetre"]["type"] == "global" and i.non_compris == ["Atlantis"]
+    # Lieu inventé : question (jamais de calcul silencieux sur tout le réseau).
+    q = next(q for q in i.questions if q.champ == "perimetre")
+    assert "« Atlantis »" in q.texte and [o.libelle for o in q.options] == ["Tout le réseau"]
+    assert "perimetre" not in i.params
 
 
 def test_lecteur_restreint_lieu_hors_perimetre(ref_recherche, groq):  # noqa: F811
@@ -106,7 +109,9 @@ def test_lecteur_restreint_lieu_hors_perimetre(ref_recherche, groq):  # noqa: F8
     Perimetre.objects.create(nom="Païta", communes=["PAITA"], kpis_autorises=["lte_dl_user_thp"]).utilisateurs.add(lecteur)
     groq.reponse = {**SUCCES, "perimetre": {"type": "site", "valeurs": ["NOU001"]}}
     i = interpreter("drop sur NOU001", J, Contexte.pour(lecteur))
-    assert "NOU001" in i.non_compris and i.params["perimetre"]["type"] == "global"
+    q = next(q for q in i.questions if q.champ == "perimetre")  # hors périmètre : question, pas de calcul
+    assert q.texte == "« NOU001 » n'est pas dans votre périmètre." and "perimetre" not in i.params
+    assert [o.libelle for o in q.options] == ["Voir mon périmètre (Païta)"]
     assert "lte_erab_drop" not in i.params.get("kpis", [])  # KPI non autorisé ignoré
     assert "lte_erab_drop" not in json.loads(groq.appels[0][0].data)["messages"][0]["content"]
 

@@ -83,6 +83,7 @@ main { flex: 1; padding: 1.5rem 0 3rem; }
 .bandeau-demo details { font-size: .85rem; }
 .bandeau-demo summary { cursor: pointer; text-decoration: underline; }
 .bandeau-demo ul { margin: .35rem 0 0; padding-left: 1.2rem; }
+.bandeau-demo code { background: rgba(92, 61, 0, .08); padding: 0 .3rem; border-radius: 4px; font-size: .85em; }
 .message { border-radius: var(--rayon-petit); padding: .75rem 1rem; margin-bottom: 1rem; border: 1px solid; }
 .message.succes { background: var(--ok-fond); border-color: #a9d9bf; color: var(--ok); }
 .message.erreur, .erreur { background: var(--critique-fond); border: 1px solid #f4b8b0; color: var(--critique);
@@ -189,6 +190,8 @@ input:hover, select:hover { border-color: var(--marine-600); }
 .panneau .liste-kpi label { font-weight: 400; display: flex; gap: .45rem; align-items: flex-start; color: var(--texte);
   font-size: .9rem; margin: .15rem 0; }
 .panneau .liste-kpi label.cause { padding-left: 1.2rem; color: var(--texte-2); }
+.panneau .liste-kpi .categorie-kpi { margin: .45rem 0 .1rem; font-size: .75rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--texte-3); }
 .deux-colonnes { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
 .choix-puces { display: flex; flex-wrap: wrap; gap: .4rem; }
 .choix-puces label { margin: 0; font-weight: 500; display: inline-flex; align-items: center; gap: .35rem; padding: .35rem .7rem;
@@ -240,7 +243,11 @@ input:hover, select:hover { border-color: var(--marine-600); }
 .carte-kpi .libelle { font-size: .9rem; color: var(--texte-2); font-weight: 600; min-height: 2.6em; }
 .carte-kpi .valeur { font-size: 2rem; font-weight: 700; color: var(--marine); font-variant-numeric: tabular-nums;
   line-height: 1.1; letter-spacing: -.01em; }
-.carte-kpi .valeur small { font-size: 1rem; font-weight: 600; color: var(--texte-2); margin-left: .2rem; }
+.carte-kpi .valeur small { font-size: 1rem; font-weight: 600; color: var(--texte-2); }
+/* Unité jamais coupée ; grands nombres en plus petit pour tenir dans la carte. */
+.carte-kpi .valeur .unite, .carte-kpi .valeur .nombre-kpi { white-space: nowrap; overflow-wrap: normal; }
+.carte-kpi .valeur.longue { font-size: 1.6rem; }
+.carte-kpi .valeur.tres-longue { font-size: 1.3rem; }
 .carte-kpi .pied { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin-top: .35rem; font-size: .8rem; color: var(--texte-3); }
 .statut { display: inline-block; padding: .1rem .55rem; border-radius: 999px; font-size: .78rem; font-weight: 700; }
 .statut.ok { background: var(--ok-fond); color: var(--ok); }
@@ -293,11 +300,17 @@ details.repliable > .contenu { padding: 0 1rem 1rem; }
 table { border-collapse: collapse; width: 100%; font-size: .875rem; }
 th, td { padding: .45rem .65rem; border-bottom: 1px solid var(--bord); white-space: nowrap; text-align: left; }
 th { background: var(--marine-50); color: var(--marine); font-weight: 600; position: sticky; top: 0; }
+/* Tableau détaillé : première colonne (période) figée lors du défilement horizontal. */
+.table-defil table th:first-child, .table-defil table td:first-child { position: sticky; left: 0; z-index: 1;
+  background: #fff; box-shadow: 1px 0 0 var(--bord); }
+.table-defil table th:first-child { background: var(--marine-50); z-index: 2; }
 tbody tr:hover { background: #fafbfd; }
 td.nombre { text-align: right; font-variant-numeric: tabular-nums; }
 td.alerte { background: var(--alerte-fond); color: var(--alerte); }
 td.critique { background: var(--critique-fond); color: var(--critique); font-weight: 600; }
 table.synthese { width: auto; min-width: 50%; }
+/* Liste de KPI d'une ligne (« Concerne ») : passe à la ligne, jamais réduite à une lettre. */
+td.concerne { white-space: normal; min-width: 14rem; }
 
 details.avance { margin-top: 2rem; background: #fff; border: 1px solid var(--bord); border-radius: var(--rayon); box-shadow: var(--ombre); }
 details.avance > summary { cursor: pointer; padding: 1rem 1.25rem; font-weight: 700; color: var(--marine); }
@@ -337,11 +350,41 @@ footer.pied-page { border-top: 1px solid var(--bord); color: var(--texte-3); fon
   .champ-recherche .bouton .texte-bouton { display: none; }
   .carte { padding: 1rem; }
   .carte-kpi .valeur { font-size: 1.7rem; }
+  .carte-kpi .valeur.longue { font-size: 1.5rem; }
+  .carte-kpi .valeur.tres-longue { font-size: 1.25rem; }
+  th, td { padding: .4rem .5rem; }
   .graphique { height: 260px; }
   .deux-colonnes { grid-template-columns: 1fr; }
   /* Panneaux des puces : feuille en bas d'écran, jamais de débordement horizontal. */
   .panneau, .panneau.large { position: fixed; left: 8px; right: 8px; bottom: 8px; top: auto; width: auto; max-width: none;
     max-height: 75vh; overflow: auto; }
+}
+/* Petit écran : la colonne figée (KPI, période) passe à la ligne et reste étroite (≤ 40 %)
+   pour laisser voir les valeurs pendant le défilement horizontal ; dans le tableau
+   détaillé, l'entité passe sous la période (colonne figée) au lieu d'une colonne à part. */
+.sur-mobile { display: none; }
+@media (max-width: 600px) {
+  .table-defil table th:first-child, .table-defil table td:first-child { white-space: normal;
+    overflow-wrap: break-word; hyphens: auto; width: 6.5rem; max-width: 40vw; line-height: 1.3; }
+  table.synthese { min-width: 0; }
+  .sur-mobile { display: inline; }
+  .hors-mobile { display: none; }
+  .entite-ligne { display: block; margin-top: .15rem; font-size: .78rem; font-weight: 600; color: var(--marine);
+    overflow-wrap: break-word; }
+  /* Anomalies d'événement : une carte par anomalie (gravité, techno · entité · règle, détail). */
+  .table-defil:has(> table.anomalies) { border: 0; overflow: visible; }
+  table.anomalies, table.anomalies tbody { display: block; }
+  table.anomalies thead { display: none; }
+  table.anomalies tr { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .6rem; padding: .7rem .8rem;
+    margin-bottom: .6rem; border: 1px solid var(--bord); border-radius: var(--rayon-petit); background: #fff; }
+  .table-defil table.anomalies td, .table-defil table.anomalies td:first-child { display: block; position: static;
+    width: auto; max-width: none; padding: 0; border: 0; box-shadow: none; white-space: normal; background: none; }
+  table.anomalies td.techno, table.anomalies td.entite, table.anomalies td.regle { font-size: .82rem;
+    color: var(--texte-2); }
+  table.anomalies td.entite { font-weight: 700; color: var(--marine); overflow-wrap: break-word; }
+  /* Séparateur en fin de segment (jamais en début de ligne quand la règle passe à la ligne). */
+  table.anomalies td.entite::after { content: "\00a0·"; font-weight: 400; color: var(--texte-2); }
+  table.anomalies td.detail { flex-basis: 100%; font-size: .88rem; line-height: 1.4; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 @media print {

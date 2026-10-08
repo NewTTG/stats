@@ -8,7 +8,11 @@
 - exports Excel (``export=xlsx``) et rapport PowerPoint depuis tout résultat.
 """
 
+import json
+import logging
 import math
+import re
+from datetime import date, timedelta
 from urllib.parse import urlencode
 
 from django.contrib.auth.decorators import login_required
@@ -33,6 +37,7 @@ from .requete import RequeteKpi
 from .service import RequeteRefusee, executer
 from .source import BaseKpiNonConfiguree, est_demo, infos_demo, moteur_kpi
 
+journal = logging.getLogger(__name__)
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 FORMAT_PERIODE = {"heure": "%d/%m/%Y %Hh", "jour": "%d/%m/%Y", "semaine": "sem. du %d/%m/%Y", "mois": "%m/%Y"}
 # Au-delà, une courbe par entité devient illisible : on garde les premières.
@@ -58,7 +63,10 @@ LIBELLES_CATEGORIE = {"debit": "Débit", "trafic": "Trafic", "accessibilite": "A
 
 def contexte_global(request):
     """Processeur de contexte : bandeau « données de démonstration » sur toutes les pages."""
-    return {"donnees_demo": est_demo()}
+    if not est_demo():
+        return {"donnees_demo": False}
+    infos = infos_demo()
+    return {"donnees_demo": True, "demo_debut": infos.get("debut"), "demo_fin": infos.get("fin")}
 
 
 def _valeur(v):
@@ -102,19 +110,72 @@ def _lien(get, params: dict, retirer=()) -> str:
     return "?" + urlencode(paires)
 
 
-def _kpis_par_techno(cat, codes_choisis):
+def _kpis_par_techno(cat, codes_choisis, technos_demandees=()):
+    """Panneau de la puce KPI : technos demandées d'abord, KPI cochés en tête de chaque techno."""
     groupes = []
-    for techno in ("LTE", "WCDMA"):
+    ordre = [t for t in technos_demandees if t in ("LTE", "WCDMA")] + [t for t in ("LTE", "WCDMA")
+                                                                      if t not in technos_demandees]
+    for techno in ordre:
         kpis = [k for k in cat.values() if k.techno == techno]
         if not kpis:
             continue
         par_categorie = {}
-        for k in kpis:
-            par_categorie.setdefault(LIBELLES_CATEGORIE.get(k.categorie, k.categorie), []).append(
+        coches = [k for k in kpis if k.code in codes_choisis]
+        if coches:
+            par_categorie["Sélection actuelle"] = []
+        for k in coches + [k for k in kpis if k.code not in codes_choisis]:
+            categorie = "Sélection actuelle" if k.code in codes_choisis else LIBELLES_CATEGORIE.get(k.categorie, k.categorie)
+            par_categorie.setdefault(categorie, []).append(
                 {"code": k.code, "libelle": k.libelle, "unite": k.unite, "cause": bool(k.decomposition_de),
                  "coche": k.code in codes_choisis})
         groupes.append({"techno": techno, "nom": LIBELLES_TECHNO[techno], "categories": par_categorie.items()})
     return groupes
+
+
+def _exemples(user, aujourdhui, contexte=None) -> list[str]:
+    """Exemples (accueil, texte indicatif de la barre, ``/suggestions/``) : lieux du périmètre
+    d'un lecteur restreint (m10) ; en démonstration, « hier » remplacé par le dernier jour
+    disponible si la base est ancienne."""
+    voc = vocabulaire()
+    exemples = list(voc.exemples)
+    if not voit_tout_le_reseau(user):
+        visibles = [voc.libelle_commune(c) for c in (contexte or Contexte.pour(user)).lieux.communes_visibles]
+        connues = sorted({voc.libelle_commune(c) for c in voc.communes}, key=len, reverse=True)
+        sortie = []
+        for n, e in enumerate(exemples):
+            cite = next((c for c in connues if c in e), None)
+            if cite and visibles:
+                e = e.replace(cite, visibles[n % len(visibles)])
+            elif cite:
+                e = e.replace(f" à {cite}", "").replace(cite, "")
+            sortie.append(e)
+        exemples = sortie
+    derniere = (infos_demo() or {}).get("fin") if est_demo() else None
+    if isinstance(derniere, date):
+        if derniere < aujourdhui - timedelta(days=1):
+            exemples = [re.sub(r"\bhier\b", f"le {derniere:%d/%m/%Y}", e) for e in exemples]
+    return exemples
+
+
+def _parametres_resolus(q: str, params: dict):
+    """Paramètres GET équivalents à l'interprétation (sans ``ia``) : après une recherche IA,
+    les liens (puces, questions, export) rejouent la requête résolue sans rappeler le modèle."""
+    from django.http import QueryDict
+
+    get = QueryDict(mutable=True)
+    get["q"] = q
+    if params.get("kpis"):
+        get.setlist("kpis", list(params["kpis"]))
+    if params.get("perimetre"):
+        get["perimetre_type"] = params["perimetre"]["type"]
+        get["perimetre_valeurs"] = ", ".join(params["perimetre"]["valeurs"])
+    if params.get("periode"):
+        get["debut"] = params["periode"]["debut"].isoformat()
+        get["fin"] = params["periode"]["fin"].isoformat()
+    for cle in ("granularite_temps", "granularite_espace", "fenetre_horaire"):
+        if params.get(cle):
+            get[cle] = params[cle]
+    return get
 
 
 def _edition(get, interp, contexte: Contexte) -> dict:
@@ -140,7 +201,7 @@ def _edition(get, interp, contexte: Contexte) -> dict:
         "questions": questions,
         "edition": {
             "technos": [(t, LIBELLES_TECHNO[t], t in params.get("techno", [])) for t in ("LTE", "WCDMA")],
-            "kpis": _kpis_par_techno(contexte.catalogue, set(params.get("kpis", []))),
+            "kpis": _kpis_par_techno(contexte.catalogue, set(params.get("kpis", [])), params.get("techno", [])),
             "perimetre_types": PERIMETRES,
             "perimetre": params.get("perimetre") or {"type": "global", "valeurs": []},
             "perimetre_valeurs": ", ".join((params.get("perimetre") or {}).get("valeurs", [])),
@@ -155,32 +216,57 @@ def _edition(get, interp, contexte: Contexte) -> dict:
     }
 
 
+def _requete_tracee(r: dict) -> RequeteKpi | None:
+    req = r.get("requete", r)
+    try:
+        return RequeteKpi(**req) if isinstance(req, dict) else None
+    except (ValidationError, TypeError, ValueError):
+        return None
+
+
+def _entree_recente(action: str, r) -> tuple[str, str, dict] | None:
+    """(texte affiché, clé de dédoublonnage, paramètres du lien) d'une entrée d'audit, ou None."""
+    r = r if isinstance(r, dict) else {}
+    q = r.get("q") if isinstance(r.get("q"), str) else ""
+    if action == "recherche_kpi" and q.strip():
+        q = q.strip()[:300]
+        parametres = r.get("parametres") if isinstance(r.get("parametres"), dict) else {}
+        parametres = {k: v for k, v in parametres.items()
+                      if k in PARAMETRES and (isinstance(v, str) or (isinstance(v, list) and all(isinstance(x, str) for x in v)))}
+        requete = _requete_tracee(r) if r.get("ia") else None
+        # Recherche IA : on rejoue la requête résolue (pas de nouvel appel au modèle).
+        params = {"q": q, **(champs_depuis_requete(requete) if requete else parametres)}
+        # Dédoublonné par texte : la plus récente des recherches au même texte est gardée
+        # (deux entrées identiques à l'écran rejoueraient des paramètres différents).
+        cle = json.dumps(["q", " ".join(q.lower().split())], ensure_ascii=False)
+        return q, cle, params
+    requete = _requete_tracee(r)
+    if requete is None:
+        return None
+    lieu = ", ".join(requete.perimetre.valeurs) or "réseau"
+    texte = (f"{' + '.join(LIBELLES_TECHNO.get(t, t) for t in requete.techno)} · {len(requete.kpis)} KPI · {lieu} · "
+             f"{requete.periode.debut:%d/%m} → {requete.periode.fin:%d/%m/%Y}")
+    return texte, json.dumps(["f", texte]), champs_depuis_requete(requete)
+
+
 def _recherches_recentes(user, nombre=6) -> list[dict]:
-    """Dernières recherches de l'utilisateur (journal d'audit), sans doublon."""
+    """Dernières recherches de l'utilisateur (journal d'audit), sans doublon.
+
+    Robuste à toute entrée malformée : une entrée illisible est ignorée, jamais d'erreur 500.
+    """
     vues, sortie = set(), []
     for e in JournalAudit.objects.filter(utilisateur=user, action__in=("recherche_kpi", "requete_kpi"))[:60]:
-        r = e.requete or {}
-        if e.action == "recherche_kpi" and r.get("q"):
-            params = {"q": r["q"], **(r.get("parametres") or {})}
-            if r.get("ia"):
-                params["ia"] = "1"
-            texte, cle = r["q"], ("q", r["q"].lower(), tuple(sorted((r.get("parametres") or {}).items(), key=str)))
-        else:
-            req = r.get("requete", r)
-            try:
-                requete = RequeteKpi(**req)
-            except (ValidationError, TypeError):
-                continue
-            params = champs_depuis_requete(requete)
-            lieu = ", ".join(requete.perimetre.valeurs) or "réseau"
-            texte = (f"{' + '.join(LIBELLES_TECHNO[t] for t in requete.techno)} · {len(requete.kpis)} KPI · {lieu} · "
-                     f"{requete.periode.debut:%d/%m} → {requete.periode.fin:%d/%m/%Y}")
-            cle = ("f", texte)
-        if cle in vues:
+        try:
+            entree = _entree_recente(e.action, e.requete)
+        except Exception:  # entrée d'audit inattendue : ignorée
+            journal.warning("Entrée d'audit %s illisible pour « Mes dernières recherches »", e.pk, exc_info=True)
             continue
+        if entree is None or entree[1] in vues:
+            continue
+        texte, cle, params = entree
         vues.add(cle)
         sortie.append({"texte": texte, "lien": "?" + urlencode(params, doseq=True), "date": e.date,
-                       "ia": bool(r.get("ia"))})
+                       "ia": bool((e.requete or {}).get("ia")) if isinstance(e.requete, dict) else False})
         if len(sortie) >= nombre:
             break
     return sortie
@@ -202,7 +288,7 @@ def requete(request):
     ia_ok = ia_disponible()
     ia = ia_ok and get.get("ia") == "1"
     explicites = parametres_explicites(get)
-    ctx = {"q": q, "ia": ia, "ia_disponible": ia_ok, "exemples": vocabulaire().exemples}
+    ctx = {"q": q, "ia": ia, "ia_disponible": ia_ok}
     req, interp = None, None
 
     if "q" in get and (q or explicites):
@@ -212,6 +298,9 @@ def requete(request):
                   else construire(Demande(), contexte, aujourdhui))
         interp = avec_parametres(interp, get, contexte, aujourdhui)
         ctx["interp"] = interp
+        ctx["exemples"] = _exemples(request.user, aujourdhui, contexte)  # texte indicatif de la barre (m10)
+        if get.get("ia") == "1":  # liens : requête résolue, sans nouvel appel IA
+            get = _parametres_resolus(q, interp.params)
         ctx["form"] = RequeteForm(initial=champs_depuis_params(interp.params), kpis_visibles=visibles)
         ctx.update(_edition(get, interp, contexte))
         if interp.complete:
@@ -232,6 +321,7 @@ def requete(request):
         ctx["mode"] = "accueil"
         ctx["form"] = RequeteForm(kpis_visibles=visibles)
         ctx["recentes"] = _recherches_recentes(request.user)
+        ctx["exemples"] = _exemples(request.user, aujourdhui)
 
     if req is not None:
         if ctx["mode"] == "recherche":
@@ -256,7 +346,11 @@ def requete(request):
             ctx["requete"] = req
             puce = interp.puce("perimetre") if interp else None
             ctx["resume_lieu"] = puce.libelle if puce else (", ".join(req.perimetre.valeurs) or "tout le réseau autorisé")
-            ctx["blocs"] = affichage.blocs(resultat)
+            nombre = interp.demande.classement_nombre if interp and interp.demande else None
+            ctx["blocs"] = affichage.blocs(resultat, nombre)
+            ctx["avertissements"] = affichage.avertissements(resultat)
+            # Résultat vide (aucune donnée) : pas de boutons Excel / PowerPoint.
+            ctx["donnees_presentes"] = any(b["lignes_total"] for b in ctx["blocs"])
             ctx["lien_export"] = "?" + urlencode([*get.lists(), ("export", ["xlsx"])], doseq=True)
             ctx["requete_params"] = [(k, v if isinstance(v, list) else [v])
                                      for k, v in champs_depuis_requete(req).items()]  # rapport PowerPoint (POST)
@@ -269,6 +363,7 @@ def requete(request):
 def suggestions(request):
     """Autocomplétion légère : lieux accessibles (communes, sites, événements) et exemples."""
     q = request.GET.get("q", "")[:100]
-    lieux = Contexte.pour(request.user).lieux.suggestions(q, limite=15)
-    exemples = [e for e in vocabulaire().exemples if not q or q.lower() in e.lower()]
+    contexte = Contexte.pour(request.user)
+    lieux = contexte.lieux.suggestions(q, limite=15)
+    exemples = [e for e in _exemples(request.user, timezone.localdate(), contexte) if not q or q.lower() in e.lower()]
     return JsonResponse({"lieux": lieux, "exemples": exemples})

@@ -18,7 +18,7 @@ import re
 import sqlite3
 import time
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -331,23 +331,26 @@ class Generateur:
                 with np.errstate(divide="ignore", invalid="ignore"):
                     v[c] = np.where(v[att] > 0, 100 * v[succ] / v[att], 100.0)
         # Coupures : chaque cause tirée séparément, total = Σ causes (+ reste non ventilé).
+        # Plafond ligne à ligne : les coupures d'une cause ne dépassent jamais ce qu'il reste
+        # d'E-RAB / d'appels, donc Σ causes <= total <= 100 % sur chaque ligne.
         if self.total:
             poids = v.get(PONDERATIONS[self.total])
             k_total = np.zeros((n, 24))
+            restant = poids.copy() if poids is not None else None
             for c in self.parts:
                 p = self.proba[c][:, None] * self._bruit(.3) * boost[c] * np.where(congestion, 1.5, 1.0)
                 if poids is None:
                     v[c] = np.clip(p * 100, 0, 100)
                     continue
-                k = rng.binomial(poids.astype(np.int64), np.clip(p, 0, 1)).astype(float)
+                k = np.minimum(rng.binomial(poids.astype(np.int64), np.clip(p, 0, 1)).astype(float), restant)
+                restant -= k
                 k_total += k
                 with np.errstate(divide="ignore", invalid="ignore"):
                     v[c] = np.where(poids > 0, 100 * k / poids, 0.0)
             if poids is not None:
                 if self.reste is not None:
                     p = self.reste[:, None] * self._bruit(.3) * boost[self.total]
-                    k_total += rng.binomial(poids.astype(np.int64), np.clip(p, 0, 1))
-                k_total = np.minimum(k_total, poids)
+                    k_total += np.minimum(rng.binomial(poids.astype(np.int64), np.clip(p, 0, 1)), restant)
                 with np.errstate(divide="ignore", invalid="ignore"):
                     v[self.total] = np.where(poids > 0, 100 * k_total / poids, 0.0)
         for c in self.colonnes:  # autres taux (ex. coupures data 3G)
@@ -540,7 +543,7 @@ def generer(sortie: Path, jours: int = 30, graine: int = 42, fin: date | None = 
         resume["lignes"][t.table_jour] = n_j
         journal(f"{nom} : {gen.n} cellules, {n_h} lignes horaires, {n_j} lignes journalières")
     conn.execute("CREATE TABLE demo_info (cle TEXT PRIMARY KEY, valeur TEXT)")
-    infos = {"genere_le": datetime.now().isoformat(timespec="seconds"), "graine": str(graine),
+    infos = {"genere_le": timezone.localtime().isoformat(timespec="seconds"), "graine": str(graine),
              "debut": debut.isoformat(), "fin": fin.isoformat(),
              "incidents": json.dumps(resume["incidents"], ensure_ascii=False)}
     conn.executemany("INSERT INTO demo_info VALUES (?, ?)", infos.items())

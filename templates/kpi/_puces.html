@@ -22,7 +22,7 @@
           <div class="liste-kpi">
             {% for g in edition.kpis %}
             <fieldset><legend>{{ g.nom }}</legend>
-              {% for categorie, kpis in g.categories %}
+              {% for categorie, kpis in g.categories %}<p class="categorie-kpi">{{ categorie }}</p>
                 {% for k in kpis %}
                 <label class="{% if k.cause %}cause{% endif %}"><input type="checkbox" name="kpis" value="{{ k.code }}"{% if k.coche %} checked{% endif %}> {{ k.libelle }} <span class="aide">({{ k.unite }})</span></label>
                 {% endfor %}

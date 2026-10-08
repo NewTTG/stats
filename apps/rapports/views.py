@@ -70,6 +70,12 @@ def liste(request):
 @login_required
 def telecharger(request, pk):
     rapport = get_object_or_404(Rapport, pk=pk, utilisateur=request.user, statut="termine")
-    if not rapport.fichier:
-        raise Http404
-    return FileResponse(rapport.fichier.open("rb"), as_attachment=True, filename=rapport.fichier.name.rsplit("/", 1)[-1])
+    try:
+        if not rapport.fichier:
+            raise FileNotFoundError(rapport.pk)
+        fichier = rapport.fichier.open("rb")
+    except (FileNotFoundError, OSError):
+        # Fichier supprimé ou déplacé (autre serveur, purge du dossier media) : pas d'erreur 500.
+        messages.error(request, f"Le fichier du rapport « {rapport.titre} » est introuvable : relancez-le.")
+        return redirect("rapports:liste")
+    return FileResponse(fichier, as_attachment=True, filename=rapport.fichier.name.rsplit("/", 1)[-1])

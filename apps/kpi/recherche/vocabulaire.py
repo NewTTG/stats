@@ -20,6 +20,8 @@ class Intention:
     kpis: dict[str, list[str]]
     technos_defaut: list[str] = field(default_factory=lambda: list(TECHNOS))
     famille: bool = False
+    # qualificatif (« voix », « data ») -> intention précise : « coupure voix » = drop voix
+    absorbe: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -32,7 +34,21 @@ class Vocabulaire:
     communes: dict[str, dict]
     pas_trigrammes: set[str]
     exemples: list[str]
+    qualificatifs: dict[str, list[str]] = field(default_factory=dict)
+    # Sigles (« HSDPA », « PRB »…) : jamais un lieu ; mots normalisés (un ou plusieurs mots).
+    termes_techniques: set[str] = field(default_factory=set)
+    # Mots courants jamais rapprochés d'un lieu (« marché » ≠ Maré, « contre » ≠ Contrôle…).
+    mots_courants: set[str] = field(default_factory=set)
+    # KPI / technos cités mais absents des données (« SINR », « 2G ») -> (libellé, est une techno).
+    indisponibles: Correspondeur = field(default_factory=Correspondeur, repr=False)
     mots: Correspondeur = field(default_factory=Correspondeur, repr=False)
+    # Terme -> techno qu'il implique (« E-RAB » -> LTE) quand la demande n'en cite aucune.
+    implicites: Correspondeur = field(default_factory=Correspondeur, repr=False)
+    # Terme -> techno ajoutée même si une autre est citée (« appels 3G et CSFB » -> + LTE).
+    ajoutees: Correspondeur = field(default_factory=Correspondeur, repr=False)
+
+    def est_terme_technique(self, mot: str) -> bool:
+        return normaliser(mot) in self.termes_techniques
 
     def libelle_commune(self, nom: str) -> str:
         return (self.communes.get(nom) or {}).get("libelle") or nom.title()
@@ -53,7 +69,7 @@ def charger_vocabulaire(chemin: Path) -> Vocabulaire:
             raise ValueError(f"intention {code} : techno inconnue {sorted(inconnues)}")
         intentions[code] = Intention(code=code, libelle=d["libelle"], mots=[str(m) for m in d["mots"]], kpis=kpis,
                                      technos_defaut=list(d.get("technos_defaut") or TECHNOS),
-                                     famille=bool(d.get("famille")))
+                                     famille=bool(d.get("famille")), absorbe=dict(d.get("absorbe") or {}))
     voc = Vocabulaire(
         technos={t: [str(m) for m in mots] for t, mots in brut["technos"].items()},
         intentions=intentions,
@@ -63,7 +79,26 @@ def charger_vocabulaire(chemin: Path) -> Vocabulaire:
         communes={k: v or {} for k, v in brut.get("communes", {}).items()},
         pas_trigrammes={normaliser(str(m)) for m in brut.get("pas_trigrammes", [])},
         exemples=list(brut.get("exemples", [])),
+        qualificatifs={k: [str(m) for m in v] for k, v in (brut.get("qualificatifs") or {}).items()},
+        termes_techniques={normaliser(str(m)) for m in brut.get("termes_techniques") or []},
+        mots_courants={normaliser(str(m)) for m in brut.get("mots_courants") or []},
     )
+    for mot, d in (brut.get("indisponibles") or {}).items():
+        voc.indisponibles.ajouter(str(mot), (str(d["libelle"]), bool(d.get("techno"))))
+    for techno, mots in (brut.get("technos_ajoutees") or {}).items():
+        if techno not in TECHNOS:
+            raise ValueError(f"technos_ajoutees : techno inconnue {techno!r}")
+        for mot in mots:
+            voc.ajoutees.ajouter(str(mot), techno)
+    for techno, mots in (brut.get("technos_implicites") or {}).items():
+        if techno not in TECHNOS:
+            raise ValueError(f"technos_implicites : techno inconnue {techno!r}")
+        for mot in mots:
+            voc.implicites.ajouter(str(mot), techno)
+    for code, intention in intentions.items():
+        for cible in intention.absorbe.values():
+            if cible not in intentions:
+                raise ValueError(f"intention {code} : absorbe vers une intention inconnue {cible!r}")
     # Un seul dictionnaire : l'expression la plus longue gagne entre intentions,
     # modificateurs et mots neutres (« taux d'accès » > « taux »).
     for mot in voc.neutres:
@@ -74,6 +109,12 @@ def charger_vocabulaire(chemin: Path) -> Vocabulaire:
     for intention in intentions.values():
         for mot in intention.mots:
             voc.mots.ajouter(mot, ("intention", intention.code))
+    for code, mots in voc.qualificatifs.items():
+        for mot in mots:
+            voc.mots.ajouter(mot, ("qualificatif", code))
+    for mot in voc.termes_techniques:  # sigles sans intention propre : reconnus, sans effet
+        if mot not in voc.mots:
+            voc.mots.ajouter(mot, ("neutre", None))
     return voc
 
 

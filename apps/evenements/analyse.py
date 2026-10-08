@@ -12,7 +12,7 @@ import pandas as pd
 from django.utils import timezone
 
 from apps.comptes.acces import cellules_autorisees, kpis_autorises
-from apps.kpi.catalogue import DefinitionKpi, catalogue
+from apps.kpi.catalogue import DefinitionKpi, catalogue, kpis_principaux
 from apps.kpi.moteur import agreger
 from apps.kpi.service import colonnes_utilisees
 from apps.kpi.source import lire
@@ -178,7 +178,8 @@ def analyser(evenement: Evenement, user, engine, niveau: str = "secteur") -> Ana
 
     reglages = ReglagesAnomalies.courant()
     cat = catalogue()
-    demandes = set(evenement.kpis or cat)
+    # Sans liste : KPI principaux (ni causes ni composants de composites, sélectionnables explicitement).
+    demandes = set(evenement.kpis or kpis_principaux(cat))
     autorises = kpis_autorises(user, demandes & set(cat))
     n = evenement.semaines_reference
     fenetres = [(s, i, debut - timedelta(weeks=s), fin - timedelta(weeks=s))

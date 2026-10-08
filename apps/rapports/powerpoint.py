@@ -287,6 +287,33 @@ class Deck:
             self._texte(slide, commentaire, self.marge, bas + Inches(0.1),
                         self.largeur - 2 * self.marge, Inches(0.7), taille=14)
 
+    def barres(self, titre: str, categories: list[str], valeurs: list[float], commentaire: str = "",
+               format_nombre: str = '0.0" %"'):
+        """Barres horizontales triées (Pareto), la plus grande en haut, valeurs affichées."""
+        slide = self._diapo(titre)
+        donnees = CategoryChartData()
+        donnees.categories = list(reversed(categories))  # l'axe des barres part du bas
+        donnees.add_series("Part", list(reversed(valeurs)))
+        bas = self.bas_contenu - (Inches(0.8) if commentaire else 0)
+        graphe = slide.shapes.add_chart(XL_CHART_TYPE.BAR_CLUSTERED, self.marge, self.haut_contenu,
+                                        self.largeur - 2 * self.marge, bas - self.haut_contenu, donnees).chart
+        graphe.has_legend = False
+        graphe.category_axis.tick_labels.font.size = Pt(11)
+        graphe.value_axis.tick_labels.font.size = Pt(10)
+        graphe.value_axis.has_major_gridlines = False
+        plot = graphe.plots[0]
+        plot.gap_width = 60
+        plot.has_data_labels = True
+        plot.data_labels.font.size = Pt(11)
+        plot.data_labels.number_format = format_nombre
+        plot.data_labels.number_format_is_linked = False
+        serie = plot.series[0]
+        serie.format.fill.solid()
+        serie.format.fill.fore_color.rgb = _rgb(self.charte.principale)
+        if commentaire:
+            self._texte(slide, commentaire, self.marge, bas + Inches(0.1),
+                        self.largeur - 2 * self.marge, Inches(0.7), taille=14)
+
     def texte(self, titre: str, paragraphes: list[str]):
         slide = self._diapo(titre)
         taille = 16 if len(paragraphes) <= 12 and sum(map(len, paragraphes)) < 900 else 12

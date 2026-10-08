@@ -15,6 +15,11 @@ NOMS_MOIS = ["", "janvier", "février", "mars", "avril", "mai", "juin", "juillet
 _MOIS = "|".join(sorted(MOIS, key=len, reverse=True))
 _JOUR = r"(\d{1,2})(?:er|e|eme)?"
 _AN = r"(\d{4})"
+JOURS_SEMAINE = {"lundi": 0, "mardi": 1, "mercredi": 2, "jeudi": 3, "vendredi": 4, "samedi": 5, "dimanche": 6}
+NOMS_JOURS = list(JOURS_SEMAINE)
+_JOURS = "|".join(JOURS_SEMAINE)
+# Nom du jour facultatif devant une date (« lundi 14 septembre », « le mardi 15/09 »).
+_NOM_JOUR = rf"(?:(?:{_JOURS}) )?"
 NOMBRES = {"un": 1, "une": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5, "six": 6, "sept": 7, "huit": 8,
            "neuf": 9, "dix": 10, "quinze": 15, "trente": 30}
 _NOMBRE = r"(\d{1,3}|" + "|".join(NOMBRES) + ")"
@@ -60,6 +65,28 @@ def _annee_par_defaut(mois: int, jour: int | None, aujourdhui: date) -> int:
     return annee - 1 if candidat > aujourdhui else annee
 
 
+def semaine_numero(numero: int, aujourdhui: date) -> tuple[date, date] | None:
+    """Lundi et dimanche de la semaine ISO ``numero`` (année courante, ou précédente si à venir)."""
+    try:
+        lundi = date.fromisocalendar(aujourdhui.year, numero, 1)
+        if lundi > aujourdhui:
+            lundi = date.fromisocalendar(aujourdhui.year - 1, numero, 1)
+    except ValueError:
+        return None
+    return lundi, lundi + timedelta(days=6)
+
+
+def semaine_suggeree(texte) -> int | None:
+    """« Nouméa S40 » sans contexte de date : pas une période, mais « Semaine 40 » est proposée
+    en premier dans la question (jamais « S1 », l'interface S1, consommée avant)."""
+    for i in texte.libres():
+        m = re.fullmatch(r"s(\d{1,2})", texte.mots[i])
+        if m and 2 <= int(m[1]) <= 53:
+            texte.consommer([i])
+            return int(m[1])
+    return None
+
+
 def preset(code: str, aujourdhui: date) -> Periode | None:
     hier = aujourdhui - timedelta(days=1)
     if code == "hier":
@@ -102,6 +129,18 @@ def _fmt(d: date) -> str:
     return f"{d.day} {NOMS_MOIS[d.month]}"
 
 
+def jour_passe(jour_semaine: int, aujourdhui: date) -> date:
+    """Date la plus récente, strictement avant aujourd'hui, tombant ce jour de la semaine.
+
+    Règle unique pour « jeudi », « le jeudi », « jeudi dernier », « jeudi passé » : on
+    ne regarde jamais aujourd'hui ni l'avenir. Le jeudi 8 octobre, « jeudi » et « jeudi
+    dernier » = jeudi 1er octobre, « mardi » = mardi 6 octobre, « samedi dernier » =
+    samedi 3 octobre (le samedi de cette semaine n'est pas encore passé).
+    """
+    ecart = (aujourdhui.weekday() - jour_semaine) % 7 or 7
+    return aujourdhui - timedelta(days=ecart)
+
+
 # Motifs de période, du plus spécifique au plus général. Chaque fonction reçoit le match.
 def _motifs(aujourdhui: date):
     hier = aujourdhui - timedelta(days=1)
@@ -126,6 +165,24 @@ def _motifs(aujourdhui: date):
         d = _date(int(m[1]), int(m[2]), a1 or a2, aujourdhui)
         f = _date(int(m[4]), int(m[5]), a2 or a1, aujourdhui)
         return (d, f, f"du {d:%d/%m} au {f:%d/%m}") if d and f else None
+
+    def semaine_du(m):  # la semaine du 5 octobre / du 05/10 [2026] : du lundi au dimanche contenant ce jour
+        if m[2] and m[2] in MOIS:
+            d = _date(int(m[1]), MOIS[m[2]], int(m[3]) if m[3] else None, aujourdhui)
+        elif m[4]:
+            d = _date(int(m[4]), int(m[5]), int(m[6]) if m[6] else None, aujourdhui)
+        else:
+            d = jour_seul_date(int(m[1]))
+        if not d:
+            return None
+        lundi = d - timedelta(days=d.weekday())
+        return lundi, lundi + timedelta(days=6), f"semaine du {_fmt(lundi)}"
+
+    def jour_seul_date(jour):
+        mois, an = aujourdhui.month, aujourdhui.year
+        if jour > aujourdhui.day:
+            mois, an = (mois - 1 or 12), (an if mois > 1 else an - 1)
+        return _date(jour, mois, an, aujourdhui)
 
     def week_end_du(m):  # le week-end du 14 [septembre] [2026]
         jour = int(m[1])
@@ -181,6 +238,17 @@ def _motifs(aujourdhui: date):
         a = int(m[1])
         return date(a, 1, 1), date(a, 12, 31), f"année {a}"
 
+    def semaine_iso(m):  # semaine 38 / sem. 38 [2026] : semaine ISO, année courante ou précédente si à venir
+        numero = int(m[1])
+        an = int(m[2]) if m[2] else aujourdhui.year
+        try:
+            lundi = date.fromisocalendar(an, numero, 1)
+            if not m[2] and lundi > aujourdhui:
+                lundi = date.fromisocalendar(an - 1, numero, 1)
+        except ValueError:
+            return None
+        return lundi, lundi + timedelta(days=6), f"semaine {numero} ({lundi.isocalendar().year})"
+
     def relatif(code, libelle=None):
         def f(_m):
             p = preset(code, aujourdhui)
@@ -194,9 +262,19 @@ def _motifs(aujourdhui: date):
         d = aujourdhui - timedelta(days=2)
         return d, d, "Avant-hier"
 
-    def ce_week_end(_m):  # dernier week-end commencé
+    def ce_week_end(_m):  # dernier week-end commencé (en cours le samedi ou le dimanche)
         samedi = aujourdhui - timedelta(days=(aujourdhui.weekday() - 5) % 7)
         return samedi, min(samedi + timedelta(days=1), aujourdhui), "Week-end dernier"
+
+    def week_end_dernier(_m):  # dernier week-end terminé (le précédent si l'on est samedi ou dimanche)
+        samedi = jour_passe(5, aujourdhui)
+        if aujourdhui.weekday() == 6:
+            samedi -= timedelta(days=7)
+        return samedi, samedi + timedelta(days=1), "Week-end dernier"
+
+    def jour_semaine(m):  # jeudi, le jeudi, jeudi dernier : voir jour_passe()
+        d = jour_passe(JOURS_SEMAINE[m[1]], aujourdhui)
+        return d, d, f"{m[1]} {_fmt(d)}"
 
     def jour_seul(m):  # le 14 (mois courant, ou précédent si le 14 est à venir)
         jour = int(m[1])
@@ -220,10 +298,20 @@ def _motifs(aujourdhui: date):
         (r"(?:du |entre le |entre )?(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))? " + sep + r" (?:le )?(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?",
          entre_numeriques),
         (rf"(?:le |ce )?(?:week end|weekend|we) (?:du |de )?{_JOUR}(?: ({_MOIS}))?(?: {_AN})?", week_end_du),
+        (rf"(?:la |pendant la |sur la |de la |cette )?semaine (?:du |de )(?:lundi )?(?:{_JOUR}(?![/\d])(?: ({_MOIS}))?(?: {_AN})?"
+         r"|(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?)", semaine_du),
         (r"(\d{4})-(\d{2})-(\d{2})", iso),
-        (rf"(?:le |du |au )?{_JOUR} ({_MOIS})(?: {_AN})?", jour_mois),
-        (r"(?:le |du |au )?(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?", jour_numerique),
-        (r"(?:le|du|depuis le) (\d{1,2})(?:er|e|eme)?", jour_seul),
+        # « semaine 38 », « sem. 38 », « sem 38 » ; « S40 », « S 40 », « s.40 » seulement avec un
+        # contexte de date : précédé de « en », « la », « de la », « pendant la », « depuis la »,
+        # « sur la », « à partir de la », ou suivi d'une année (« S40 2026 »). Jamais « S1 »
+        # (interface S1) : écrire « semaine 1 ».
+        (r"(?:la |en |de la |pendant la )?(?:semaine|sem) ?(\d{1,2})(?: (\d{4}))?", semaine_iso),
+        (r"(?:la|en|de la|pendant la|depuis la|sur la|a partir de la|semaine|la semaine) s ?([2-9]|\d{2})"
+         r"(?: (\d{4}))?", semaine_iso),
+        (r"s ?([2-9]|\d{2}) (\d{4})", semaine_iso),
+        (rf"(?:le |du |au )?{_NOM_JOUR}{_JOUR} ({_MOIS})(?: {_AN})?", jour_mois),
+        (rf"(?:le |du |au )?{_NOM_JOUR}(\d{{1,2}})/(\d{{1,2}})(?:/(\d{{2,4}}))?", jour_numerique),
+        (rf"(?:le|du|depuis le) {_NOM_JOUR}(\d{{1,2}})(?:er|e|eme)?", jour_seul),
         (rf"(?:en |de |du mois de |mois de |le mois de )?({_MOIS}) {_AN}", mois_annee),
         (rf"(?:les |sur les |ces |depuis )?{_NOMBRE} (?:derniers |dernieres )?(jours|jour|semaines|semaine|mois)"
          rf"(?: derniers| dernieres| ecoules| passes)?|(?:les |sur les |ces )?(?:derniers|dernieres) {_NOMBRE} (jours|semaines|mois)",
@@ -232,7 +320,10 @@ def _motifs(aujourdhui: date):
         (r"(?:le |ce )?mois (?:dernier|precedent|passe)|(?:le )?dernier mois", relatif("mois_dernier")),
         (r"(?:ce |le )?mois ci|ce mois|(?:le |du )?mois (?:en cours|courant)|depuis le debut du mois", relatif("mois_courant")),
         (r"(?:cette |la )?semaine (?:en cours|courante)|cette semaine", cette_semaine),
-        (r"(?:le |ce )?(?:week end|weekend) (?:dernier|passe)|(?:ce |le )?(?:week end|weekend)", ce_week_end),
+        (r"(?:le |ce )?(?:week end|weekend|we) (?:dernier|passe|precedent)|(?:le )?dernier (?:week end|weekend)",
+         week_end_dernier),
+        (r"(?:ce |le )?(?:week end|weekend)", ce_week_end),
+        (rf"(?:le |ce |du )?({_JOURS})(?: (?:dernier|passe|precedent))?", jour_semaine),
         (r"avant hier", avant_hier),
         (r"aujourd hui|aujourdhui|ce jour", relatif("aujourdhui")),
         (r"(?:d )?hier", relatif("hier")),
@@ -243,10 +334,41 @@ def _motifs(aujourdhui: date):
     ]
 
 
+# Motifs désignant un point de départ possible après « depuis » (« depuis septembre »,
+# « depuis le 15/09 », « depuis lundi », « depuis la semaine 38 », « depuis 2025 »).
+_POINTS_DE_DEPART = ("week_end_du", "semaine_du", "iso", "semaine_iso", "jour_mois", "jour_numerique", "jour_seul", "mois_annee",
+                     "jour_semaine", "mois_seul", "annee")
+
+
+def _depuis(texte, aujourdhui: date, motifs, notes: list[str]) -> Periode | None:
+    """« depuis <date> » : de cette date à hier (aujourd'hui si la date est aujourd'hui)."""
+    hier = aujourdhui - timedelta(days=1)
+    for motif, fonction in motifs:
+        if fonction.__name__ not in _POINTS_DE_DEPART:
+            continue
+        for m in texte.chercher(re.compile(rf"\bdepuis (?:le |la |l )?(?:{motif})\b")):
+            resultat = fonction(m)
+            if not resultat or not resultat[0]:
+                notes.append(f"Date non valide ignorée : « {m.group(0)} ».")
+                continue
+            if resultat[0] > aujourdhui:
+                notes.append(f"Période dans le futur ignorée : « {m.group(0)} ».")
+                continue
+            debut, _fin, libelle = resultat
+            if libelle.startswith("le "):
+                libelle = libelle[3:]
+            return Periode(debut, max(hier, debut), f"Depuis {libelle}")
+    return None
+
+
 def extraire_periode(texte, aujourdhui: date) -> tuple[Periode | None, list[str]]:
     """Première expression de période reconnue (et consommée) ; notes éventuelles."""
     notes = []
-    for motif, fonction in _motifs(aujourdhui):
+    motifs = _motifs(aujourdhui)
+    depuis = _depuis(texte, aujourdhui, motifs, notes)
+    if depuis:
+        return depuis, notes
+    for motif, fonction in motifs:
         for m in texte.chercher(re.compile(rf"\b(?:{motif})\b")):
             resultat = fonction(m)
             if not resultat or not resultat[0] or not resultat[1]:
@@ -322,23 +444,45 @@ LIBELLES_ESPACE = {"global": "global", "commune": "par commune", "site": "par si
                    "cellule": "par cellule"}
 
 
-def extraire_granularites(texte) -> tuple[str | None, str | None, bool]:
-    """(granularité temps, granularité espace, classement demandé)."""
+def extraire_granularites(texte) -> tuple[str | None, str | None, bool, int | None]:
+    """(granularité temps, granularité espace, classement demandé, nombre de lignes du classement).
+
+    « top 10 des sites », « les 10 cellules », « 5 pires secteurs », « sites les plus
+    chargés » -> niveau + classement (+ nombre) ; « des secteurs du site X », « les sites
+    du Sud » -> niveau seul.
+    """
     temps = None
     for motif, code in GRANULARITES_TEMPS:
-        if any(True for _ in texte.chercher(re.compile(rf"\b(?:{motif})\b"))):
+        if list(texte.chercher(re.compile(rf"\b(?:{motif})\b"))):  # toutes les occurrences sont consommées
             temps = temps or code
-    espace, classement = None, False
+    espace, classement, nombre = None, False, None
     entites = "|".join(ESPACES)
-    classe = re.compile(rf"\b(?:les |le |la )?(?:(?:top|pire|pires|classement)(?: \d{{1,3}})?(?: des| de| du)? ({entites})"
-                        rf"|({entites}) (?:les |le )?(?:plus )?(?:degrades?|degradees?|mauvais(?:es)?|touches?|touchees?))\b")
+    qualificatif = (r"(?:degrades?|degradees?|mauvais(?:es)?|touches?|touchees?|charges?|chargees?|sollicites?"
+                    r"|sollicitees?|utilises?|utilisees?|actifs?|actives?)")
+    classe = re.compile(
+        rf"\b(?:les |le |la )?(?:top|pire|pires|classement)(?: (\d{{1,3}}))?(?: des| de| du)?(?: pires?)? ({entites})\b"
+        rf"|\b(?:les |des )?(\d{{1,3}}) (pires? |plus mauvais(?:es)? )?({entites})\b"
+        rf"|\b({entites}) (?:les |le |la )?(?:plus |moins )?{qualificatif}\b")
     for m in texte.chercher(classe):
-        espace, classement = ESPACES[m[1] or m[2]], True
+        if m[2]:  # top 10 des sites, pires secteurs
+            espace, classement, nombre = ESPACES[m[2]], True, m[1] or nombre
+        elif m[5]:  # les 10 cellules, 5 pires sites
+            espace, nombre, classement = ESPACES[m[5]], m[3], classement or bool(m[4])
+        else:  # sites les plus chargés
+            espace, classement = ESPACES[m[6]], True
     for m in texte.chercher(re.compile(rf"\b(?:par|pour chaque|chaque|detail par|niveau) ({entites})\b")):
         espace = espace or ESPACES[m[1]]
-    for _m in texte.chercher(re.compile(r"\b(?:top \d{1,3}|top|pires?|classement|palmares|les plus degrades?)\b")):
+    for m in texte.chercher(re.compile(r"\b(?:top (\d{1,3})|top|pires?|classement|palmares|les plus degrades?)\b")):
+        classement, nombre = True, m[1] or nombre
+    # « le plus de trafic », « le plus d'appels » : classement ; le volume reste à lire (intention).
+    if list(texte.chercher(re.compile(r"\b(?:le |les )?plus d(?:e)?(?= (?:trafic|volume|volumes|data|donnees|appels"
+                                      r"|sms|communications|consommation)\b)"))):
         classement = True
-    return temps, espace, classement
+    # « des secteurs du site PIM123 », « les sites du Sud », « toutes les cellules » : niveau seul.
+    for m in texte.chercher(re.compile(r"\b(?:des|les|aux|ses|tous les|toutes les) (sites|secteurs|cellules)\b")):
+        espace = espace or ESPACES[m[1]]
+    nombre = int(nombre) if nombre and 1 <= int(nombre) <= 100 else None
+    return temps, espace, classement, nombre
 
 
 def granularite_par_defaut(jours: int) -> str:

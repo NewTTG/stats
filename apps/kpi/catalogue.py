@@ -31,6 +31,9 @@ class DefinitionKpi(BaseModel):
     decomposition_de: str | None = None
     # Borne haute appliquée ligne à ligne au numérateur (ex. disponibilité publiée > 100 %).
     plafond: float | None = None
+    # Écart absolu minimal (unité du KPI) pour qu'un écart à la référence soit significatif
+    # (analyse d'événement) : évite « +90 % » sur une cause passée de 0,01 à 0,02 %.
+    ecart_min: float | None = None
     facteur: float = 1.0
     sens: Literal["haut_est_mieux", "bas_est_mieux"]
     seuils: Seuils = Seuils()
@@ -76,6 +79,13 @@ class DefinitionKpi(BaseModel):
         if self.seuils.critique is not None and franchi(self.seuils.critique):
             return "critique"
         return "alerte" if franchi(self.seuils.alerte) else ""
+
+
+def kpis_principaux(cat: dict[str, DefinitionKpi]) -> list[str]:
+    """KPI analysés par défaut (événements) : sans les causes (``decomposition_de``) ni les
+    composants des KPI composites (cités dans un ``produit_de``), qui restent sélectionnables."""
+    composants = {c for k in cat.values() for c in (k.produit_de or [])}
+    return [c for c, k in cat.items() if not k.decomposition_de and c not in composants]
 
 
 def charger_catalogue(chemin: Path) -> dict[str, DefinitionKpi]:
