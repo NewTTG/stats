@@ -122,6 +122,8 @@ def test_approche_dans_le_perimetre_seulement(ref_recherche):  # noqa: F811
     Perimetre.objects.create(nom="Païta", communes=["PAITA"]).utilisateurs.add(lecteur)
     ctx = Contexte.pour(lecteur)
     q = interpreter("drop 4G à Koumak hier", J, ctx).questions[0]
-    assert [o.libelle for o in q.options] == ["Tout le réseau"]  # Koumac hors périmètre : jamais proposé
+    # Koumac hors périmètre : jamais proposé, même message qu'un lieu inexistant.
+    assert q.texte == "« Koumak » n'est pas dans votre périmètre."
+    assert [o.libelle for o in q.options] == ["Voir mon périmètre (Païta)"]
     q = interpreter("drop 4G à Pita hier", J, ctx).questions[0]
-    assert [o.libelle for o in q.options] == ["Païta", "Tout le réseau"]
+    assert [o.libelle for o in q.options] == ["Païta", "Voir mon périmètre (Païta)"]

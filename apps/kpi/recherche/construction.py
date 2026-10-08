@@ -107,6 +107,16 @@ def _libelle_periode(p: Periode) -> str:
     return f"{p.libelle} · {dates}" if p.libelle and not p.libelle.startswith(("Du ", "Le ")) else dates
 
 
+def _libelle_mon_perimetre(contexte: Contexte) -> str:
+    """« Voir mon périmètre (Koné) », « Voir mon périmètre (Koné, Voh…) »."""
+    voc = vocabulaire()
+    communes = [voc.libelle_commune(c) for c in contexte.lieux.communes_visibles]
+    if not communes:
+        return "Voir mon périmètre"
+    liste = ", ".join(communes[:2]) + ("…" if len(communes) > 2 else "")
+    return f"Voir mon périmètre ({liste})"
+
+
 def niveau_comparaison(demande: Demande) -> str | None:
     """Niveau spatial implicite d'une comparaison de lieux.
 
@@ -148,16 +158,27 @@ def construire(demande: Demande, contexte: Contexte, aujourdhui: date, *, source
     lieu = contexte.lieux.combiner(demande.lieux) if demande.lieux else GLOBAL
     if demande.ambiguites:
         a = demande.ambiguites[0]
+        restreint = contexte.lieux.restreint
         options = [Option(c.libelle, contexte.lieux.combiner([*demande.lieux, c]).params, detail=c.detail)
                    for c in a.candidats]
-        if a.non_reconnu:
-            # Jamais de repli silencieux sur tout le réseau : on propose, l'utilisateur choisit.
+        if a.hors_perimetre or a.non_reconnu:
+            # Jamais de repli silencieux : on propose, l'utilisateur choisit.
             if demande.lieux:
                 options.append(Option(f"Ignorer « {a.texte} »", lieu.params, detail=lieu.libelle))
-            else:
+            if restreint:
+                options.append(Option(_libelle_mon_perimetre(contexte), GLOBAL.params,
+                                      detail="toutes vos communes"))
+            elif not demande.lieux:
                 options.append(Option("Tout le réseau", GLOBAL.params, detail="périmètre autorisé"))
-            texte = (f"Lieu non reconnu : « {a.texte} ». Vouliez-vous dire… ?" if a.candidats
-                     else f"Lieu non reconnu : « {a.texte} ». Précisez le lieu ou choisissez tout le réseau.")
+            if a.candidats:
+                texte = f"Lieu non reconnu : « {a.texte} ». Vouliez-vous dire… ?"
+            elif restreint:
+                # Même message qu'il existe ailleurs ou non : rien n'est révélé hors périmètre.
+                texte = f"« {a.texte} » n'est pas dans votre périmètre."
+            else:
+                texte = f"Lieu non reconnu : « {a.texte} ». Précisez le lieu ou choisissez tout le réseau."
+        elif len(a.candidats) == 1:
+            texte = f"« {a.texte} » : vouliez-vous dire « {a.candidats[0].libelle} » ?"
         else:
             texte = f"Plusieurs lieux correspondent à « {a.texte} » : lequel ?"
         interp.questions.append(Question("perimetre", texte, options, saisie="texte"))

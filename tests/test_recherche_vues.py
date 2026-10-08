@@ -154,7 +154,10 @@ def test_lecteur_restreint_aucune_fuite(client, base_recherche):
     Perimetre.objects.create(nom="Païta", communes=["PAITA"]).utilisateurs.add(lecteur)
     client.force_login(lecteur)
     html = _html(client.get("/", {"q": "drop 4G à Nouméa hier"}))
-    assert "hors de votre périmètre" in html and "Synthèse sur la période" in html
+    assert "« Nouméa » n&#x27;est pas dans votre périmètre." in html and "Synthèse sur la période" not in html
+    assert "Voir mon périmètre (Païta)" in html
+    html = _html(client.get("/", {"q": "drop 4G hier"}))
+    assert "Synthèse sur la période" in html
     for interdit in ("NOU001", "AGENCE_TELECOM", "CHT801", "CHT_1", "NOU001L1", "Carnaval"):
         assert interdit not in html, interdit
     assert "PAI001" in html or "PAITA" in html

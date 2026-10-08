@@ -39,6 +39,8 @@ class Ambiguite:
     candidats: list[Lieu]
     # Lieu non reconnu (faute de frappe, nom inconnu) : candidats approchés, éventuellement aucun.
     non_reconnu: bool = False
+    # Lieu cité hors du périmètre de l'utilisateur (même question que pour un lieu inconnu).
+    hors_perimetre: bool = False
 
 
 @dataclass

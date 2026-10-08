@@ -176,6 +176,14 @@ class ReponseIA(BaseModel):
         return f"{debut}-{fin}" if 0 <= debut < fin <= 24 else None
 
 
+def _global(valeur: str) -> bool:
+    """« réseau », « Nouvelle-Calédonie » : le modèle désigne tout le périmètre, pas un lieu."""
+    t = Texte(valeur)
+    trouves = vocabulaire().mots.trouver(t)
+    return bool(trouves) and not t.non_compris() and all(
+        nature in ("modificateur", "neutre") for _indices, valeurs in trouves for nature, _code in valeurs)
+
+
 def vers_demande(donnees: dict, contexte: Contexte, aujourdhui: date) -> tuple[Demande, list[str], list[str]]:
     """Réponse du modèle -> ``Demande`` ; schéma Pydantic, lieux re-résolus localement, codes filtrés."""
     if not isinstance(donnees, dict):
@@ -198,14 +206,13 @@ def vers_demande(donnees: dict, contexte: Contexte, aujourdhui: date) -> tuple[D
         t = Texte(valeur)
         trouves = list(contexte.lieux.evenements_complets(t))
         lieux, ambiguites, notes_lieux = contexte.lieux.resoudre(t)
-        for _indices, candidats in trouves:
-            if len(candidats) == 1:
-                lieux.insert(0, candidats[0])
-            else:
-                ambiguites.append(Ambiguite(valeur, candidats))
+        lieux_ev, ambiguites_ev = contexte.lieux.lieux_evenements(t, trouves)
+        lieux = lieux_ev + [lieu for lieu in lieux if lieu not in lieux_ev]
+        ambiguites = ambiguites_ev + ambiguites
         notes += notes_lieux
-        if not lieux and not ambiguites:
-            non_compris.append(valeur)
+        if not lieux and not ambiguites and not _global(valeur):
+            # Lieu cité mais introuvable (ou hors périmètre) : question, jamais tout le périmètre.
+            ambiguites.append(Ambiguite(valeur, [], non_reconnu=True))
         d.lieux += [lieu for lieu in lieux if lieu not in d.lieux and lieu != GLOBAL]
         d.ambiguites += ambiguites
 

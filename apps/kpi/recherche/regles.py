@@ -11,7 +11,7 @@ from datetime import date
 
 from .construction import Contexte, construire
 from .dates import extraire_fenetre, extraire_granularites, extraire_periode
-from .interpretation import Ambiguite, Demande, Interpretation
+from .interpretation import Demande, Interpretation
 from .texte import Texte
 from .vocabulaire import vocabulaire
 
@@ -99,13 +99,9 @@ def analyser(texte: str, aujourdhui: date, contexte: Contexte) -> tuple[Demande,
     d.intentions = _intentions(voc, voc.mots.trouver(t), d)
 
     lieux, ambiguites, notes_lieux = contexte.lieux.resoudre(t)
-    for indices, candidats in evenements:
-        mots = " ".join(t.origines[i] for i in indices)
-        if len(candidats) == 1:
-            lieux.insert(0, candidats[0])
-        else:
-            ambiguites.insert(0, Ambiguite(mots, list(candidats)))
-    d.lieux, d.ambiguites = lieux, ambiguites
+    lieux_ev, ambiguites_ev = contexte.lieux.lieux_evenements(t, evenements)
+    d.lieux = lieux_ev + [lieu for lieu in lieux if lieu not in lieux_ev]
+    d.ambiguites = ambiguites_ev + ambiguites
     notes += notes_lieux
 
     non_compris = [m for m in t.non_compris() if not re.fullmatch(r"[\d/:\-]+", m)]

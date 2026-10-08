@@ -277,17 +277,16 @@ def test_lecteur_restreint_sans_fuite_de_lieux(ref_recherche):
     Perimetre.objects.create(nom="Païta", communes=["PAITA"]).utilisateurs.add(lecteur)
     ctx = Contexte.pour(lecteur)
     assert ctx.lieux.communes_visibles == ["PAITA"]
-    i = interpreter("drop 4G à Nouméa hier", J, ctx)
-    assert i.params["perimetre"] == {"type": "global", "valeurs": []}
-    assert any("hors de votre périmètre" in n for n in i.notes)
-    i = interpreter("débit 4G CHT hier", J, ctx)  # sites CHT hors périmètre : jamais proposés
-    assert not any(q.champ == "perimetre" for q in i.questions)
-    assert "CHT" in i.non_compris  # 3 lettres : pas de correspondance approchée
-    i = interpreter("débit 4G à Koumak hier", J, ctx)  # proche de Koumac, hors périmètre : jamais proposé
-    q = next(q for q in i.questions if q.champ == "perimetre")
-    assert q.texte.startswith("Lieu non reconnu") and [o.libelle for o in q.options] == ["Tout le réseau"]
-    i = interpreter("drop 4G agence telecom hier", J, ctx)
-    assert i.params["perimetre"]["type"] == "global"
+    # Lieu hors périmètre : question, jamais de calcul silencieux sur le périmètre (tour 3, R4),
+    # et même message qu'un lieu inexistant : rien n'est révélé.
+    for phrase, texte in [("drop 4G à Nouméa hier", "Nouméa"), ("débit 4G CHT hier", "CHT"),
+                          ("débit 4G à Koumak hier", "Koumak"), ("drop 4G agence telecom hier", "agence telecom"),
+                          ("drop 4G à Zorglub hier", "Zorglub"), ("drop 4G au carnaval hier", "carnaval")]:
+        i = interpreter(phrase, J, ctx)
+        q = next(q for q in i.questions if q.champ == "perimetre")
+        assert q.texte == f"« {texte} » n'est pas dans votre périmètre.", phrase
+        assert [o.libelle for o in q.options] == ["Voir mon périmètre (Païta)"], phrase
+        assert "perimetre" not in i.params and not i.complete
     assert {s["valeur"] for s in ctx.lieux.suggestions("")} == {"PAITA"}
     assert ctx.lieux.suggestions("cht") == []
     assert interpreter("drop 4G site PAI001 hier", J, ctx).params["perimetre"] == {"type": "site", "valeurs": ["PAI001"]}

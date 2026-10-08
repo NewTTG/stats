@@ -164,7 +164,13 @@ quelque chose, elle pose une question avec des réponses en un clic.
   citées → résultat par commune.
 - **Lieux** : communes (accents et tirets tolérés), régions / provinces, codes et noms de
   site, trigrammes, secteurs, cellules, événements — limités au périmètre de l'utilisateur
-  (un lecteur restreint ne se voit proposer aucun lieu hors de son périmètre).
+  (un lecteur restreint ne se voit proposer aucun lieu hors de son périmètre). Un lieu
+  cité hors périmètre ou inconnu n'est jamais calculé en silence sur le périmètre : la
+  question « « Dumbéa » n'est pas dans votre périmètre. » propose « Voir mon périmètre
+  (Koné) », avec le même message que le lieu existe ailleurs ou non. Sans restriction, un
+  code inconnu (« PIM999 ») donne « Lieu non reconnu ». Correspondance approchée : communes
+  et événements d'abord, puis noms de sites (seuil 0,85) ; « Konee » (nom 4G du site KONE)
+  demande « commune Koné ou site KONE ? ».
 - **Dates** : aujourd'hui, hier, cette semaine, la semaine dernière, les N derniers jours,
   ce mois-ci, le mois dernier, « septembre », « septembre 2025 », « du 1er au 15
   septembre », « du 01/09 au 15/09 », « le 14/09 », « le week-end du 14 », « semaine 38 »
