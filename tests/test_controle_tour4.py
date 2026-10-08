@@ -215,3 +215,57 @@ def test_taux_d_echec_rrc_sans_composite(ctx3):  # noqa: F811
 ])
 def test_niveau_des_sites_secteurs_cellules(ctx3, phrase, niveau):  # noqa: F811
     assert interpreter(phrase, J, ctx3).params["granularite_espace"] == niveau
+
+
+# ------------------------------------------------------------------ mineurs : messages
+
+def test_avertissements_4g_3g_fusionnes_et_aucune_donnee_une_fois(base_recherche, client):  # noqa: F811
+    from apps.kpi.recherche import affichage
+    from apps.kpi.service import Resultat
+
+    r = Resultat(requete=None, par_techno=[], avertissements=["LTE : données disponibles du 01/10 au 07/10.",
+                                                              "WCDMA : données disponibles du 01/10 au 07/10.",
+                                                              "KPI non autorisés ignorés : x"])
+    assert affichage.avertissements(r) == ["LTE et WCDMA : données disponibles du 01/10 au 07/10.",
+                                           "KPI non autorisés ignorés : x"]
+    client.force_login(User.objects.create_superuser("admin_msg"))
+    html = client.get("/", {"q": "drop Nouméa septembre 2025"}).content.decode()  # hors historique
+    assert html.count("aucune donnée sur la période demandée") == 1
+    assert "LTE et WCDMA : aucune donnée sur la période demandée" in html
+    assert "Aucune donnée sur cette période pour ce périmètre." not in html
+
+
+def test_mention_du_plafond_d_export(base_recherche, client, monkeypatch):  # noqa: F811
+    from apps.kpi.recherche import affichage
+
+    client.force_login(User.objects.create_superuser("admin_plafond"))
+    monkeypatch.setattr(affichage, "LIGNES_MAX", 10)
+    html = client.get("/", {"q": "drop 4G par cellule à Nouméa la semaine dernière"}).content.decode()
+    assert "l'export Excel contient tout le tableau." in html
+    monkeypatch.setattr(affichage, "LIGNES_MAX_EXPORT", 20)
+    html = client.get("/", {"q": "drop 4G par cellule à Nouméa la semaine dernière"}).content.decode()
+    assert "l'export Excel contient les 20 premières lignes (plafond de l'export)." in html
+    assert "contient tout le tableau" not in html
+
+
+def test_recherches_recentes_dedoublonnees_par_texte(base_recherche, client):  # noqa: F811
+    client.force_login(User.objects.create_superuser("admin_recent"))
+    client.get("/", {"q": "drop 4G Païta hier", "techno": "WCDMA"})
+    client.get("/", {"q": "Drop 4G  Païta hier"})
+    html = client.get("/").content.decode()
+    liens = re.findall(r'<a [^>]*href="\?q=[^"]*"[^>]*>\s*(?:<[^>]+>\s*)*([^<]*Païta hier)', html, re.I)
+    assert len([t for t in liens if t.strip().lower().split() == "drop 4g païta hier".split()]) == 1
+
+
+def test_lecteur_exemples_de_son_perimetre(base_recherche, client):  # noqa: F811
+    from apps.comptes.models import Perimetre
+
+    lecteur = User.objects.create_user("lec_exemples")
+    Perimetre.objects.create(nom="Païta", communes=["PAITA"]).utilisateurs.add(lecteur)
+    client.force_login(lecteur)
+    html = client.get("/", {"q": "drop 4G hier"}).content.decode()  # page résultat
+    texte_indicatif = re.search(r'placeholder="([^"]*)"', html)[1]
+    assert "Païta" in texte_indicatif and "Nouméa" not in texte_indicatif
+    exemples = client.get("/suggestions/", {"q": ""}).json()["exemples"]
+    assert exemples and not any("Nouméa" in e or "Lifou" in e or "Dumbéa" in e for e in exemples)
+    assert any("Païta" in e for e in exemples)

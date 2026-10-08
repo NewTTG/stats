@@ -1,7 +1,9 @@
 """Mise en forme d'un résultat pour l'écran : cartes KPI, courbes, causes, classement."""
 
 import math
+import re
 
+from ..export_excel import LIGNES_MAX as LIGNES_MAX_EXPORT
 from ..service import Resultat, ResultatTechno
 from .vocabulaire import LIBELLES_TECHNO
 
@@ -238,6 +240,27 @@ def lignes_table(res: ResultatTechno, granularite_temps: str) -> tuple[list[dict
     return lignes, len(res.table)
 
 
+def avertissements(resultat: Resultat) -> list[str]:
+    """Avertissements du résultat, un message identique pour la 4G et la 3G n'étant affiché
+    qu'une fois (« LTE et WCDMA : données disponibles du … »)."""
+    technos_par_message: dict[str, list[str]] = {}
+    ordre: list[str] = []
+    for a in resultat.avertissements:
+        m = re.match(r"^(LTE|WCDMA) : (.*)$", a, re.S)
+        cle = m[2] if m else a
+        if cle not in technos_par_message:
+            technos_par_message[cle] = []
+            ordre.append(cle)
+        if m:
+            technos_par_message[cle].append(m[1])
+    return [f"{' et '.join(technos_par_message[c])} : {c}" if technos_par_message[c] else c for c in ordre]
+
+
+def _aucune_donnee_signalee(resultat: Resultat, techno: str) -> bool:
+    """« LTE : aucune donnée sur la période demandée » : pas de second message dans le bloc."""
+    return any(a.startswith(f"{techno} : aucune donnée") for a in resultat.avertissements)
+
+
 def blocs(resultat: Resultat, nombre: int | None = None) -> list[dict]:
     req = resultat.requete
     sortie = []
@@ -258,6 +281,10 @@ def blocs(resultat: Resultat, nombre: int | None = None) -> list[dict]:
             "lignes_tronquees": total > len(lignes),
             "lignes_total_texte": _fr(total, 0),
             "lignes_texte": _fr(len(lignes), 0),
+            # L'export Excel est plafonné (LIGNES_MAX_EXPORT lignes de données par techno).
+            "export_complet": total <= LIGNES_MAX_EXPORT,
+            "export_max_texte": _fr(LIGNES_MAX_EXPORT, 0),
+            "aucune_donnee_signalee": _aucune_donnee_signalee(resultat, res.techno),
             "espace": req.granularite_espace,
         })
     return sortie

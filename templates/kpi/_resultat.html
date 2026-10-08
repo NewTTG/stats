@@ -19,8 +19,8 @@
   {% endif %}
 </div>
 
-{% for a in resultat.avertissements %}<div class="avertissement">{{ a }}</div>{% endfor %}
-{% if not blocs and not resultat.avertissements %}<div class="avertissement">Aucun KPI sélectionné pour les technologies choisies.</div>{% endif %}
+{% for a in avertissements %}<div class="avertissement">{{ a }}</div>{% endfor %}
+{% if not blocs and not avertissements %}<div class="avertissement">Aucun KPI sélectionné pour les technologies choisies.</div>{% endif %}
 
 {% for bloc in blocs %}
 <section class="bloc-techno" aria-labelledby="titre-{{ bloc.res.techno }}">
@@ -111,7 +111,7 @@
   <details class="repliable">
     <summary>Tableau détaillé ({% if bloc.lignes_tronquees %}{{ bloc.lignes_texte }} premières lignes sur {{ bloc.lignes_total_texte }}{% else %}{{ bloc.lignes_total_texte }} ligne{{ bloc.lignes_total|pluralize }}{% endif %})</summary>
     <div class="contenu">
-      {% if bloc.lignes_tronquees %}<p class="aide">Affichage limité aux {{ bloc.lignes_texte }} premières lignes sur {{ bloc.lignes_total_texte }} : l'export Excel contient tout le tableau.</p>{% endif %}
+      {% if bloc.lignes_tronquees %}<p class="aide">Affichage limité aux {{ bloc.lignes_texte }} premières lignes sur {{ bloc.lignes_total_texte }} : {% if bloc.export_complet %}l'export Excel contient tout le tableau.{% else %}l'export Excel contient les {{ bloc.export_max_texte }} premières lignes (plafond de l'export).{% endif %}</p>{% endif %}
       <div class="table-defil">
         <table>
           <thead><tr><th scope="col">Période<span class="sur-mobile"> · entité</span></th><th scope="col" class="hors-mobile">Entité</th>
@@ -129,7 +129,7 @@
     </div>
   </details>
   {% else %}
-  <p class="avertissement">Aucune donnée sur cette période pour ce périmètre.</p>
+  {% if not bloc.aucune_donnee_signalee %}<p class="avertissement">Aucune donnée sur cette période pour ce périmètre.</p>{% endif %}
   {% endif %}
 
   {% if bloc.res.cellules_sans_donnees %}

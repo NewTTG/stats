@@ -19,7 +19,9 @@ def test_accueil_apres_reponse_a_une_question(admin, base_recherche):  # noqa: F
     r = admin.get("/")
     html = r.content.decode()
     assert r.status_code == 200 and "Mes dernières recherches" in html
-    assert "intention=drop" in html and "kpis=lte_erab_drop" in html
+    # Même texte : une seule entrée, la plus récente (tour 4 : dédoublonnage par texte).
+    assert "kpis=lte_erab_drop" in html and "intention=drop" not in html
+    assert html.count('href="?q=Noum%C3%A9a+hier') == 1
 
 
 def test_recherche_vide(admin, base_recherche):  # noqa: F811
