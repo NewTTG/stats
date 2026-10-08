@@ -17,6 +17,7 @@ import urllib.request
 from datetime import date
 
 from django.conf import settings
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ..requete import RequeteKpi
 from .construction import GRANULARITES_ESPACE, GRANULARITES_TEMPS, TYPES_PERIMETRE, Contexte, construire
@@ -104,34 +105,95 @@ def appeler(texte: str, aujourdhui: date, catalogue: dict) -> dict:
     return donnees
 
 
-def _liste(valeur) -> list:
-    if valeur is None:
-        return []
-    return valeur if isinstance(valeur, list) else [valeur]
+class PerimetreIA(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    type: str = "global"
+    valeurs: list[str] = Field(default_factory=list)
+
+    @field_validator("type", mode="before")
+    @classmethod
+    def _type(cls, v):
+        v = v or "global"
+        if v not in TYPES_PERIMETRE:
+            raise ValueError(f"type de périmètre inconnu : {v}")
+        return v
+
+    @field_validator("valeurs", mode="before")
+    @classmethod
+    def _valeurs(cls, v):
+        return [str(x) for x in (v if isinstance(v, list) else [v] if v is not None else []) if str(x).strip()]
+
+
+class PeriodeIA(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    debut: date
+    fin: date
+
+
+class GranularitesIA(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    temps: str | None = None
+    espace: str | None = None
+
+    @field_validator("temps", "espace", mode="before")
+    @classmethod
+    def _connue(cls, v, info):
+        permises = GRANULARITES_TEMPS if info.field_name == "temps" else GRANULARITES_ESPACE
+        return v if v in permises else None  # valeur inconnue : défaut de l'application
+
+
+class ReponseIA(BaseModel):
+    """Schéma de la réponse JSON du modèle (validée avant tout usage)."""
+
+    model_config = ConfigDict(extra="ignore")
+    techno: list[str] = Field(default_factory=list)
+    kpis: list[str] = Field(default_factory=list)
+    perimetre: PerimetreIA | None = None
+    periode: PeriodeIA | None = None
+    granularites: GranularitesIA | None = None
+    fenetre: str | None = None
+    manquants: list[str] = Field(default_factory=list)
+
+    @field_validator("techno", "kpis", "manquants", mode="before")
+    @classmethod
+    def _liste(cls, v):
+        return [str(x) for x in (v if isinstance(v, list) else [v] if v is not None else [])]
+
+    @field_validator("periode", mode="before")
+    @classmethod
+    def _periode(cls, v):
+        return v if isinstance(v, dict) and v.get("debut") and v.get("fin") else None
+
+    @field_validator("fenetre", mode="before")
+    @classmethod
+    def _fenetre(cls, v):
+        if v in (None, "", "journee", "heure_chargee"):
+            return v or None
+        try:
+            debut, fin = (int(x) for x in str(v).split("-"))
+        except ValueError:
+            raise ValueError(f"fenêtre illisible : {v}") from None
+        return f"{debut}-{fin}" if 0 <= debut < fin <= 24 else None
 
 
 def vers_demande(donnees: dict, contexte: Contexte, aujourdhui: date) -> tuple[Demande, list[str], list[str]]:
-    """Réponse du modèle -> ``Demande`` ; lieux re-résolus localement, codes filtrés."""
+    """Réponse du modèle -> ``Demande`` ; schéma Pydantic, lieux re-résolus localement, codes filtrés."""
+    if not isinstance(donnees, dict):
+        raise ErreurIA("réponse JSON inattendue")
+    r = ReponseIA.model_validate(donnees)  # ValidationError -> repli sur les règles
     d = Demande()
     notes, non_compris = [], []
-    d.techno = [t for t in TECHNOS if t in {str(x).upper() for x in _liste(donnees.get("techno"))}]
+    d.techno = [t for t in TECHNOS if t in {x.upper() for x in r.techno}]
 
-    codes = [str(c) for c in _liste(donnees.get("kpis"))]
-    d.kpis = [c for c in codes if c in contexte.catalogue]
-    inconnus = [c for c in codes if c not in contexte.catalogue]
+    d.kpis = [c for c in r.kpis if c in contexte.catalogue]
+    inconnus = [c for c in r.kpis if c not in contexte.catalogue]
     if inconnus:
         notes.append(f"KPI proposés par l'IA ignorés (inconnus ou non autorisés) : {', '.join(inconnus)}.")
 
-    perimetre = donnees.get("perimetre") or {}
-    if not isinstance(perimetre, dict):
-        raise ErreurIA("périmètre illisible")
-    type_p = perimetre.get("type") or "global"
-    if type_p not in TYPES_PERIMETRE:
-        raise ErreurIA(f"type de périmètre inconnu : {type_p}")
-    valeurs = [str(v) for v in _liste(perimetre.get("valeurs")) if str(v).strip()]
-    if type_p == "global" or not valeurs:
-        d.global_demande = type_p == "global"
-    for valeur in valeurs:
+    perimetre = r.perimetre or PerimetreIA()
+    if perimetre.type == "global" or not perimetre.valeurs:
+        d.global_demande = perimetre.type == "global"
+    for valeur in perimetre.valeurs:
         # Pas de confiance aveugle : chaque lieu est re-résolu dans le périmètre de l'utilisateur.
         t = Texte(valeur)
         trouves = list(contexte.lieux.evenements_complets(t))
@@ -147,30 +209,17 @@ def vers_demande(donnees: dict, contexte: Contexte, aujourdhui: date) -> tuple[D
         d.lieux += [lieu for lieu in lieux if lieu not in d.lieux and lieu != GLOBAL]
         d.ambiguites += ambiguites
 
-    periode = donnees.get("periode")
-    if isinstance(periode, dict) and periode.get("debut") and periode.get("fin"):
-        debut, fin = date.fromisoformat(str(periode["debut"])), date.fromisoformat(str(periode["fin"]))
-        if fin < debut:
-            debut, fin = fin, debut
+    if r.periode:
+        debut, fin = sorted((r.periode.debut, r.periode.fin))
         if debut <= aujourdhui:
-            d.periode = Periode(debut, min(fin, aujourdhui), f"Du {debut:%d/%m/%Y} au {min(fin, aujourdhui):%d/%m/%Y}")
-
-    granularites = donnees.get("granularites") or {}
-    if isinstance(granularites, dict):
-        if granularites.get("temps") in GRANULARITES_TEMPS:
-            d.granularite_temps = granularites["temps"]
-        if granularites.get("espace") in GRANULARITES_ESPACE:
-            d.granularite_espace = granularites["espace"]
-    fenetre = donnees.get("fenetre")
-    if fenetre == "heure_chargee":
+            fin = min(fin, aujourdhui)
+            d.periode = Periode(debut, fin, f"Du {debut:%d/%m/%Y} au {fin:%d/%m/%Y}")
+    if r.granularites:
+        d.granularite_temps, d.granularite_espace = r.granularites.temps, r.granularites.espace
+    if r.fenetre == "heure_chargee":
         d.heure_chargee = True
-    elif isinstance(fenetre, str) and fenetre != "journee":
-        try:
-            debut_h, fin_h = (int(x) for x in fenetre.split("-"))
-        except ValueError:
-            raise ErreurIA(f"fenêtre illisible : {fenetre}") from None
-        if 0 <= debut_h < fin_h <= 24:
-            d.fenetre = f"{debut_h}-{fin_h}"
+    elif r.fenetre:
+        d.fenetre = r.fenetre
     return d, non_compris, notes
 
 

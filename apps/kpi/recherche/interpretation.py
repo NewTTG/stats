@@ -37,6 +37,8 @@ GLOBAL = Lieu("global", (), "Tout le réseau autorisé")
 class Ambiguite:
     texte: str  # mots saisis
     candidats: list[Lieu]
+    # Lieu non reconnu (faute de frappe, nom inconnu) : candidats approchés, éventuellement aucun.
+    non_reconnu: bool = False
 
 
 @dataclass

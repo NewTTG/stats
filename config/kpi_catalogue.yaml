@@ -10,6 +10,8 @@
 # decomposition_de KPI « cause » : part du KPI parent due à une cause, avec la même
 #                  pondération que le parent (les causes LTE se somment au total).
 # plafond          borne haute appliquée ligne à ligne au numérateur.
+# ecart_min        écart absolu minimal (unité du KPI) pour qu'un écart à la référence soit
+#                  significatif dans l'analyse d'un événement (en plus du % et des écarts-types).
 #
 # Formules et vérifications sur les extraits CSV : docs/donnees_de_base.md.
 #
@@ -32,6 +34,7 @@ kpis:
     denominateur: PayloadDl_mB / UserThpDl_kbps
     facteur: 0.001
     sens: haut_est_mieux
+    ecart_min: 1
     seuils: { alerte: 10, critique: 5 }
     qualite: reconstruit
     note: >-
@@ -48,6 +51,7 @@ kpis:
     denominateur: PayloadUl_mB / UserThpUl_kbps
     facteur: 0.001
     sens: haut_est_mieux
+    ecart_min: 0.2
     seuils: { alerte: 2, critique: 1 }
     qualite: reconstruit
 
@@ -68,6 +72,7 @@ kpis:
     denominateur: pmRrcConnEstabAtt
     facteur: 100
     sens: haut_est_mieux
+    ecart_min: 0.5
     seuils: { alerte: 98, critique: 95 }
 
   - code: lte_s1_sig_sr
@@ -79,6 +84,7 @@ kpis:
     denominateur: pmS1SigConnEstabAtt
     facteur: 100
     sens: haut_est_mieux
+    ecart_min: 0.5
     seuils: { alerte: 98, critique: 95 }
     qualite: reconstruit
 
@@ -91,6 +97,7 @@ kpis:
     denominateur: pmErabEstabAttInit
     facteur: 100
     sens: haut_est_mieux
+    ecart_min: 0.5
     seuils: { alerte: 98, critique: 95 }
     qualite: reconstruit
 
@@ -102,6 +109,7 @@ kpis:
     produit_de: [lte_rrc_setup_sr, lte_s1_sig_sr, lte_init_erab_sr]
     facteur: 100
     sens: haut_est_mieux
+    ecart_min: 0.5
     seuils: { alerte: 98, critique: 95 }
     qualite: reconstruit
     note: >-
@@ -117,6 +125,7 @@ kpis:
     denominateur: ErabEstabSucc_nb
     facteur: 100
     sens: bas_est_mieux
+    ecart_min: 0.1
     seuils: { alerte: 1, critique: 2 }
     qualite: approx
     note: >-
@@ -133,6 +142,7 @@ kpis:
     denominateur: ErabEstabSucc_nb
     facteur: 100
     sens: bas_est_mieux
+    ecart_min: 0.1
     qualite: approx
 
   - code: lte_drop_radio
@@ -145,6 +155,7 @@ kpis:
     denominateur: ErabEstabSucc_nb
     facteur: 100
     sens: bas_est_mieux
+    ecart_min: 0.1
     qualite: approx
 
   - code: lte_drop_ho
@@ -157,6 +168,7 @@ kpis:
     denominateur: ErabEstabSucc_nb
     facteur: 100
     sens: bas_est_mieux
+    ecart_min: 0.1
     qualite: approx
 
   - code: lte_drop_cellule_indispo
@@ -169,6 +181,7 @@ kpis:
     denominateur: ErabEstabSucc_nb
     facteur: 100
     sens: bas_est_mieux
+    ecart_min: 0.1
     qualite: approx
 
   - code: lte_drop_transport
@@ -181,6 +194,7 @@ kpis:
     denominateur: ErabEstabSucc_nb
     facteur: 100
     sens: bas_est_mieux
+    ecart_min: 0.1
     qualite: approx
 
   - code: lte_drop_preemption
@@ -193,6 +207,7 @@ kpis:
     denominateur: ErabEstabSucc_nb
     facteur: 100
     sens: bas_est_mieux
+    ecart_min: 0.1
     qualite: approx
     note: Préemption haute priorité (Hpr) et préemption (Pe) regroupées.
 
@@ -206,6 +221,7 @@ kpis:
     denominateur: ErabEstabSucc_nb
     facteur: 100
     sens: bas_est_mieux
+    ecart_min: 0.1
     qualite: approx
 
   - code: lte_prb_dl_util
@@ -216,6 +232,7 @@ kpis:
     numerateur: PrbVectUsageDl_p
     denominateur: "1"
     sens: bas_est_mieux
+    ecart_min: 5
     seuils: { alerte: 80, critique: 90 }
     qualite: approx
     note: >-
@@ -230,6 +247,7 @@ kpis:
     denominateur: pmHoPrepAttLteIntraF
     facteur: 100
     sens: haut_est_mieux
+    ecart_min: 0.5
     seuils: { alerte: 97, critique: 95 }
     qualite: reconstruit
 
@@ -242,6 +260,7 @@ kpis:
     denominateur: "1"
     plafond: 100
     sens: haut_est_mieux
+    ecart_min: 0.5
     seuils: { alerte: 99, critique: 95 }
     note: >-
       Chaque ligne pèse la même durée (une heure ou un jour selon la table). Plafonné à
@@ -268,6 +287,7 @@ kpis:
     denominateur: PayloadPsHs_mb / UserThpHs_kbps
     facteur: 0.001
     sens: haut_est_mieux
+    ecart_min: 0.2
     qualite: reconstruit
 
   - code: wcdma_payload_hs
@@ -288,6 +308,7 @@ kpis:
     denominateur: ReqCs
     facteur: 100
     sens: haut_est_mieux
+    ecart_min: 0.5
     seuils: { alerte: 98, critique: 95 }
 
   - code: wcdma_rab_cs_sr
@@ -299,6 +320,7 @@ kpis:
     denominateur: NbrSpeechCallsAtt
     facteur: 100
     sens: haut_est_mieux
+    ecart_min: 0.5
     seuils: { alerte: 98, critique: 95 }
 
   - code: wcdma_cssr_cs
@@ -309,6 +331,7 @@ kpis:
     produit_de: [wcdma_rrc_cs_sr, wcdma_rab_cs_sr]
     facteur: 100
     sens: haut_est_mieux
+    ecart_min: 0.5
     seuils: { alerte: 98, critique: 95 }
     note: Équivalent agrégé de CssrSp_p (= RRC voix × RAB voix, vérifié ligne à ligne).
 
@@ -321,6 +344,7 @@ kpis:
     denominateur: ReqPs
     facteur: 100
     sens: haut_est_mieux
+    ecart_min: 0.5
     seuils: { alerte: 98, critique: 95 }
 
   - code: wcdma_rab_ps_sr
@@ -332,6 +356,7 @@ kpis:
     denominateur: pmNoRabEstablishAttemptPacketInteractive
     facteur: 100
     sens: haut_est_mieux
+    ecart_min: 0.5
     seuils: { alerte: 98, critique: 95 }
 
   - code: wcdma_cssr_ps
@@ -342,6 +367,7 @@ kpis:
     produit_de: [wcdma_rrc_ps_sr, wcdma_rab_ps_sr]
     facteur: 100
     sens: haut_est_mieux
+    ecart_min: 0.5
     seuils: { alerte: 98, critique: 95 }
     note: Équivalent agrégé de CssrPs_p (= RRC data × RAB data, vérifié ligne à ligne).
 
@@ -392,6 +418,7 @@ kpis:
     numerateur: SpeechTrafficDay_erlg * 3600
     denominateur: NbrSpeechCalls
     sens: haut_est_mieux
+    ecart_min: 5
     qualite: reconstruit
     note: Trafic voix (Erl·h) converti en secondes, divisé par les appels établis.
 
@@ -404,6 +431,7 @@ kpis:
     denominateur: NbrSpeechCalls
     facteur: 100
     sens: bas_est_mieux
+    ecart_min: 0.1
     seuils: { alerte: 1, critique: 2 }
     qualite: approx
     note: >-
@@ -420,6 +448,7 @@ kpis:
     denominateur: NbrSpeechCalls
     facteur: 100
     sens: bas_est_mieux
+    ecart_min: 0.1
     qualite: approx
 
   - code: wcdma_drop_perte_synchro
@@ -432,6 +461,7 @@ kpis:
     denominateur: NbrSpeechCalls
     facteur: 100
     sens: bas_est_mieux
+    ecart_min: 0.1
     qualite: approx
 
   - code: wcdma_drop_voisinage_manquant
@@ -444,6 +474,7 @@ kpis:
     denominateur: NbrSpeechCalls
     facteur: 100
     sens: bas_est_mieux
+    ecart_min: 0.1
     qualite: approx
     note: Interprétation de MissRel à confirmer (cf. docs/questions.md).
 
@@ -457,6 +488,7 @@ kpis:
     denominateur: NbrSpeechCalls
     facteur: 100
     sens: bas_est_mieux
+    ecart_min: 0.1
     qualite: approx
 
   - code: wcdma_drop_irat
@@ -469,6 +501,7 @@ kpis:
     denominateur: NbrSpeechCalls
     facteur: 100
     sens: bas_est_mieux
+    ecart_min: 0.1
     qualite: approx
 
   - code: wcdma_drop_congestion
@@ -481,6 +514,7 @@ kpis:
     denominateur: NbrSpeechCalls
     facteur: 100
     sens: bas_est_mieux
+    ecart_min: 0.1
     qualite: approx
 
   - code: wcdma_ps_drop
@@ -492,6 +526,7 @@ kpis:
     denominateur: pmNoRabEstablishSuccessPacketInteractive
     facteur: 100
     sens: bas_est_mieux
+    ecart_min: 0.1
     seuils: { alerte: 2, critique: 5 }
     qualite: approx
     note: Pondéré par les RAB data établis faute de compteurs de release.
@@ -504,4 +539,5 @@ kpis:
     numerateur: Avaibility_p
     denominateur: "1"
     sens: haut_est_mieux
+    ecart_min: 0.5
     seuils: { alerte: 99, critique: 95 }

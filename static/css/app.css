@@ -83,6 +83,7 @@ main { flex: 1; padding: 1.5rem 0 3rem; }
 .bandeau-demo details { font-size: .85rem; }
 .bandeau-demo summary { cursor: pointer; text-decoration: underline; }
 .bandeau-demo ul { margin: .35rem 0 0; padding-left: 1.2rem; }
+.bandeau-demo code { background: rgba(92, 61, 0, .08); padding: 0 .3rem; border-radius: 4px; font-size: .85em; }
 .message { border-radius: var(--rayon-petit); padding: .75rem 1rem; margin-bottom: 1rem; border: 1px solid; }
 .message.succes { background: var(--ok-fond); border-color: #a9d9bf; color: var(--ok); }
 .message.erreur, .erreur { background: var(--critique-fond); border: 1px solid #f4b8b0; color: var(--critique);
@@ -189,6 +190,8 @@ input:hover, select:hover { border-color: var(--marine-600); }
 .panneau .liste-kpi label { font-weight: 400; display: flex; gap: .45rem; align-items: flex-start; color: var(--texte);
   font-size: .9rem; margin: .15rem 0; }
 .panneau .liste-kpi label.cause { padding-left: 1.2rem; color: var(--texte-2); }
+.panneau .liste-kpi .categorie-kpi { margin: .45rem 0 .1rem; font-size: .75rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--texte-3); }
 .deux-colonnes { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
 .choix-puces { display: flex; flex-wrap: wrap; gap: .4rem; }
 .choix-puces label { margin: 0; font-weight: 500; display: inline-flex; align-items: center; gap: .35rem; padding: .35rem .7rem;
@@ -240,7 +243,11 @@ input:hover, select:hover { border-color: var(--marine-600); }
 .carte-kpi .libelle { font-size: .9rem; color: var(--texte-2); font-weight: 600; min-height: 2.6em; }
 .carte-kpi .valeur { font-size: 2rem; font-weight: 700; color: var(--marine); font-variant-numeric: tabular-nums;
   line-height: 1.1; letter-spacing: -.01em; }
-.carte-kpi .valeur small { font-size: 1rem; font-weight: 600; color: var(--texte-2); margin-left: .2rem; }
+.carte-kpi .valeur small { font-size: 1rem; font-weight: 600; color: var(--texte-2); }
+/* Unité jamais coupée ; grands nombres en plus petit pour tenir dans la carte. */
+.carte-kpi .valeur .unite, .carte-kpi .valeur .nombre-kpi { white-space: nowrap; overflow-wrap: normal; }
+.carte-kpi .valeur.longue { font-size: 1.6rem; }
+.carte-kpi .valeur.tres-longue { font-size: 1.3rem; }
 .carte-kpi .pied { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin-top: .35rem; font-size: .8rem; color: var(--texte-3); }
 .statut { display: inline-block; padding: .1rem .55rem; border-radius: 999px; font-size: .78rem; font-weight: 700; }
 .statut.ok { background: var(--ok-fond); color: var(--ok); }
@@ -293,6 +300,10 @@ details.repliable > .contenu { padding: 0 1rem 1rem; }
 table { border-collapse: collapse; width: 100%; font-size: .875rem; }
 th, td { padding: .45rem .65rem; border-bottom: 1px solid var(--bord); white-space: nowrap; text-align: left; }
 th { background: var(--marine-50); color: var(--marine); font-weight: 600; position: sticky; top: 0; }
+/* Tableau détaillé : première colonne (période) figée lors du défilement horizontal. */
+.table-defil table th:first-child, .table-defil table td:first-child { position: sticky; left: 0; z-index: 1;
+  background: #fff; box-shadow: 1px 0 0 var(--bord); }
+.table-defil table th:first-child { background: var(--marine-50); z-index: 2; }
 tbody tr:hover { background: #fafbfd; }
 td.nombre { text-align: right; font-variant-numeric: tabular-nums; }
 td.alerte { background: var(--alerte-fond); color: var(--alerte); }
@@ -337,6 +348,9 @@ footer.pied-page { border-top: 1px solid var(--bord); color: var(--texte-3); fon
   .champ-recherche .bouton .texte-bouton { display: none; }
   .carte { padding: 1rem; }
   .carte-kpi .valeur { font-size: 1.7rem; }
+  .carte-kpi .valeur.longue { font-size: 1.5rem; }
+  .carte-kpi .valeur.tres-longue { font-size: 1.25rem; }
+  th, td { padding: .4rem .5rem; }
   .graphique { height: 260px; }
   .deux-colonnes { grid-template-columns: 1fr; }
   /* Panneaux des puces : feuille en bas d'écran, jamais de débordement horizontal. */

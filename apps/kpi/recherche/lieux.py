@@ -7,6 +7,7 @@ cellule hors de son périmètre (l'intersection serveur de ``service.executer`` 
 la garantie finale).
 """
 
+import difflib
 import re
 from collections import defaultdict
 
@@ -22,6 +23,13 @@ from .vocabulaire import vocabulaire
 _MOTS_GENERIQUES_EVENEMENT = {"fete", "foire", "concert", "salon", "parc", "espace", "show", "royal", "nationale",
                               "manifestation", "municipal", "regate", "paques", "jour", "journee", "village"}
 _SUFFIXE_NOM = re.compile(r"^(.*[A-Z0-9_])(bbs|bb|e|s)$")
+# Mots génériques qui, seuls, appellent la question « quel événement ? » (« la foire »).
+_GENERIQUES_QUESTION = {"foire", "foires", "fete", "fetes", "concert", "concerts", "salon", "regate", "manifestation",
+                        "paques"}
+# Mots précédant souvent un lieu : un mot inconnu qui les suit est probablement un lieu.
+_AVANT_LIEU = {"a", "au", "aux", "sur", "vers", "chez", "pres", "commune", "site"}
+SEUIL_APPROCHE = 0.8
+CANDIDATS_APPROCHES = 6
 
 
 class ResolveurLieux:
@@ -120,6 +128,18 @@ class ResolveurLieux:
                 elif len(mot) >= 5 and mot not in mots_communes and lieu not in self.mots_evenements[mot]:
                     self.mots_evenements[mot].append(lieu)
 
+        # Noms (normalisés) pour la correspondance approchée : communes, sites, événements visibles.
+        self.approches = defaultdict(list)
+        for correspondeur in (self.communes, self.noms_sites, self.evenements):
+            for k, lieux in correspondeur.entrees.items():
+                nom = " ".join(k)
+                if len(nom) >= 4:
+                    for lieu in lieux:
+                        if lieu not in self.approches[nom]:
+                            self.approches[nom].append(lieu)
+        for mot, lieux in self.mots_evenements.items():
+            self.approches[mot] += [lieu for lieu in lieux if lieu not in self.approches[mot]]
+
     def _lieu_site(self, s: Site) -> Lieu:
         return Lieu("site", (s.code_site,), f"{s.nom} ({s.code_site})", detail=self.voc.libelle_commune(s.commune))
 
@@ -206,7 +226,56 @@ class ResolveurLieux:
                 tous = Lieu("trigramme", (trig,), f"Tous les sites {trig} ({len(sites)})",
                             detail=", ".join(s.code_site for s in sites))
                 ajouter([i], [*(self._lieu_site(s) for s in sites), tous])
+        ambiguites += self.approcher(texte)
         return lieux, ambiguites, notes
+
+    def approcher(self, texte: Texte) -> list[Ambiguite]:
+        """Lieux mal orthographiés ou génériques parmi les mots restants (4 lettres au moins).
+
+        « Nouméaa », « Koumak », « Pita » -> candidats proches (communes, sites, événements
+        visibles) ; « foire » seul -> les foires ; un mot inconnu placé comme un lieu
+        (« à Zorglub ») -> question sans candidat. Jamais de repli silencieux sur tout le réseau.
+        """
+        ambiguites = []
+        libres = texte.libres()
+        for n, i in enumerate(libres):
+            mot = texte.mots[i]
+            if texte.consomme[i] or len(mot) < 4 or not mot.isalpha() or mot in MOTS_VIDES:
+                continue
+            origine = texte.origines[i]
+            evenements = self.mots_generiques.get(mot) if mot in _GENERIQUES_QUESTION else None
+            if evenements:
+                texte.consommer([i])
+                ambiguites.append(Ambiguite(origine, sorted(set(evenements), key=lambda e: e.libelle)[:12]))
+                continue
+            essais = [([i], mot)]
+            suivant = libres[n + 1] if n + 1 < len(libres) else None
+            if suivant == i + 1 and texte.mots[suivant].isalpha():
+                essais.insert(0, ([i, suivant], f"{mot} {texte.mots[suivant]}"))
+            trouve = None
+            for indices, essai in essais:
+                proches = difflib.get_close_matches(essai, list(self.approches), n=CANDIDATS_APPROCHES,
+                                                    cutoff=SEUIL_APPROCHE)
+                if proches:
+                    trouve = indices, proches
+                    break
+            if trouve:
+                indices, proches = trouve
+                candidats = list(dict.fromkeys(lieu for nom in proches for lieu in self.approches[nom]))
+                texte.consommer(indices)
+                mots = " ".join(dict.fromkeys(texte.origines[j] for j in indices))
+                ambiguites.append(Ambiguite(mots, candidats[:CANDIDATS_APPROCHES], non_reconnu=True))
+            elif self._ressemble_a_un_lieu(texte, i):
+                texte.consommer([i])
+                ambiguites.append(Ambiguite(origine, [], non_reconnu=True))
+        return ambiguites
+
+    @staticmethod
+    def _ressemble_a_un_lieu(texte: Texte, i: int) -> bool:
+        origine = texte.origines[i]
+        precede = i > 0 and texte.mots[i - 1] in _AVANT_LIEU
+        majuscule = i > 0 and origine[:1].isupper()
+        return precede or majuscule
 
     # ------------------------------------------------------------ combinaison
     def combiner(self, lieux: list[Lieu]) -> Lieu:

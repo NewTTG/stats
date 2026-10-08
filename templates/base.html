@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block titre %}Stats KPI réseau{% endblock %}</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   {% block entete %}{% endblock %}
 </head>
@@ -37,7 +38,8 @@
   <div class="bandeau-demo" role="note">
     <div class="conteneur">
       <strong>Données de démonstration (synthétiques)</strong>
-      <span>Valeurs générées à partir des extraits CSV, sans lien avec le réseau réel.</span>
+      <span>Valeurs générées à partir des extraits CSV, sans lien avec le réseau réel{% if demo_debut %}, du {{ demo_debut|date:"d/m/Y" }} au {{ demo_fin|date:"d/m/Y" }}{% endif %}.</span>
+      {% if demo_fin %}<span class="aide-demo">Pour actualiser : <code>python manage.py charger_demo_kpi</code></span>{% endif %}
       {% block bandeau_demo %}{% endblock %}
     </div>
   </div>

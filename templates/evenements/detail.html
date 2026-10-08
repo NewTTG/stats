@@ -120,7 +120,9 @@ document.querySelectorAll(".courbes").forEach(function (zone) {
       legend: { bottom: 0, data: ["Événement", "Référence"] },
       grid: { left: 8, right: 16, top: 40, bottom: 40, containLabel: true },
       xAxis: { type: "category", data: donnees.instants },
-      yAxis: { type: "value", scale: true },
+      yAxis: { type: "value", scale: true,
+               max: g.unite === "%" ? function (v) { return Math.min(100, Math.ceil(v.max)); } : null,
+               axisLabel: { formatter: function (v) { return (Math.round(v * 1e6) / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 6 }); } } },
       series: [
         { name: "min", type: "line", data: g.min, stack: "bande", symbol: "none", lineStyle: { opacity: 0 }, silent: true },
         { name: "bande", type: "line", data: ecart, stack: "bande", symbol: "none", lineStyle: { opacity: 0 },

@@ -181,6 +181,17 @@ def _motifs(aujourdhui: date):
         a = int(m[1])
         return date(a, 1, 1), date(a, 12, 31), f"année {a}"
 
+    def semaine_iso(m):  # semaine 38 [2026] : semaine ISO, année courante ou précédente si à venir
+        numero = int(m[1])
+        an = int(m[2]) if m[2] else aujourdhui.year
+        try:
+            lundi = date.fromisocalendar(an, numero, 1)
+            if not m[2] and lundi > aujourdhui:
+                lundi = date.fromisocalendar(an - 1, numero, 1)
+        except ValueError:
+            return None
+        return lundi, lundi + timedelta(days=6), f"semaine {numero} ({lundi.isocalendar().year})"
+
     def relatif(code, libelle=None):
         def f(_m):
             p = preset(code, aujourdhui)
@@ -221,6 +232,7 @@ def _motifs(aujourdhui: date):
          entre_numeriques),
         (rf"(?:le |ce )?(?:week end|weekend|we) (?:du |de )?{_JOUR}(?: ({_MOIS}))?(?: {_AN})?", week_end_du),
         (r"(\d{4})-(\d{2})-(\d{2})", iso),
+        (r"(?:la |en |de la |pendant la )?(?:semaine ?|sem ?|s)(\d{1,2})(?: (\d{4}))?", semaine_iso),
         (rf"(?:le |du |au )?{_JOUR} ({_MOIS})(?: {_AN})?", jour_mois),
         (r"(?:le |du |au )?(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?", jour_numerique),
         (r"(?:le|du|depuis le) (\d{1,2})(?:er|e|eme)?", jour_seul),

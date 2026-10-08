@@ -134,8 +134,17 @@ def construire(demande: Demande, contexte: Contexte, aujourdhui: date, *, source
         a = demande.ambiguites[0]
         options = [Option(c.libelle, contexte.lieux.combiner([*demande.lieux, c]).params, detail=c.detail)
                    for c in a.candidats]
-        interp.questions.append(Question("perimetre", f"Plusieurs lieux correspondent à « {a.texte} » : lequel ?",
-                                         options, saisie="texte"))
+        if a.non_reconnu:
+            # Jamais de repli silencieux sur tout le réseau : on propose, l'utilisateur choisit.
+            if demande.lieux:
+                options.append(Option(f"Ignorer « {a.texte} »", lieu.params, detail=lieu.libelle))
+            else:
+                options.append(Option("Tout le réseau", GLOBAL.params, detail="périmètre autorisé"))
+            texte = (f"Lieu non reconnu : « {a.texte} ». Vouliez-vous dire… ?" if a.candidats
+                     else f"Lieu non reconnu : « {a.texte} ». Précisez le lieu ou choisissez tout le réseau.")
+        else:
+            texte = f"Plusieurs lieux correspondent à « {a.texte} » : lequel ?"
+        interp.questions.append(Question("perimetre", texte, options, saisie="texte"))
     else:
         params["perimetre"] = {"type": lieu.type, "valeurs": list(lieu.valeurs)}
 

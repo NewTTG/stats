@@ -94,7 +94,8 @@ CAS = [
      dict(techno=["LTE"], kpis=["lte_erab_drop", *causes("lte_erab_drop")], perimetre=("commune", ["KONE"]),
           periode=("07/10", "07/10"), gt="heure", questions=[])),
     ("Appels et SMS à Lifou ce mois-ci",
-     dict(techno=["WCDMA", "LTE"], kpis=existants("wcdma_appels_voix", "wcdma_duree_appel", "lte_csfb_appels",
+     dict(techno=["WCDMA", "LTE"], kpis=existants("wcdma_appels_voix", "wcdma_speech_traffic", "wcdma_duree_appel",
+                                                 "lte_csfb_appels",
                                                  "wcdma_sms"),
           perimetre=("commune", ["LIFOU"]), periode=("01/10", "08/10"), questions=[])),
     ("Débit 4G par site à Dumbéa les 7 derniers jours",
@@ -170,8 +171,9 @@ CAS = [
     ("drop 4G pendant la foire à Koumac hier", dict(perimetre=("evenement", ["Foire de Koumac"]))),
     ("Foire de Koumac débit 4G", dict(perimetre=("evenement", ["Foire de Koumac"]), questions=["periode"])),
     ("congestion Nouméa hier en soirée", dict(techno=["LTE"], fenetre="18-22")),
+    # Lieu inconnu du référentiel : question (jamais de repli silencieux sur tout le réseau).
     ("dispo des sites à Thio hier", dict(kpis=["lte_cell_availability", "wcdma_cell_availability"],
-                                         non_compris=["Thio"])),
+                                         non_compris=[], questions=["perimetre"])),
 ]
 
 
@@ -280,7 +282,10 @@ def test_lecteur_restreint_sans_fuite_de_lieux(ref_recherche):
     assert any("hors de votre périmètre" in n for n in i.notes)
     i = interpreter("débit 4G CHT hier", J, ctx)  # sites CHT hors périmètre : jamais proposés
     assert not any(q.champ == "perimetre" for q in i.questions)
-    assert "CHT" in i.non_compris
+    assert "CHT" in i.non_compris  # 3 lettres : pas de correspondance approchée
+    i = interpreter("débit 4G à Koumak hier", J, ctx)  # proche de Koumac, hors périmètre : jamais proposé
+    q = next(q for q in i.questions if q.champ == "perimetre")
+    assert q.texte.startswith("Lieu non reconnu") and [o.libelle for o in q.options] == ["Tout le réseau"]
     i = interpreter("drop 4G agence telecom hier", J, ctx)
     assert i.params["perimetre"]["type"] == "global"
     assert {s["valeur"] for s in ctx.lieux.suggestions("")} == {"PAITA"}

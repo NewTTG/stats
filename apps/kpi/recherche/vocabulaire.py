@@ -20,6 +20,8 @@ class Intention:
     kpis: dict[str, list[str]]
     technos_defaut: list[str] = field(default_factory=lambda: list(TECHNOS))
     famille: bool = False
+    # qualificatif (« voix », « data ») -> intention précise : « coupure voix » = drop voix
+    absorbe: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -32,6 +34,7 @@ class Vocabulaire:
     communes: dict[str, dict]
     pas_trigrammes: set[str]
     exemples: list[str]
+    qualificatifs: dict[str, list[str]] = field(default_factory=dict)
     mots: Correspondeur = field(default_factory=Correspondeur, repr=False)
 
     def libelle_commune(self, nom: str) -> str:
@@ -53,7 +56,7 @@ def charger_vocabulaire(chemin: Path) -> Vocabulaire:
             raise ValueError(f"intention {code} : techno inconnue {sorted(inconnues)}")
         intentions[code] = Intention(code=code, libelle=d["libelle"], mots=[str(m) for m in d["mots"]], kpis=kpis,
                                      technos_defaut=list(d.get("technos_defaut") or TECHNOS),
-                                     famille=bool(d.get("famille")))
+                                     famille=bool(d.get("famille")), absorbe=dict(d.get("absorbe") or {}))
     voc = Vocabulaire(
         technos={t: [str(m) for m in mots] for t, mots in brut["technos"].items()},
         intentions=intentions,
@@ -63,7 +66,12 @@ def charger_vocabulaire(chemin: Path) -> Vocabulaire:
         communes={k: v or {} for k, v in brut.get("communes", {}).items()},
         pas_trigrammes={normaliser(str(m)) for m in brut.get("pas_trigrammes", [])},
         exemples=list(brut.get("exemples", [])),
+        qualificatifs={k: [str(m) for m in v] for k, v in (brut.get("qualificatifs") or {}).items()},
     )
+    for code, intention in intentions.items():
+        for cible in intention.absorbe.values():
+            if cible not in intentions:
+                raise ValueError(f"intention {code} : absorbe vers une intention inconnue {cible!r}")
     # Un seul dictionnaire : l'expression la plus longue gagne entre intentions,
     # modificateurs et mots neutres (« taux d'accès » > « taux »).
     for mot in voc.neutres:
@@ -74,6 +82,9 @@ def charger_vocabulaire(chemin: Path) -> Vocabulaire:
     for intention in intentions.values():
         for mot in intention.mots:
             voc.mots.ajouter(mot, ("intention", intention.code))
+    for code, mots in voc.qualificatifs.items():
+        for mot in mots:
+            voc.mots.ajouter(mot, ("qualificatif", code))
     return voc
 
 
