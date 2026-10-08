@@ -51,7 +51,8 @@ def _degradation(kpi: DefinitionKpi, valeur: float, reference: float) -> bool:
 
 
 def ecart_significatif(kpi: DefinitionKpi, valeur, reference, hebdo: list, sigma: float, pct: float) -> bool:
-    """Dégradation par rapport à la référence : plus de ``pct`` % ET plus de ``sigma`` écarts-types.
+    """Dégradation par rapport à la référence : plus de ``pct`` % ET plus de ``sigma`` écarts-types
+    ET au moins ``kpi.ecart_min`` en valeur absolue (si défini au catalogue).
 
     ``hebdo`` : valeurs de chaque semaine de référence. Avec moins de deux semaines
     (ou des semaines identiques), seul le critère en % s'applique.
@@ -62,6 +63,8 @@ def ecart_significatif(kpi: DefinitionKpi, valeur, reference, hebdo: list, sigma
     ecart = ecart_pct(valeur, reference)
     if ecart is None or abs(ecart) < pct:
         return False
+    if kpi.ecart_min is not None and abs(valeur - reference) < kpi.ecart_min:
+        return False  # écart absolu négligeable (ex. cause passée de 0,01 à 0,02 %)
     semaines = [v for v in map(_nombre, hebdo) if v is not None]
     if len(semaines) < 2 or stdev(semaines) == 0:
         return True
