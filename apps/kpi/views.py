@@ -8,6 +8,8 @@
 - exports Excel (``export=xlsx``) et rapport PowerPoint depuis tout résultat.
 """
 
+import json
+import logging
 import math
 from urllib.parse import urlencode
 
@@ -33,6 +35,7 @@ from .requete import RequeteKpi
 from .service import RequeteRefusee, executer
 from .source import BaseKpiNonConfiguree, est_demo, infos_demo, moteur_kpi
 
+journal = logging.getLogger(__name__)
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 FORMAT_PERIODE = {"heure": "%d/%m/%Y %Hh", "jour": "%d/%m/%Y", "semaine": "sem. du %d/%m/%Y", "mois": "%m/%Y"}
 # Au-delà, une courbe par entité devient illisible : on garde les premières.
@@ -155,32 +158,55 @@ def _edition(get, interp, contexte: Contexte) -> dict:
     }
 
 
+def _requete_tracee(r: dict) -> RequeteKpi | None:
+    req = r.get("requete", r)
+    try:
+        return RequeteKpi(**req) if isinstance(req, dict) else None
+    except (ValidationError, TypeError, ValueError):
+        return None
+
+
+def _entree_recente(action: str, r) -> tuple[str, str, dict] | None:
+    """(texte affiché, clé de dédoublonnage, paramètres du lien) d'une entrée d'audit, ou None."""
+    r = r if isinstance(r, dict) else {}
+    q = r.get("q") if isinstance(r.get("q"), str) else ""
+    if action == "recherche_kpi" and q.strip():
+        q = q.strip()[:300]
+        parametres = r.get("parametres") if isinstance(r.get("parametres"), dict) else {}
+        parametres = {k: v for k, v in parametres.items()
+                      if k in PARAMETRES and (isinstance(v, str) or (isinstance(v, list) and all(isinstance(x, str) for x in v)))}
+        requete = _requete_tracee(r) if r.get("ia") else None
+        # Recherche IA : on rejoue la requête résolue (pas de nouvel appel au modèle).
+        params = {"q": q, **(champs_depuis_requete(requete) if requete else parametres)}
+        cle = json.dumps(["q", q.lower(), params], sort_keys=True, ensure_ascii=False)
+        return q, cle, params
+    requete = _requete_tracee(r)
+    if requete is None:
+        return None
+    lieu = ", ".join(requete.perimetre.valeurs) or "réseau"
+    texte = (f"{' + '.join(LIBELLES_TECHNO.get(t, t) for t in requete.techno)} · {len(requete.kpis)} KPI · {lieu} · "
+             f"{requete.periode.debut:%d/%m} → {requete.periode.fin:%d/%m/%Y}")
+    return texte, json.dumps(["f", texte]), champs_depuis_requete(requete)
+
+
 def _recherches_recentes(user, nombre=6) -> list[dict]:
-    """Dernières recherches de l'utilisateur (journal d'audit), sans doublon."""
+    """Dernières recherches de l'utilisateur (journal d'audit), sans doublon.
+
+    Robuste à toute entrée malformée : une entrée illisible est ignorée, jamais d'erreur 500.
+    """
     vues, sortie = set(), []
     for e in JournalAudit.objects.filter(utilisateur=user, action__in=("recherche_kpi", "requete_kpi"))[:60]:
-        r = e.requete or {}
-        if e.action == "recherche_kpi" and r.get("q"):
-            params = {"q": r["q"], **(r.get("parametres") or {})}
-            if r.get("ia"):
-                params["ia"] = "1"
-            texte, cle = r["q"], ("q", r["q"].lower(), tuple(sorted((r.get("parametres") or {}).items(), key=str)))
-        else:
-            req = r.get("requete", r)
-            try:
-                requete = RequeteKpi(**req)
-            except (ValidationError, TypeError):
-                continue
-            params = champs_depuis_requete(requete)
-            lieu = ", ".join(requete.perimetre.valeurs) or "réseau"
-            texte = (f"{' + '.join(LIBELLES_TECHNO[t] for t in requete.techno)} · {len(requete.kpis)} KPI · {lieu} · "
-                     f"{requete.periode.debut:%d/%m} → {requete.periode.fin:%d/%m/%Y}")
-            cle = ("f", texte)
-        if cle in vues:
+        try:
+            entree = _entree_recente(e.action, e.requete)
+        except Exception:  # entrée d'audit inattendue : ignorée
+            journal.warning("Entrée d'audit %s illisible pour « Mes dernières recherches »", e.pk, exc_info=True)
             continue
+        if entree is None or entree[1] in vues:
+            continue
+        texte, cle, params = entree
         vues.add(cle)
         sortie.append({"texte": texte, "lien": "?" + urlencode(params, doseq=True), "date": e.date,
-                       "ia": bool(r.get("ia"))})
+                       "ia": bool((e.requete or {}).get("ia")) if isinstance(e.requete, dict) else False})
         if len(sortie) >= nombre:
             break
     return sortie
