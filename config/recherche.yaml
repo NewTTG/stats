@@ -1,0 +1,259 @@
+# Vocabulaire de la recherche en langage libre (interprétation par règles locales).
+#
+# Les mots et expressions sont comparés sans majuscules, sans accents ni apostrophes
+# (« coupure d'appel » = « coupure d appel ») ; les mots vides (le, la, de, du, à...)
+# sont ignorés à l'intérieur d'une expression. L'expression la plus longue gagne :
+# « coupure d'appel » (drop voix) l'emporte sur « coupure » (drop).
+#
+# Les KPI « causes » ne sont pas listés ici : quand la demande parle de causes
+# (modificateur « causes »), on ajoute les KPI du catalogue dont `decomposition_de`
+# est l'un des KPI retenus. Un code absent du catalogue est ignoré.
+
+technos:
+  LTE: [4g, lte, eutran, e utran]
+  WCDMA: [3g, umts, wcdma, hspa, hsdpa, utran]
+
+# intention -> libellé, mots, KPI par techno.
+# technos_defaut : technos retenues quand la demande n'en précise pas (défaut : les deux).
+# famille : proposée dans la question « Que voulez-vous voir ? » (ordre du fichier).
+intentions:
+  drop:
+    libelle: Drop
+    famille: true
+    mots: [drop, drops, dropped, dropes, coupure, coupures, chute, chutes, coupe, coupes, coupee, coupees,
+           retainability, retenabilite, decroche, decroches, decrochage, perte de connexion, pertes de connexion,
+           call drop, taux de coupure]
+    kpis:
+      LTE: [lte_erab_drop]
+      WCDMA: [wcdma_cs_drop, wcdma_ps_drop]
+
+  drop_voix:
+    libelle: Drop voix
+    mots: [appels coupes, appel coupe, appels interrompus, coupure d appel, coupures d appel, coupures d appels,
+           coupure des appels, coupures des appels, drop voix, drop des appels, drop appel, drop appels, drop cs,
+           coupure voix, coupures voix, chute d appel, chutes d appel]
+    technos_defaut: [WCDMA]
+    kpis:
+      WCDMA: [wcdma_cs_drop]
+
+  drop_data:
+    libelle: Drop data
+    mots: [drop data, drop ps, coupure data, coupures data, coupure internet, coupures internet, drop internet,
+           coupures de session, drop des donnees, coupures donnees, coupure donnees]
+    kpis:
+      LTE: [lte_erab_drop]
+      WCDMA: [wcdma_ps_drop]
+
+  acces:
+    libelle: Taux d'accès
+    famille: true
+    mots: [acces, accessibilite, taux d acces, etablissement, taux d etablissement, cssr, pssr, setup, connexion,
+           connexions, echec, echecs, echec de connexion, echecs de connexion, accrochage, attachement]
+    kpis:
+      LTE: [lte_acces]
+      WCDMA: [wcdma_cssr_cs, wcdma_cssr_ps]
+
+  acces_voix:
+    libelle: Accès voix
+    mots: [echec d appel, echecs d appel, echecs d appels, appels echoues, appel echoue, acces voix, cssr voix,
+           cssr cs, etablissement d appel, etablissement des appels, appels qui ne passent pas, appel qui ne passe pas]
+    technos_defaut: [WCDMA]
+    kpis:
+      WCDMA: [wcdma_cssr_cs]
+
+  acces_data:
+    libelle: Accès data
+    mots: [acces data, acces internet, cssr data, cssr ps, connexion data, connexion internet]
+    kpis:
+      LTE: [lte_acces]
+      WCDMA: [wcdma_cssr_ps]
+
+  rrc:
+    libelle: Succès RRC
+    mots: [rrc, taux rrc, setup rrc, connexion rrc]
+    kpis:
+      LTE: [lte_rrc_setup_sr]
+      WCDMA: [wcdma_rrc_cs_sr, wcdma_rrc_ps_sr]
+
+  debit:
+    libelle: Débit
+    famille: true
+    mots: [debit, debits, vitesse, vitesses, throughput, thp, bande passante, mbps, rapidite, lent, lente,
+           lenteur, lenteurs, debit descendant, debit dl, dl]
+    kpis:
+      LTE: [lte_dl_user_thp]
+      WCDMA: [wcdma_hs_user_thp]
+
+  debit_ul:
+    libelle: Débit montant
+    mots: [debit ul, debit montant, upload, ul, envoi, debit uplink, uplink]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_ul_user_thp]
+
+  trafic:
+    libelle: Trafic data
+    famille: true
+    mots: [trafic, trafic data, volume, volumes, data, donnees, consommation, payload, internet, go, giga, gigas,
+           octets, telechargement, telechargements, usage]
+    kpis:
+      LTE: [lte_payload_dl]
+      WCDMA: [wcdma_payload_hs]
+
+  appels:
+    libelle: Appels
+    famille: true
+    mots: [appel, appels, voix, communication, communications, telephonie, coups de fil, coup de fil, csfb]
+    technos_defaut: [WCDMA, LTE]
+    kpis:
+      WCDMA: [wcdma_appels_voix, wcdma_duree_appel]
+      LTE: [lte_csfb_appels]
+
+  tentatives_voix:
+    libelle: Tentatives d'appel
+    mots: [tentatives, tentative, tentatives d appel, tentatives d appels]
+    technos_defaut: [WCDMA]
+    kpis:
+      WCDMA: [wcdma_tentatives_voix]
+
+  erlang:
+    libelle: Trafic voix (Erlang)
+    mots: [erlang, erlangs, trafic voix, volume voix, erl]
+    technos_defaut: [WCDMA]
+    kpis:
+      WCDMA: [wcdma_speech_traffic]
+
+  duree_appel:
+    libelle: Durée d'appel
+    mots: [duree, duree d appel, duree des appels, duree moyenne, duree moyenne d appel, durees]
+    technos_defaut: [WCDMA]
+    kpis:
+      WCDMA: [wcdma_duree_appel]
+
+  sms:
+    libelle: SMS
+    famille: true
+    mots: [sms, texto, textos, message, messages, mini message, minimessage]
+    technos_defaut: [WCDMA]
+    kpis:
+      WCDMA: [wcdma_sms]
+
+  disponibilite:
+    libelle: Disponibilité
+    famille: true
+    mots: [disponibilite, disponibilites, dispo, panne, pannes, indisponible, indisponibles, indisponibilite,
+           hors service, down, availability, cellule hs, site hs, coupure de site, site coupe, sites coupes]
+    kpis:
+      LTE: [lte_cell_availability]
+      WCDMA: [wcdma_cell_availability]
+
+  congestion:
+    libelle: Congestion
+    famille: true
+    mots: [congestion, congestions, congestionne, congestionnes, sature, saturee, saturation, saturations, prb,
+           charge, chargee, encombrement, surcharge, surcharges, occupation]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_prb_dl_util]
+
+  mobilite:
+    libelle: Handover
+    mots: [handover, handovers, ho, mobilite, transfert intercellulaire, transferts intercellulaires, hand over]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_ho_intra_sr]
+
+# Mots qui modifient la demande (sans KPI propre).
+modificateurs:
+  causes: [cause, causes, pourquoi, raison, raisons, origine, origines, motif, motifs, ventilation, repartition,
+           decomposition, detail des causes, explication, explications]
+  classement: [pire, pires, classement, top, plus degrade, plus degrades, plus degradee, plus degradees,
+               plus mauvais, moins bons, worst, palmares, les plus touches]
+  heure_chargee: [heure chargee, heures chargees, heure de pointe, heures de pointe, busy hour, hc]
+  global: [reseau, partout, global, globale, globalement, tout le reseau, ensemble du reseau, territoire,
+           nouvelle caledonie, caledonie, pays, national]
+
+# Mots courants sans effet sur la requête : reconnus, jamais signalés comme incompris.
+neutres: [kpi, kpis, stat, stats, statistique, statistiques, indicateur, indicateurs, evolution, courbe, courbes,
+          graphe, graphique, graphiques, tableau, valeur, valeurs, niveau, niveaux, taux, qualite, performance,
+          performances, mesure, mesures, analyse, analyser, regarde, regarder, situation, bilan, etat, resume,
+          synthese, moyen, moyenne, moyennes, total, totaux, nombre, combien, montre, montrer, affiche, afficher,
+          donne, donner, voir, veux, voudrais, aimerais, besoin, sortir, sors, calcule, calculer, liste, lister,
+          probleme, problemes, souci, soucis, incident, incidents, pendant, lors, depuis, mobile, mobiles,
+          utilisateur, utilisateurs, client, clients, cellule, cellules, site, sites, commune, communes, secteur,
+          secteurs, zone, zones, ville, region, province, quelle, quel, quels, quelles, comment, ya, eu, avoir,
+          ete, fait, faire, merci, stp, svp, please, show, me, the, of, at, in, for, rate, radio, mobile, reseaux,
+          compare, comparer, detail, details, detaille, operateur, opt, journee, journees, jour, jours, periode]
+
+# Régions et provinces (champ « région » du référentiel) -> communes correspondantes.
+regions:
+  - libelle: Province Nord
+    mots: [province nord, nord, region nord, brousse nord]
+    regions: [NORD]
+  - libelle: Province Sud
+    mots: [province sud]
+    regions: [SUD, GRD NEA 1, NEA]
+  - libelle: Sud (hors Grand Nouméa)
+    mots: [sud, region sud, brousse sud]
+    regions: [SUD]
+  - libelle: Îles Loyauté
+    mots: [iles, iles loyaute, iles loyautes, loyaute, loyautes, province des iles, province iles]
+    regions: [ILES]
+  - libelle: Grand Nouméa
+    mots: [grand noumea, agglomeration, agglo]
+    regions: [NEA, GRD NEA 1]
+
+# Graphie usuelle des communes (affichage) et variantes de saisie supplémentaires.
+communes:
+  BELEP: { libelle: Bélep }
+  BOULOUPARIS: { libelle: Boulouparis }
+  BOURAIL: { libelle: Bourail }
+  CANALA: { libelle: Canala }
+  DUMBEA: { libelle: Dumbéa }
+  FARINO: { libelle: Farino }
+  HIENGHENE: { libelle: Hienghène }
+  HOUAILOU: { libelle: Houaïlou }
+  ILE DES PINS: { libelle: Île des Pins, variantes: [idp, kunie] }
+  KAALA GOMEN: { libelle: Kaala-Gomen, variantes: [kaala] }
+  KONE: { libelle: Koné }
+  KOUAOUA: { libelle: Kouaoua }
+  KOUMAC: { libelle: Koumac }
+  LA FOA: { libelle: La Foa }
+  LIFOU: { libelle: Lifou, variantes: [drehu] }
+  MARE: { libelle: Maré, variantes: [nengone] }
+  MOINDOU: { libelle: Moindou }
+  MONT DORE: { libelle: Mont-Dore, variantes: [mont d or] }
+  NOUMEA: { libelle: Nouméa }
+  OUEGOA: { libelle: Ouégoa }
+  OUVEA: { libelle: Ouvéa, variantes: [iaai] }
+  PAITA: { libelle: Païta }
+  POINDIMIE: { libelle: Poindimié }
+  PONERIHOUEN: { libelle: Ponérihouen }
+  POUEBO: { libelle: Pouébo }
+  POUEMBOUT: { libelle: Pouembout }
+  POUM: { libelle: Poum }
+  POYA: { libelle: Poya }
+  SARRAMEA: { libelle: Sarraméa }
+  THIO: { libelle: Thio }
+  TOUHO: { libelle: Touho }
+  VOH: { libelle: Voh }
+  YATE: { libelle: Yaté }
+
+# Mots de trois lettres pris pour un trigramme de site seulement s'ils sont écrits en
+# majuscules (« CHT », « MER ») : mots français courants ou sigles.
+pas_trigrammes: [les, des, une, par, sur, pour, est, ont, son, ses, mes, tes, nos, vos, aux, que, qui, top, sms,
+                 age, mai, oct, nov, dec, jan, fev, avr, aou, sep, ete, mon, ton, sud, via, bas, car, cas, eau, fin,
+                 mal, mot, non, oui, peu, pas, pic, pro, tel, vie, vue, ans, lte, voh, ces, cet, eux, gsm, mer, lac,
+                 min, max, pre, fou, tot, sel, cap, mat, tri, gal, dun, ego, fan, far, for, man, new, pan, pet, pot,
+                 pou, rep, san, tan, tou, vid, way, con, cor, cou, det, moi, mou, med, men, mid, nat, cat, cen, sal,
+                 riv, tem, kon, lan, lap, ulm, bdc, php, cta, rab, rav, bar, ban, bel, ber, bon, bou, can, cil, col,
+                 dom, dor, fay, foc, foy, gad, gam, gar, got, gou, hou, kin, mag, nom, poi, pon, por, pou, ras, tit,
+                 tom, too, ulm, uni, val]
+
+# Exemples proposés sur l'écran d'accueil.
+exemples:
+  - Drop 3G à Nouméa la semaine dernière
+  - Taux d'accès 4G à Païta en septembre
+  - Causes de coupure 4G à Koné hier
+  - Appels et SMS à Lifou ce mois-ci
+  - Débit 4G par site à Dumbéa les 7 derniers jours

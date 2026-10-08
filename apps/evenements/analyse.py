@@ -125,7 +125,7 @@ def _valeurs(df: pd.DataFrame, kpis: list[DefinitionKpi], par: list[str]):
         return valeurs, vide, pd.DataFrame(columns=codes, index=pd.MultiIndex.from_arrays([[]] * (len(par) + 1)))
     hebdo = agreger(ref, kpis, [*par, "semaine"])[codes]
     reference = agreger(ref, kpis, par)[codes]
-    additifs = [k.code for k in kpis if k.denominateur is None]
+    additifs = [k.code for k in kpis if k.additif]
     if additifs:
         moyennes = hebdo[additifs].groupby(level=list(range(len(par)))).mean()
         reference[additifs] = moyennes.reindex(reference.index)

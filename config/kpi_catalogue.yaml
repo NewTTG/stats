@@ -5,6 +5,14 @@
 # et la période, PUIS divise (ratio de sommes), puis applique `facteur`.
 # Sans dénominateur, le KPI est additif (somme).
 #
+# produit_de       KPI composite = produit des ratios de sommes des KPI listés, puis
+#                  `facteur` (ex. taux d'accès = RRC SR × S1 SR × E-RAB SR).
+# decomposition_de KPI « cause » : part du KPI parent due à une cause, avec la même
+#                  pondération que le parent (les causes LTE se somment au total).
+# plafond          borne haute appliquée ligne à ligne au numérateur.
+#
+# Formules et vérifications sur les extraits CSV : docs/donnees_de_base.md.
+#
 # qualite :
 #   exact       compteurs bruts disponibles
 #   reconstruit dénominateur déduit d'un ratio publié (ex. temps = volume / débit)
@@ -62,6 +70,44 @@ kpis:
     sens: haut_est_mieux
     seuils: { alerte: 98, critique: 95 }
 
+  - code: lte_s1_sig_sr
+    libelle: Taux de succès de signalisation S1
+    techno: LTE
+    unite: "%"
+    categorie: accessibilite
+    numerateur: S1signalingSuccRate_p * pmS1SigConnEstabAtt / 100
+    denominateur: pmS1SigConnEstabAtt
+    facteur: 100
+    sens: haut_est_mieux
+    seuils: { alerte: 98, critique: 95 }
+    qualite: reconstruit
+
+  - code: lte_init_erab_sr
+    libelle: Taux de succès d'établissement E-RAB initial
+    techno: LTE
+    unite: "%"
+    categorie: accessibilite
+    numerateur: InitErabSuccRate_p * pmErabEstabAttInit / 100
+    denominateur: pmErabEstabAttInit
+    facteur: 100
+    sens: haut_est_mieux
+    seuils: { alerte: 98, critique: 95 }
+    qualite: reconstruit
+
+  - code: lte_acces
+    libelle: Taux d'accès 4G (RRC × S1 × E-RAB)
+    techno: LTE
+    unite: "%"
+    categorie: accessibilite
+    produit_de: [lte_rrc_setup_sr, lte_s1_sig_sr, lte_init_erab_sr]
+    facteur: 100
+    sens: haut_est_mieux
+    seuils: { alerte: 98, critique: 95 }
+    qualite: reconstruit
+    note: >-
+      Équivalent agrégé de PssrLte_p (= RRC SR × S1 SR × E-RAB initial SR, vérifié
+      ligne à ligne sur les extraits).
+
   - code: lte_erab_drop
     libelle: Taux de coupure E-RAB
     techno: LTE
@@ -76,6 +122,91 @@ kpis:
     note: >-
       Pondéré par le nombre d'E-RAB établis faute de compteurs de release
       (pmErabRelAbnormalEnbAct, pmErabRelNormalEnb, ...).
+
+  - code: lte_drop_mme
+    libelle: "Coupures E-RAB initiées par le cœur (MME)"
+    techno: LTE
+    unite: "%"
+    categorie: retainability
+    decomposition_de: lte_erab_drop
+    numerateur: ErabDropRateMme_p * ErabEstabSucc_nb / 100
+    denominateur: ErabEstabSucc_nb
+    facteur: 100
+    sens: bas_est_mieux
+    qualite: approx
+
+  - code: lte_drop_radio
+    libelle: "Coupures E-RAB : perte radio du mobile"
+    techno: LTE
+    unite: "%"
+    categorie: retainability
+    decomposition_de: lte_erab_drop
+    numerateur: ErabDropEnbUeLost_p * ErabEstabSucc_nb / 100
+    denominateur: ErabEstabSucc_nb
+    facteur: 100
+    sens: bas_est_mieux
+    qualite: approx
+
+  - code: lte_drop_ho
+    libelle: "Coupures E-RAB : échec de handover"
+    techno: LTE
+    unite: "%"
+    categorie: retainability
+    decomposition_de: lte_erab_drop
+    numerateur: ErabDropEnbHo_p * ErabEstabSucc_nb / 100
+    denominateur: ErabEstabSucc_nb
+    facteur: 100
+    sens: bas_est_mieux
+    qualite: approx
+
+  - code: lte_drop_cellule_indispo
+    libelle: "Coupures E-RAB : cellule indisponible"
+    techno: LTE
+    unite: "%"
+    categorie: retainability
+    decomposition_de: lte_erab_drop
+    numerateur: ErabDropEnbCellDt_p * ErabEstabSucc_nb / 100
+    denominateur: ErabEstabSucc_nb
+    facteur: 100
+    sens: bas_est_mieux
+    qualite: approx
+
+  - code: lte_drop_transport
+    libelle: "Coupures E-RAB : panne transport"
+    techno: LTE
+    unite: "%"
+    categorie: retainability
+    decomposition_de: lte_erab_drop
+    numerateur: ErabDropEnbTnFail_p * ErabEstabSucc_nb / 100
+    denominateur: ErabEstabSucc_nb
+    facteur: 100
+    sens: bas_est_mieux
+    qualite: approx
+
+  - code: lte_drop_preemption
+    libelle: "Coupures E-RAB : préemption"
+    techno: LTE
+    unite: "%"
+    categorie: retainability
+    decomposition_de: lte_erab_drop
+    numerateur: (ErabDropEnbHpr_p + ErabDropEnbPe_p) * ErabEstabSucc_nb / 100
+    denominateur: ErabEstabSucc_nb
+    facteur: 100
+    sens: bas_est_mieux
+    qualite: approx
+    note: Préemption haute priorité (Hpr) et préemption (Pe) regroupées.
+
+  - code: lte_drop_licence
+    libelle: "Coupures E-RAB : limite de licence"
+    techno: LTE
+    unite: "%"
+    categorie: retainability
+    decomposition_de: lte_erab_drop
+    numerateur: ErabDropEnbLic_p * ErabEstabSucc_nb / 100
+    denominateur: ErabEstabSucc_nb
+    facteur: 100
+    sens: bas_est_mieux
+    qualite: approx
 
   - code: lte_prb_dl_util
     libelle: Utilisation PRB DL
@@ -109,9 +240,23 @@ kpis:
     categorie: disponibilite
     numerateur: CellAvaibilityD_p
     denominateur: "1"
+    plafond: 100
     sens: haut_est_mieux
     seuils: { alerte: 99, critique: 95 }
-    note: Chaque ligne pèse la même durée (une heure ou un jour selon la table).
+    note: >-
+      Chaque ligne pèse la même durée (une heure ou un jour selon la table). Plafonné à
+      100 % : la table journalière publie des valeurs jusqu'à 248 %.
+
+  - code: lte_csfb_appels
+    libelle: Appels 4G basculés en 3G/2G (CSFB)
+    techno: LTE
+    unite: appels
+    categorie: trafic
+    numerateur: CsfbRelVolWcdma_nb + CsfbRelVolGsm_nb
+    sens: haut_est_mieux
+    note: >-
+      Pas de VoLTE : un appel émis ou reçu en 4G bascule en 3G (CSFB). Ces appels sont
+      ensuite comptés dans les appels voix 3G.
 
   # -------------------------------------------------------------- WCDMA
   - code: wcdma_hs_user_thp
@@ -134,39 +279,121 @@ kpis:
     sens: haut_est_mieux
     note: PayloadPsHs_mb est en mégaoctets malgré la casse (confirmé).
 
-  - code: wcdma_cssr_cs
-    libelle: Taux de succès d'établissement d'appel voix (3G)
+  - code: wcdma_rrc_cs_sr
+    libelle: Taux de succès RRC voix (3G)
     techno: WCDMA
     unite: "%"
     categorie: accessibilite
-    numerateur: CssrSp_p * NbrSpeechCallsAtt / 100
+    numerateur: ReqCsSucc
+    denominateur: ReqCs
+    facteur: 100
+    sens: haut_est_mieux
+    seuils: { alerte: 98, critique: 95 }
+
+  - code: wcdma_rab_cs_sr
+    libelle: Taux de succès RAB voix (3G)
+    techno: WCDMA
+    unite: "%"
+    categorie: accessibilite
+    numerateur: NbrSpeechCalls
     denominateur: NbrSpeechCallsAtt
     facteur: 100
     sens: haut_est_mieux
     seuils: { alerte: 98, critique: 95 }
-    qualite: approx
-    note: Pondéré par les tentatives d'appel voix faute des compteurs RRC / RAB séparés.
 
-  - code: wcdma_cssr_ps
-    libelle: Taux de succès d'établissement data (3G)
+  - code: wcdma_cssr_cs
+    libelle: Taux d'accès appels voix (3G)
     techno: WCDMA
     unite: "%"
     categorie: accessibilite
-    numerateur: CssrPs_p * ReqPs / 100
+    produit_de: [wcdma_rrc_cs_sr, wcdma_rab_cs_sr]
+    facteur: 100
+    sens: haut_est_mieux
+    seuils: { alerte: 98, critique: 95 }
+    note: Équivalent agrégé de CssrSp_p (= RRC voix × RAB voix, vérifié ligne à ligne).
+
+  - code: wcdma_rrc_ps_sr
+    libelle: Taux de succès RRC data (3G)
+    techno: WCDMA
+    unite: "%"
+    categorie: accessibilite
+    numerateur: ReqPsSucc
     denominateur: ReqPs
     facteur: 100
     sens: haut_est_mieux
     seuils: { alerte: 98, critique: 95 }
-    qualite: approx
-    note: Pondéré par les demandes PS.
+
+  - code: wcdma_rab_ps_sr
+    libelle: Taux de succès RAB data (3G)
+    techno: WCDMA
+    unite: "%"
+    categorie: accessibilite
+    numerateur: pmNoRabEstablishSuccessPacketInteractive
+    denominateur: pmNoRabEstablishAttemptPacketInteractive
+    facteur: 100
+    sens: haut_est_mieux
+    seuils: { alerte: 98, critique: 95 }
+
+  - code: wcdma_cssr_ps
+    libelle: Taux d'accès data (3G)
+    techno: WCDMA
+    unite: "%"
+    categorie: accessibilite
+    produit_de: [wcdma_rrc_ps_sr, wcdma_rab_ps_sr]
+    facteur: 100
+    sens: haut_est_mieux
+    seuils: { alerte: 98, critique: 95 }
+    note: Équivalent agrégé de CssrPs_p (= RRC data × RAB data, vérifié ligne à ligne).
+
+  - code: wcdma_appels_voix
+    libelle: Appels voix 3G établis
+    techno: WCDMA
+    unite: appels
+    categorie: trafic
+    numerateur: NbrSpeechCalls
+    sens: haut_est_mieux
+    note: Inclut les appels arrivés de la 4G par CSFB.
+
+  - code: wcdma_tentatives_voix
+    libelle: Tentatives d'appels voix 3G
+    techno: WCDMA
+    unite: appels
+    categorie: trafic
+    numerateur: NbrSpeechCallsAtt
+    sens: haut_est_mieux
+
+  - code: wcdma_sms
+    libelle: SMS (demandes en 3G)
+    techno: WCDMA
+    unite: SMS
+    categorie: trafic
+    numerateur: ReqSms
+    sens: haut_est_mieux
+    note: >-
+      Demandes de connexion RRC pour SMS en 3G. Les SMS traités en 4G (SGs) ne sont pas
+      dans les tables KPI.
 
   - code: wcdma_speech_traffic
     libelle: Trafic voix
     techno: WCDMA
-    unite: Erl
+    unite: Erl·h
     categorie: trafic
     numerateur: SpeechTrafficDay_erlg
     sens: haut_est_mieux
+    note: >-
+      Somme des Erlangs horaires (Erl·h). Sur une heure, c'est l'Erlang moyen de l'heure ;
+      la table journalière publie la somme de la journée (≈ 2 min par appel sur l'extrait).
+
+  - code: wcdma_duree_appel
+    libelle: Durée moyenne d'appel voix (3G)
+    techno: WCDMA
+    unite: s
+    categorie: trafic
+    numerateur: SpeechTrafficDay_erlg * 3600
+    denominateur: NbrSpeechCalls
+    sens: haut_est_mieux
+    qualite: reconstruit
+    note: Trafic voix (Erl·h) converti en secondes, divisé par les appels établis.
 
   - code: wcdma_cs_drop
     libelle: Taux de coupure appels voix (3G)
@@ -179,6 +406,95 @@ kpis:
     sens: bas_est_mieux
     seuils: { alerte: 1, critique: 2 }
     qualite: approx
+    note: >-
+      Pondéré par les appels voix établis. Les causes publiées n'expliquent qu'environ
+      la moitié des coupures : le reste est affiché « non ventilé ».
+
+  - code: wcdma_drop_sho
+    libelle: "Coupures voix 3G : soft handover"
+    techno: WCDMA
+    unite: "%"
+    categorie: retainability
+    decomposition_de: wcdma_cs_drop
+    numerateur: RabDropCsSho_p * NbrSpeechCalls / 100
+    denominateur: NbrSpeechCalls
+    facteur: 100
+    sens: bas_est_mieux
+    qualite: approx
+
+  - code: wcdma_drop_perte_synchro
+    libelle: "Coupures voix 3G : perte de synchronisation radio"
+    techno: WCDMA
+    unite: "%"
+    categorie: retainability
+    decomposition_de: wcdma_cs_drop
+    numerateur: RabDropCsOutOfSync_p * NbrSpeechCalls / 100
+    denominateur: NbrSpeechCalls
+    facteur: 100
+    sens: bas_est_mieux
+    qualite: approx
+
+  - code: wcdma_drop_voisinage_manquant
+    libelle: "Coupures voix 3G : voisinage manquant"
+    techno: WCDMA
+    unite: "%"
+    categorie: retainability
+    decomposition_de: wcdma_cs_drop
+    numerateur: RabDropCsMissRel_p * NbrSpeechCalls / 100
+    denominateur: NbrSpeechCalls
+    facteur: 100
+    sens: bas_est_mieux
+    qualite: approx
+    note: Interprétation de MissRel à confirmer (cf. docs/questions.md).
+
+  - code: wcdma_drop_ifho
+    libelle: "Coupures voix 3G : handover inter-fréquence"
+    techno: WCDMA
+    unite: "%"
+    categorie: retainability
+    decomposition_de: wcdma_cs_drop
+    numerateur: RabDropCsIfho_p * NbrSpeechCalls / 100
+    denominateur: NbrSpeechCalls
+    facteur: 100
+    sens: bas_est_mieux
+    qualite: approx
+
+  - code: wcdma_drop_irat
+    libelle: "Coupures voix 3G : handover vers 2G (IRAT)"
+    techno: WCDMA
+    unite: "%"
+    categorie: retainability
+    decomposition_de: wcdma_cs_drop
+    numerateur: RabDropCsIratho_p * NbrSpeechCalls / 100
+    denominateur: NbrSpeechCalls
+    facteur: 100
+    sens: bas_est_mieux
+    qualite: approx
+
+  - code: wcdma_drop_congestion
+    libelle: "Coupures voix 3G : congestion"
+    techno: WCDMA
+    unite: "%"
+    categorie: retainability
+    decomposition_de: wcdma_cs_drop
+    numerateur: RabDropCsRelCong_p * NbrSpeechCalls / 100
+    denominateur: NbrSpeechCalls
+    facteur: 100
+    sens: bas_est_mieux
+    qualite: approx
+
+  - code: wcdma_ps_drop
+    libelle: Taux de coupure data (3G)
+    techno: WCDMA
+    unite: "%"
+    categorie: retainability
+    numerateur: RabDropPs_p * pmNoRabEstablishSuccessPacketInteractive / 100
+    denominateur: pmNoRabEstablishSuccessPacketInteractive
+    facteur: 100
+    sens: bas_est_mieux
+    seuils: { alerte: 2, critique: 5 }
+    qualite: approx
+    note: Pondéré par les RAB data établis faute de compteurs de release.
 
   - code: wcdma_cell_availability
     libelle: Disponibilité cellule 3G

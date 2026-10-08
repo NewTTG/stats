@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 
 class Seuils(BaseModel):
@@ -22,8 +22,15 @@ class DefinitionKpi(BaseModel):
         "debit", "trafic", "accessibilite", "retainability", "congestion", "mobilite", "disponibilite"
     ]
     # Expressions pandas (DataFrame.eval) évaluées ligne à ligne sur les colonnes source.
-    numerateur: str
+    numerateur: str | None = None
     denominateur: str | None = None  # None => KPI additif (somme simple)
+    # KPI composite : produit des ratios de sommes des KPI listés (même techno, non composites),
+    # calculé après agrégation puis multiplié par ``facteur``. Exclusif de numerateur / denominateur.
+    produit_de: list[str] | None = None
+    # KPI « cause » : part du KPI parent due à une cause (même pondération que le parent).
+    decomposition_de: str | None = None
+    # Borne haute appliquée ligne à ligne au numérateur (ex. disponibilité publiée > 100 %).
+    plafond: float | None = None
     facteur: float = 1.0
     sens: Literal["haut_est_mieux", "bas_est_mieux"]
     seuils: Seuils = Seuils()
@@ -31,6 +38,33 @@ class DefinitionKpi(BaseModel):
     # approx : pondération de substitution, à remplacer par les compteurs bruts.
     qualite: Literal["exact", "reconstruit", "approx"] = "exact"
     note: str | None = None
+    # Définitions résolues de ``produit_de`` (renseignées au chargement du catalogue).
+    composants: list["DefinitionKpi"] = Field(default_factory=list, exclude=True, repr=False)
+
+    @model_validator(mode="after")
+    def _formule(self):
+        if self.produit_de is not None:
+            if self.numerateur is not None or self.denominateur is not None:
+                raise ValueError(f"{self.code} : produit_de exclut numerateur / denominateur")
+            if len(self.produit_de) < 2:
+                raise ValueError(f"{self.code} : produit_de demande au moins deux KPI")
+        elif self.numerateur is None:
+            raise ValueError(f"{self.code} : numerateur ou produit_de requis")
+        return self
+
+    @property
+    def additif(self) -> bool:
+        """KPI sommé tel quel (volume, nombre d'appels...), sans dénominateur."""
+        return self.denominateur is None and self.produit_de is None
+
+    @property
+    def formule(self) -> str:
+        """Formule lisible (exports, documentation)."""
+        if self.produit_de:
+            return " × ".join(self.produit_de)
+        if self.denominateur is None:
+            return f"Σ {self.numerateur}"
+        return f"Σ ({self.numerateur}) / Σ ({self.denominateur})"
 
     def statut(self, valeur: float | None) -> str:
         """« critique », « alerte » ou « » selon les seuils et le sens du KPI."""
@@ -52,7 +86,22 @@ def charger_catalogue(chemin: Path) -> dict[str, DefinitionKpi]:
     doublons = {c for c in codes if codes.count(c) > 1}
     if doublons:
         raise ValueError(f"codes KPI en double : {sorted(doublons)}")
-    return {k.code: k for k in kpis}
+    par_code = {k.code: k for k in kpis}
+    for k in kpis:
+        if k.decomposition_de is not None:
+            parent = par_code.get(k.decomposition_de)
+            if parent is None or parent.techno != k.techno:
+                raise ValueError(f"{k.code} : decomposition_de inconnu ou d'une autre techno")
+        if k.produit_de is None:
+            continue
+        for code in k.produit_de:
+            composant = par_code.get(code)
+            if composant is None or composant.techno != k.techno or composant.produit_de is not None:
+                raise ValueError(f"{k.code} : composant {code!r} inconnu, d'une autre techno ou composite")
+            if composant.additif:
+                raise ValueError(f"{k.code} : composant {code!r} additif (un ratio est attendu)")
+        k.composants = [par_code[c] for c in k.produit_de]
+    return par_code
 
 
 @lru_cache

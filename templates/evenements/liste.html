@@ -1,13 +1,16 @@
 {% extends "base.html" %}
 {% block titre %}Événements — Stats KPI réseau{% endblock %}
 {% block contenu %}
+<div class="entete-page">
+  <h1>Événements</h1>
+  {% if perms.evenements.add_evenement %}<a class="bouton secondaire" href="{% url 'admin:evenements_evenement_add' %}">Nouvel événement</a>{% endif %}
+</div>
 <section class="carte">
-  <h2>Événements</h2>
-  <p class="aide">Création et modification dans l'administration (cellules, créneaux, semaines de référence).
-    {% if perms.evenements.add_evenement %}<a href="{% url 'admin:evenements_evenement_add' %}">Nouvel événement</a>{% endif %}</p>
+  <p class="aide">Chaque créneau est comparé aux mêmes jours et heures des semaines précédentes. Création et
+    modification dans l'administration (cellules, créneaux, semaines de référence).</p>
   {% if evenements %}
   <div class="table-defil"><table>
-    <thead><tr><th>Événement</th><th>Type</th><th>Premier créneau</th><th>Créneaux</th></tr></thead>
+    <thead><tr><th scope="col">Événement</th><th scope="col">Type</th><th scope="col">Premier créneau</th><th scope="col">Créneaux</th></tr></thead>
     <tbody>{% for e in evenements %}
       <tr><td><a href="{% url 'evenements:detail' e.pk %}">{{ e.nom }}</a></td><td>{{ e.type }}</td>
         <td>{{ e.debut|date:"d/m/Y H:i" }}</td><td class="nombre">{{ e.nb_creneaux }}</td></tr>
@@ -16,10 +19,9 @@
   {% else %}<p>Aucun événement daté.</p>{% endif %}
 </section>
 {% if sans_date %}
-<section class="carte">
-  <details><summary>{{ sans_date|length }} événement(s) sans créneau (à compléter dans l'administration)</summary>
-    <p class="aide">{% for e in sans_date %}{% if perms.evenements.change_evenement %}<a href="{% url 'admin:evenements_evenement_change' e.pk %}">{{ e.nom }}</a>{% else %}{{ e.nom }}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
-  </details>
-</section>
+<details class="repliable">
+  <summary>{{ sans_date|length }} événement(s) sans créneau (à compléter dans l'administration)</summary>
+  <div class="contenu"><p class="liste-cellules">{% for e in sans_date %}{% if perms.evenements.change_evenement %}<a href="{% url 'admin:evenements_evenement_change' e.pk %}">{{ e.nom }}</a>{% else %}{{ e.nom }}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</p></div>
+</details>
 {% endif %}
 {% endblock %}

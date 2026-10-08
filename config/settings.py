@@ -66,6 +66,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "apps.kpi.views.contexte_global",
             ],
         },
     },
@@ -102,6 +103,18 @@ KPI_DB = {
     "user": env("KPI_DB_USER"),
     "password": env("KPI_DB_PASSWORD"),
 }
+# Sans KPI_DB_HOST : base de démonstration SQLite (données synthétiques) si elle existe,
+# générée par « python manage.py charger_demo_kpi ».
+KPI_DEMO_SQLITE = Path(env("KPI_DEMO_SQLITE") or BASE_DIR / "data" / "kpi_demo.sqlite3")
+
+# Recherche en langage libre : interprétation par règles locales (config/recherche.yaml).
+# Option « Recherche IA » (Groq, API compatible OpenAI) visible seulement si la clé est définie.
+# Le modèle ne reçoit que le texte de la demande et ne produit que le JSON de requête.
+RECHERCHE_VOCABULAIRE_PATH = BASE_DIR / "config" / "recherche.yaml"
+GROQ_API_KEY = env("GROQ_API_KEY", "")
+GROQ_MODEL = env("GROQ_MODEL") or "llama-3.3-70b-versatile"
+GROQ_TIMEOUT = float(env("GROQ_TIMEOUT") or 10)
+GROQ_URL = env("GROQ_URL") or "https://api.groq.com/openai/v1/chat/completions"
 
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "kpi:requete"

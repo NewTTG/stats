@@ -36,6 +36,16 @@ Les hypothèses retenues en attendant sont indiquées.
 9. ✅ **Historique** : horaire ≈ 14 mois, journalier depuis 2020 ; chargement horaire (H-1)
    et journalier (J-1) d'après les bornes observées.
 10. **Fuseau** des horodatages (heure locale Nouméa supposée).
+10 bis. **Données de base** (cf. `docs/donnees_de_base.md`) — à confirmer :
+   - `RabDropCsMissRel_p` : coupure pour voisinage manquant (« missing neighbour relation ») ?
+     Libellé provisoire « voisinage manquant ».
+   - Causes de coupure voix 3G : elles n'expliquent qu'~54 % des coupures. Existe-t-il
+     d'autres colonnes ou compteurs (ex. `pmNoSysRelSpeech*`) pour le reste ?
+   - ✅ `SpeechTrafficDay_erlg` journalier = somme des Erlangs horaires (Erl·h) : la durée
+     moyenne d'appel qui en découle (≈ 2 min) est cohérente.
+   - SMS : seul `ReqSms` (3G) existe. Les SMS en 4G (SGs / IMS) sont-ils dans une autre
+     table (MSC, SMSC) ? Pas de compteur VoLTE : en 4G, la voix n'est visible qu'en CSFB.
+   - Seuils provisoires des nouveaux KPI (taux d'accès 98 / 95 %, drop data 3G 2 / 5 %).
 
 ## 🟢 Plus tard
 

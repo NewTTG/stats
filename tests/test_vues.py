@@ -26,7 +26,9 @@ def test_connexion_requise(client):
 
 def test_formulaire_vierge(client_admin):
     r = client_admin.get("/")
-    assert r.status_code == 200 and "Nouvelle requête" in r.content.decode()
+    html = r.content.decode()
+    assert r.status_code == 200 and 'name="q"' in html  # barre de recherche
+    assert "Recherche avancée" in html and 'name="perimetre_type"' in html  # formulaire structuré conservé
 
 
 def test_resultat_et_audit(client_admin, referentiel, base_kpi, monkeypatch):  # noqa: F811
@@ -46,10 +48,11 @@ def test_resultat_synthese_et_graphiques(client_admin, referentiel, base_kpi, mo
     assert "Rapport PowerPoint" in html and 'name="perimetre_valeurs" value="NOUMEA"' in html
 
 
-def test_base_kpi_non_configuree(client_admin, referentiel, settings):  # noqa: F811
+def test_base_kpi_non_configuree(client_admin, referentiel, settings, tmp_path):  # noqa: F811
     from apps.kpi.source import moteur_kpi
     moteur_kpi.cache_clear()
     settings.KPI_DB = {**settings.KPI_DB, "host": ""}
+    settings.KPI_DEMO_SQLITE = tmp_path / "absente.sqlite3"  # ni base KPI ni base de démonstration
     r = client_admin.get("/", PARAMS)
     assert "Base KPI non configurée" in r.content.decode()
     moteur_kpi.cache_clear()

@@ -119,13 +119,13 @@ def construire(resultat: Resultat) -> bytes:
             ws.auto_filter.ref = ws.dimensions
 
     ws = wb.create_sheet("Définitions")
-    _entete(ws, ["Code", "Libellé", "Unité", "Numérateur", "Dénominateur", "Facteur",
+    _entete(ws, ["Code", "Libellé", "Unité", "Formule", "Facteur",
                  "Seuil alerte", "Seuil critique", "Qualité", "Note"])
     for r in resultat.par_techno:
         for k in r.kpis:
-            _ajouter(ws, [k.code, k.libelle, k.unite, k.numerateur, k.denominateur or "", k.facteur,
+            _ajouter(ws, [k.code, k.libelle, k.unite, k.formule, k.facteur,
                        k.seuils.alerte, k.seuils.critique, k.qualite, k.note or ""])
-    _largeurs(ws, [22, 30, 10, 40, 40, 9, 12, 12, 12, 50])
+    _largeurs(ws, [22, 30, 10, 60, 9, 12, 12, 12, 50])
 
     flux = io.BytesIO()
     wb.save(flux)

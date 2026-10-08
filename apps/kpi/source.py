@@ -2,11 +2,16 @@
 
 Les noms de colonnes viennent du catalogue KPI versionné ; ils sont tout de même
 validés et cités. Les valeurs (cellules, dates) passent toujours en paramètres liés.
+
+Sans ``KPI_DB_HOST`` : base de démonstration SQLite (mêmes tables et colonnes, données
+synthétiques) générée par ``python manage.py charger_demo_kpi``.
 """
 
+import json
 import re
 from datetime import date, timedelta
 from functools import lru_cache
+from pathlib import Path
 
 import pandas as pd
 import sqlalchemy as sa
@@ -33,11 +38,43 @@ def _citer(nom: str) -> str:
     return f'"{nom}"'
 
 
+def chemin_demo() -> Path:
+    return Path(settings.KPI_DEMO_SQLITE)
+
+
+def est_demo() -> bool:
+    """Vrai si les KPI viennent de la base de démonstration (données synthétiques)."""
+    return not settings.KPI_DB["host"] and chemin_demo().exists()
+
+
+def infos_demo() -> dict:
+    """Paramètres de génération de la base de démonstration (période, incidents simulés)."""
+    if not est_demo():
+        return {}
+    try:
+        with moteur_kpi().connect() as conn:
+            infos = dict(conn.execute(sa.text("SELECT cle, valeur FROM demo_info")).all())
+        infos["incidents"] = json.loads(infos.get("incidents") or "[]")
+        return infos
+    except Exception:  # base générée par une version antérieure, ou en cours de remplacement
+        return {}
+
+
+def _moteur_demo(chemin: Path) -> sa.Engine:
+    # Lecture seule ; NullPool : une base régénérée (fichier remplacé) est relue sans redémarrer.
+    url = f"sqlite:///file:{chemin.as_posix()}?mode=ro&uri=true"
+    return sa.create_engine(url, poolclass=sa.pool.NullPool)
+
+
 @lru_cache
 def moteur_kpi() -> sa.Engine:
     cfg = settings.KPI_DB
     if not cfg["host"]:
-        raise BaseKpiNonConfiguree("Base KPI non configurée : renseigner KPI_DB_* dans .env")
+        if chemin_demo().exists():
+            return _moteur_demo(chemin_demo())
+        raise BaseKpiNonConfiguree(
+            "Base KPI non configurée : renseigner KPI_DB_* dans .env, ou générer des données de "
+            "démonstration avec « python manage.py charger_demo_kpi ».")
     url = sa.URL.create(
         "postgresql+psycopg",
         username=cfg["user"],
