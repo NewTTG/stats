@@ -370,4 +370,4 @@ def test_tableau_detaille_entite_dans_la_colonne_figee(client, base_recherche): 
     html = client.get("/", {"q": "drop 4G par site à Nouméa hier"}).content.decode()
     assert '<th scope="col">Période<span class="sur-mobile"> · entité</span></th>' in html
     assert '<th scope="col" class="hors-mobile">Entité</th>' in html
-    assert re.search(r'<td>[^<]+<span class="sur-mobile entite-ligne">[^<]+</span></td><td class="hors-mobile">', html)
+    assert re.search(r'<td>[^<]+<span class="sur-mobile entite-ligne">(?:[^<]|<wbr>)+</span></td><td class="hors-mobile">', html)

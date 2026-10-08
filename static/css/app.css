@@ -309,6 +309,8 @@ td.nombre { text-align: right; font-variant-numeric: tabular-nums; }
 td.alerte { background: var(--alerte-fond); color: var(--alerte); }
 td.critique { background: var(--critique-fond); color: var(--critique); font-weight: 600; }
 table.synthese { width: auto; min-width: 50%; }
+/* Liste de KPI d'une ligne (« Concerne ») : passe à la ligne, jamais réduite à une lettre. */
+td.concerne { white-space: normal; min-width: 14rem; }
 
 details.avance { margin-top: 2rem; background: #fff; border: 1px solid var(--bord); border-radius: var(--rayon); box-shadow: var(--ombre); }
 details.avance > summary { cursor: pointer; padding: 1rem 1.25rem; font-weight: 700; color: var(--marine); }
@@ -368,7 +370,20 @@ footer.pied-page { border-top: 1px solid var(--bord); color: var(--texte-3); fon
   .sur-mobile { display: inline; }
   .hors-mobile { display: none; }
   .entite-ligne { display: block; margin-top: .15rem; font-size: .78rem; font-weight: 600; color: var(--marine);
-    overflow-wrap: anywhere; }
+    overflow-wrap: break-word; }
+  /* Anomalies d'événement : une carte par anomalie (gravité, techno · entité · règle, détail). */
+  .table-defil:has(> table.anomalies) { border: 0; overflow: visible; }
+  table.anomalies, table.anomalies tbody { display: block; }
+  table.anomalies thead { display: none; }
+  table.anomalies tr { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .6rem; padding: .7rem .8rem;
+    margin-bottom: .6rem; border: 1px solid var(--bord); border-radius: var(--rayon-petit); background: #fff; }
+  .table-defil table.anomalies td, .table-defil table.anomalies td:first-child { display: block; position: static;
+    width: auto; max-width: none; padding: 0; border: 0; box-shadow: none; white-space: normal; background: none; }
+  table.anomalies td.techno, table.anomalies td.entite, table.anomalies td.regle { font-size: .82rem;
+    color: var(--texte-2); }
+  table.anomalies td.entite { font-weight: 700; color: var(--marine); overflow-wrap: break-word; }
+  table.anomalies td.regle::before { content: "· "; }
+  table.anomalies td.detail { flex-basis: 100%; font-size: .88rem; line-height: 1.4; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 @media print {

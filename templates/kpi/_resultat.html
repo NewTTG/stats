@@ -1,4 +1,4 @@
-{% load l10n %}
+{% load l10n kpi_extras %}
 <div class="barre-actions">
   <p class="resume">
     Du {{ requete.periode.debut|date:"d/m/Y" }} au {{ requete.periode.fin|date:"d/m/Y" }}
@@ -89,7 +89,7 @@
         <tbody>
           {% for l in cl.lignes %}
           <tr><td class="rang">{{ forloop.counter }}</td>
-            <td class="entite">{{ l.entite }}<div class="jauge" aria-hidden="true"><span class="{{ l.statut }}" style="width: {{ l.largeur|unlocalize }}%"></span></div></td>
+            <td class="entite">{{ l.entite|coupure }}<div class="jauge" aria-hidden="true"><span class="{{ l.statut }}" style="width: {{ l.largeur|unlocalize }}%"></span></div></td>
             <td class="val">{{ l.texte }}{% if l.statut %} <span class="statut {{ l.statut }}">{{ l.statut|capfirst }}</span>{% endif %}</td></tr>
           {% endfor %}
         </tbody>
@@ -119,7 +119,7 @@
           </tr></thead>
           <tbody>
             {% for l in bloc.lignes %}
-            <tr><td>{{ l.periode }}<span class="sur-mobile entite-ligne">{{ l.entite }}</span></td><td class="hors-mobile">{{ l.entite }}</td>
+            <tr><td>{{ l.periode }}<span class="sur-mobile entite-ligne">{{ l.entite|coupure }}</span></td><td class="hors-mobile">{{ l.entite|coupure }}</td>
               {% for v in l.valeurs %}<td class="nombre {{ v.statut }}">{% if v.valeur is None %}—{% else %}{{ v.valeur|floatformat:"2g" }}{% endif %}</td>{% endfor %}
             </tr>
             {% endfor %}

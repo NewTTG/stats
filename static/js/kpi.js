@@ -19,6 +19,15 @@
     return (Math.round(v * 1e6) / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 6 });
   }
 
+  /* Seuils dont la ligne tombe dans l'axe Y affiché (les autres ne sont ni tracés ni légendés). */
+  function seuilsVisibles(seuils, bornes) {
+    var visible = function (s) {
+      return s !== null && s !== undefined && bornes.min !== undefined && s >= bornes.min && s <= bornes.max;
+    };
+    return { alerte: visible(seuils.alerte) ? seuils.alerte : null,
+             critique: visible(seuils.critique) ? seuils.critique : null };
+  }
+
   /* Légende des seuils dans le sous-titre : jamais superposée aux courbes. */
   function sousTitreSeuils(seuils) {
     var morceaux = [];
@@ -82,10 +91,12 @@
       return div;
     });
     donnees.kpis.forEach(function (g, n) {
+      var bornes = bornesAxe(g);
+      var visibles = seuilsVisibles(g.seuils, bornes);
       var seuils = [];
-      if (g.seuils.alerte !== null) seuils.push({ yAxis: g.seuils.alerte, name: "alerte", lineStyle: { color: AMBRE, type: "dashed", width: 1.5 } });
-      if (g.seuils.critique !== null) seuils.push({ yAxis: g.seuils.critique, name: "critique", lineStyle: { color: ROUGE, type: "dashed", width: 1.5 } });
-      var legende = sousTitreSeuils(g.seuils);
+      if (visibles.alerte !== null) seuils.push({ yAxis: visibles.alerte, name: "alerte", lineStyle: { color: AMBRE, type: "dashed", width: 1.5 } });
+      if (visibles.critique !== null) seuils.push({ yAxis: visibles.critique, name: "critique", lineStyle: { color: ROUGE, type: "dashed", width: 1.5 } });
+      var legende = sousTitreSeuils(visibles);
       var plusieurs = g.series.length > 1;
       var series = g.series.map(function (s, i) {
         var serie = { name: s.nom, type: "line", data: s.valeurs, connectNulls: false, smooth: false,
@@ -106,7 +117,7 @@
         grid: { left: 8, right: 16, top: legende ? 60 : 40, bottom: plusieurs ? 40 : 12, containLabel: true },
         xAxis: { type: "category", data: donnees.periodes, boundaryGap: false, axisLabel: { color: "#5f6878", fontSize: 11 },
                  axisLine: { lineStyle: { color: "#c3ccda" } } },
-        yAxis: axeY(bornesAxe(g)),
+        yAxis: axeY(bornes),
         series: series
       });
     });

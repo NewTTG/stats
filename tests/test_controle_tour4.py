@@ -269,3 +269,38 @@ def test_lecteur_exemples_de_son_perimetre(base_recherche, client):  # noqa: F81
     exemples = client.get("/suggestions/", {"q": ""}).json()["exemples"]
     assert exemples and not any("Nouméa" in e or "Lifou" in e or "Dumbéa" in e for e in exemples)
     assert any("Païta" in e for e in exemples)
+
+
+# ------------------------------------------------------------------ mineurs : 375 px
+
+def test_filtre_coupure_aux_soulignes():
+    from apps.kpi.templatetags.kpi_extras import coupure
+
+    assert coupure("GREEN_ACRE_BT") == "GREEN_<wbr>ACRE_<wbr>BT"
+    assert coupure("<b>_x") == "&lt;b&gt;_<wbr>x"  # échappé avant d'insérer <wbr>
+
+
+def test_css_anomalies_en_cartes_et_seuils_visibles(settings):
+    css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text(encoding="utf-8")
+    mobile = re.search(r"@media \(max-width: 600px\) \{(.*?)\n\}", css, re.S)[1]
+    assert "table.anomalies thead { display: none; }" in mobile and "table.anomalies tr { display: flex;" in mobile
+    assert "td.concerne { white-space: normal; min-width: 14rem; }" in css
+    js = (settings.BASE_DIR / "static" / "js" / "kpi.js").read_text(encoding="utf-8")
+    assert "function seuilsVisibles(seuils, bornes)" in js and "sousTitreSeuils(visibles)" in js
+
+
+def test_gabarits_noms_coupables_et_anomalies_etiquetees(settings):
+    detail = (settings.BASE_DIR / "templates" / "evenements" / "detail.html").read_text(encoding="utf-8")
+    assert '<table class="anomalies">' in detail and "{{ a.entite|coupure }}" in detail
+    assert 'data-etiquette="Règle"' in detail and '<td class="concerne">' in detail
+    resultat = (settings.BASE_DIR / "templates" / "kpi" / "_resultat.html").read_text(encoding="utf-8")
+    assert resultat.count("l.entite|coupure") == 3
+
+
+def test_vue_tableau_detaille_wbr(base_recherche, client):  # noqa: F811
+    from apps.referentiel.models import Site
+
+    Site.objects.filter(code_site="NOU002").update(nom="BAIE_DES_CITRONS")
+    client.force_login(User.objects.create_superuser("admin_wbr"))
+    html = client.get("/", {"q": "drop 4G par site à Nouméa la semaine dernière"}).content.decode()
+    assert "BAIE_<wbr>DES_<wbr>CITRONS" in html
