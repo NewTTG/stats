@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from apps.evenements.analyse import AnalyseImpossible, analyser
 from apps.evenements.models import Evenement
+from apps.kpi.export_excel import construire as construire_excel
 from apps.kpi.requete import RequeteKpi
 from apps.kpi.service import RequeteRefusee, executer
 from apps.kpi.source import BaseKpiNonConfiguree, moteur_kpi
@@ -28,7 +29,8 @@ def _nom_fichier(rapport: Rapport) -> str:
 def contenu(rapport: Rapport) -> bytes:
     p, user = rapport.parametres, rapport.utilisateur
     if rapport.nature == "requete":
-        return pptx_requete(executer(RequeteKpi(**p["requete"]), user, moteur_kpi()))
+        resultat = executer(RequeteKpi(**p["requete"]), user, moteur_kpi())
+        return pptx_requete(resultat) if rapport.format == "pptx" else construire_excel(resultat)
     evenement = Evenement.objects.get(pk=p["evenement"])
     analyse = analyser(evenement, user, moteur_kpi(), niveau=p.get("niveau", "secteur"))
     return (pptx_evenement if rapport.format == "pptx" else xlsx_evenement)(analyse)

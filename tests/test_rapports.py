@@ -96,7 +96,7 @@ def worker(monkeypatch, base_horaire, settings, tmp_path):  # noqa: F811
 
     settings.MEDIA_ROOT = tmp_path
     monkeypatch.setattr("apps.rapports.taches.moteur_kpi", lambda: base_horaire)
-    monkeypatch.setattr("apps.rapports.views.async_task", lambda _nom, pk, **kw: taches.generer(pk))
+    monkeypatch.setattr("apps.rapports.lancement.async_task", lambda _nom, pk, **kw: taches.generer(pk))
     monkeypatch.setattr("apps.evenements.views.moteur_kpi", lambda: base_horaire)
 
 

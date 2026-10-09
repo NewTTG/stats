@@ -4,6 +4,26 @@
 {% block contenu %}
 <div class="entete-page"><h1>Mes rapports</h1></div>
 <section class="carte">
+  <h2>Rapports enregistrés</h2>
+  {% if planifies %}
+  <div class="table-defil"><table>
+    <thead><tr><th scope="col">Rapport</th><th scope="col">Période</th><th scope="col">Format</th><th scope="col">Lancement</th><th scope="col">Prochain</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for p in planifies %}
+      <tr><td style="white-space: normal;">{{ p.titre }}</td><td>{{ p.get_periode_display }}</td><td>{{ p.get_format_display }}</td>
+        <td>{{ p.description_frequence }}{% if p.planifie and not p.actif %} <span class="etiquette alerte">Suspendu</span>{% endif %}</td>
+        <td>{% if p.prochain_lancement %}{{ p.prochain_lancement|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
+        <td><div class="actions" style="margin: 0; flex-wrap: nowrap;">
+          <form method="post" action="{% url 'rapports:planifie_lancer' p.pk %}">{% csrf_token %}<button class="bouton petit" type="submit" style="margin-top:0">Lancer</button></form>
+          {% if p.planifie %}<form method="post" action="{% url 'rapports:planifie_basculer' p.pk %}">{% csrf_token %}<button class="bouton secondaire petit" type="submit" style="margin-top:0">{% if p.actif %}Suspendre{% else %}Réactiver{% endif %}</button></form>{% endif %}
+          <form method="post" action="{% url 'rapports:planifie_supprimer' p.pk %}" onsubmit="return confirm('Supprimer ce rapport enregistré ?');">{% csrf_token %}<button class="bouton secondaire petit" type="submit" style="margin-top:0">Supprimer</button></form>
+        </div></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p>Aucun rapport enregistré. Depuis un résultat de recherche, « Enregistrer / planifier » le garde pour le relancer
+    (ou le recevoir chaque jour, chaque semaine, le 1er du mois).</p>{% endif %}
+</section>
+<section class="carte">
+  <h2>Rapports générés</h2>
   {% if rapports %}
   <div class="table-defil"><table>
     <thead><tr><th scope="col">Demandé le</th><th scope="col">Rapport</th><th scope="col">Format</th><th scope="col">État</th><th scope="col"><span class="sr-only">Téléchargement</span></th></tr></thead>

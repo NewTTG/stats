@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block titre %}Enregistrer un rapport — Stats KPI réseau{% endblock %}
+{% block contenu %}
+<div class="entete-page"><h1>Enregistrer un rapport</h1></div>
+<section class="carte">
+  <p class="aide">Requête : {{ requete.techno|join:" / " }} · {{ requete.perimetre.valeurs|join:", "|default:"tout le réseau autorisé" }}
+    · {{ requete.kpis|length }} KPI · par {{ requete.granularite_temps }}{% if requete.granularite_espace != "global" %}, par {{ requete.granularite_espace }}{% endif %}.
+    La période est recalculée à chaque lancement.</p>
+  <form method="post" action="{% url 'rapports:enregistrer' %}">{% csrf_token %}
+    {% for cle, valeurs in requete_params %}{% for v in valeurs %}<input type="hidden" name="{{ cle }}" value="{{ v }}">{% endfor %}{% endfor %}
+    {% if form.non_field_errors %}<div class="erreur">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="grille">
+      {% for champ in form %}
+      <div>{{ champ.label_tag }}{{ champ }}{% if champ.help_text %}<div class="aide">{{ champ.help_text }}</div>{% endif %}{{ champ.errors }}</div>
+      {% endfor %}
+    </div>
+    <p class="aide" style="margin-top: 1rem;">Les rapports planifiés sont générés par le worker (<code>qcluster</code>)
+      avec vos droits d'accès, et apparaissent dans « Mes rapports ».</p>
+    <p style="margin-top: 1rem;"><button class="bouton" type="submit">Enregistrer</button>
+      <a class="bouton secondaire" href="{% url 'rapports:liste' %}">Annuler</a></p>
+  </form>
+</section>
+{% endblock %}

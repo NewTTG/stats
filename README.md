@@ -4,10 +4,11 @@ Application web interne de statistiques de trafic et de qualité radio, avec pé
 de données par utilisateur et exports Excel / PowerPoint. Cahier des charges :
 [`brief_app_kpi_reseau.md`](brief_app_kpi_reseau.md).
 
-**État : phase 2 + recherche en langage libre** — phase 1 (référentiel, catalogue KPI,
-moteur de calcul, périmètres d'accès, export Excel) + événements avec détection
-d'anomalies, rapports PowerPoint / Excel en tâche de fond, KPI WCDMA, seuils réglables
-dans l'admin ; barre de recherche en langage libre (règles locales, IA facultative) et
+**État : phase 2 + recherche en langage libre + rapports enregistrés et planifiés** — phase 1
+(référentiel, catalogue KPI, moteur de calcul, périmètres d'accès, export Excel) + événements
+avec détection d'anomalies, rapports PowerPoint / Excel en tâche de fond, KPI WCDMA, seuils
+réglables dans l'admin ; barre de recherche en langage libre (règles locales, IA facultative) ;
+rapports enregistrés, relancés à la demande ou planifiés (phase 3, sans SSO ni SharePoint) ;
 base de démonstration synthétique utilisable sans accès à la base KPI.
 Données décrites dans [`docs/schema.md`](docs/schema.md), questions ouvertes dans
 [`docs/questions.md`](docs/questions.md).
@@ -49,11 +50,13 @@ python manage.py charger_demo_kpi --jours 30
 
 # 6. Lancement : application + worker des rapports (deux terminaux)
 python manage.py runserver             # http://localhost:8000
-python manage.py qcluster              # génère les rapports PowerPoint / Excel
+python manage.py qcluster              # génère les rapports, lance les rapports planifiés
 ```
 
 Sans worker, mettre `Q_SYNC=1` dans `.env` : les rapports sont alors générés
-immédiatement, pendant la requête.
+immédiatement, pendant la requête. Les rapports **planifiés** ont besoin du worker (il les
+lance toutes les 15 minutes) ; à défaut, appeler `python manage.py lancer_rapports_planifies`
+depuis une tâche planifiée (cron, Planificateur de tâches Windows) toutes les 15 minutes.
 
 **Linux / macOS (bash)** : mêmes commandes, avec `source .venv/bin/activate` et
 `cp .env.example .env`.
@@ -106,7 +109,13 @@ sont conservés dans le volume `media`.
     cellule sans données sur un créneau, saturation (PRB DL haute + débit DL bas) ;
   - classement des secteurs (ou sites) les plus dégradés ;
   - rapports PowerPoint et Excel, par secteur ou par site.
-- **Mes rapports** (/rapports) : historique et téléchargement des rapports générés.
+- **Rapports enregistrés** : depuis un résultat, « Enregistrer / planifier » garde la requête
+  (lieu, KPI, granularités) avec une **période relative** (hier, 7 / 30 derniers jours, semaine
+  dernière, mois dernier, ce mois-ci), recalculée à chaque lancement. Lancement à la demande
+  ou automatique : chaque jour, chaque semaine (jour au choix) ou le 1er du mois, à l'heure
+  choisie (heure de Nouméa), en PowerPoint ou Excel, avec les droits de l'auteur.
+- **Mes rapports** (/rapports) : rapports enregistrés (lancer, suspendre, supprimer),
+  historique et téléchargement des rapports générés.
 - **Administration** (/admin) : sites / secteurs / cellules, historique des imports,
   utilisateurs, groupes, périmètres, journal d'audit, **événements** (cellules,
   créneaux, semaines de référence), **seuils KPI**, **réglages de détection d'anomalies**.
