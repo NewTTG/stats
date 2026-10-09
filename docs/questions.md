@@ -30,10 +30,12 @@ Les hypothèses retenues en attendant sont indiquées.
      cellules ; site rattaché par le trigramme dans `Site_File` (`Cell_File` non utilisé).
    - ✅ Passage de 3 à 4 secteurs (DTS009, MDO355) : D/E/F = secteurs 1-3 avant, D = secteur 4
      ensuite, E et F sans statistiques. Date : `manage.py detecter_bascules` (1re apparition
-     de e4 / M dans la base KPI) ou admin → Sites.
-   - Sites détectés à 4 secteurs (`nbSect` = 4, cellule M, ou e1 à e4 sur une porteuse LTE) :
-     BAU472, DTS009, LEB353, MDO355, NES466, PRB220, ROC735, SLR682, TSI667. Liste à valider
-     (BAU472 et NES466 sont déclarés à 3 secteurs dans `Site_File`).
+     de e4 / M dans la base KPI) ou admin → Sites. Sans cellule M (MDO355), la date de
+     la 4G (1re apparition de e4) vaut aussi pour la 3G — confirmé.
+   - ✅ Sites à 4 secteurs (`nbSect` = 4, cellule M, ou e1 à e4 sur une porteuse LTE) :
+     BAU472, DTS009, LEB353, MDO355, NES466, PRB220, ROC735, SLR682, TSI667 — confirmé,
+     y compris BAU472 et NES466, déclarés à 3 secteurs dans `Site_File`.
+   - ✅ IPOe4 = secteur 1 d'IPO209 (e4 = e1 sur un site à 3 secteurs).
 5. ✅ **Trigrammes partagés** (3VL, CHT, NKA) : le premier site du fichier fait foi (provisoire).
 5 bis. **Trous du référentiel** : 0,3 % des cellules 4G (trigrammes EXP, OHP) et 1,7 % des
    cellules 3G (EXP099, MB2997, MB3998, MBN999, MCO060, OHP527) n'ont pas de site dans
