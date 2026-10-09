@@ -275,6 +275,16 @@ les pages. Dès que `KPI_DB_HOST` est renseigné, la base PostgreSQL est utilis�
 
 ## Droits d'accès
 
+**Sans compte (par défaut, `ACCES_ANONYME=1`)** : pas d'écran de connexion. Chaque navigateur
+reçoit à sa première visite une session « visiteur », gardée un an après la dernière visite
+dans un cookie : ses **dernières recherches** (relancer en un clic, ou « Modifier » pour la
+reprendre dans la barre et changer communes / dates) et ses rapports lui restent propres.
+Effacer les cookies ou changer de navigateur repart d'une session vierge. Les visiteurs voient
+tout le réseau (groupe Analyste). L'administration reste réservée aux comptes avec mot de
+passe (`/connexion`, puis `/admin`). Ménage des sessions abandonnées :
+`python manage.py purger_visiteurs` (inactives depuis plus de 400 jours). `ACCES_ANONYME=0`
+rétablit la connexion obligatoire, avec les règles ci-dessous.
+
 - superutilisateur ou membre du groupe **Admin** ou **Analyste** : tout le réseau, tous les KPI ;
 - autre utilisateur : uniquement les cellules et KPI de ses **Périmètres** (admin →
   Périmètres), rattachés à lui ou à l'un de ses groupes. Sans périmètre : aucune donnée.

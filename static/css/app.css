@@ -146,7 +146,11 @@ input:hover, select:hover { border-color: var(--marine-600); }
 .grille-accueil { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 1.25rem;
   margin-top: 2.5rem; }
 .liste-recente { list-style: none; margin: 0; padding: 0; }
+.liste-recente li { display: flex; align-items: center; gap: .25rem; }
+.liste-recente li > a:first-child { flex: 1; min-width: 0; }
 .liste-recente li + li { border-top: 1px solid var(--bord); }
+.liste-recente a.modifier { flex: none; font-size: .85rem; color: var(--texte-3); padding: .6rem .5rem; }
+.liste-recente a.modifier:hover, .liste-recente a.modifier:focus-visible { color: var(--marine-600); text-decoration: underline; }
 .liste-recente a { display: flex; justify-content: space-between; gap: 1rem; padding: .6rem .25rem; text-decoration: none;
   color: var(--texte); }
 .liste-recente a:hover { background: var(--marine-50); }

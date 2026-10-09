@@ -50,6 +50,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.comptes.visiteurs.VisiteurAnonymeMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -67,6 +68,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "apps.kpi.views.contexte_global",
+                "apps.comptes.visiteurs.contexte_visiteur",
             ],
         },
     },
@@ -116,9 +118,14 @@ GROQ_MODEL = env("GROQ_MODEL") or "llama-3.3-70b-versatile"
 GROQ_TIMEOUT = float(env("GROQ_TIMEOUT") or 10)
 GROQ_URL = env("GROQ_URL") or "https://api.groq.com/openai/v1/chat/completions"
 
-LOGIN_URL = "login"
+# Accès sans compte (défaut) : chaque navigateur a sa session « visiteur », gardée un an
+# dans un cookie (historique de recherches, rapports). ACCES_ANONYME=0 : connexion obligatoire.
+ACCES_ANONYME = env("ACCES_ANONYME", "1") == "1"
+SESSION_COOKIE_AGE = 365 * 24 * 3600
+
+LOGIN_URL = "kpi:requete" if ACCES_ANONYME else "login"
 LOGIN_REDIRECT_URL = "kpi:requete"
-LOGOUT_REDIRECT_URL = "login"
+LOGOUT_REDIRECT_URL = "kpi:requete" if ACCES_ANONYME else "login"
 
 KPI_CATALOGUE_PATH = BASE_DIR / "config" / "kpi_catalogue.yaml"
 
