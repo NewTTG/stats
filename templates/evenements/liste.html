@@ -1,27 +1,37 @@
 {% extends "base.html" %}
-{% block titre %}Événements — Stats KPI réseau{% endblock %}
+{% block titre %}Événements — Stats réseau{% endblock %}
 {% block contenu %}
 <div class="entete-page">
-  <h1>Événements</h1>
-  {% if perms.evenements.add_evenement %}<a class="bouton secondaire" href="{% url 'admin:evenements_evenement_add' %}">Nouvel événement</a>{% endif %}
+  <div>
+    <h1>Événements</h1>
+    <p class="sous-titre">Foires, concerts, manifestations : trafic et qualité pendant l'événement, comparés aux mêmes
+      jours et heures des semaines précédentes.</p>
+  </div>
+  {% if perms.evenements.add_evenement %}
+  <div class="boutons">
+    <a class="bouton secondaire" href="{% url 'admin:evenements_evenement_changelist' %}">Gérer les événements</a>
+    <a class="bouton" href="{% url 'admin:evenements_evenement_add' %}">Nouvel événement</a>
+  </div>
+  {% endif %}
 </div>
 <section class="carte">
-  <p class="aide">Chaque créneau est comparé aux mêmes jours et heures des semaines précédentes. Création et
-    modification dans l'administration (cellules, créneaux, semaines de référence).</p>
   {% if evenements %}
-  <div class="table-defil"><table>
+  <div class="table-defil"><table class="liste-evenements">
     <thead><tr><th scope="col">Événement</th><th scope="col">Type</th><th scope="col">Premier créneau</th><th scope="col">Créneaux</th></tr></thead>
     <tbody>{% for e in evenements %}
-      <tr><td><a href="{% url 'evenements:detail' e.pk %}">{{ e.nom }}</a></td><td>{{ e.type }}</td>
+      <tr><td><a href="{% url 'evenements:detail' e.pk %}">{{ e.nom }}</a></td><td>{{ e.type|default:"—" }}</td>
         <td>{{ e.debut|date:"d/m/Y H:i" }}</td><td class="nombre">{{ e.nb_creneaux }}</td></tr>
     {% endfor %}</tbody>
   </table></div>
-  {% else %}<p>Aucun événement daté.</p>{% endif %}
+  {% else %}
+  <p class="vide">Aucun événement daté pour le moment.{% if not perms.evenements.add_evenement %} Les événements sont
+    créés par l'administrateur de l'application.{% endif %}</p>
+  {% endif %}
 </section>
-{% if sans_date %}
+{% if sans_date and perms.evenements.change_evenement %}
 <details class="repliable">
-  <summary>{{ sans_date|length }} événement(s) sans créneau (à compléter dans l'administration)</summary>
-  <div class="contenu"><p class="liste-cellules">{% for e in sans_date %}{% if perms.evenements.change_evenement %}<a href="{% url 'admin:evenements_evenement_change' e.pk %}">{{ e.nom }}</a>{% else %}{{ e.nom }}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</p></div>
+  <summary>{{ sans_date|length }} événement{{ sans_date|length|pluralize }} sans créneau, à compléter dans l'administration</summary>
+  <div class="contenu"><p class="liste-cellules">{% for e in sans_date %}<a href="{% url 'admin:evenements_evenement_change' e.pk %}">{{ e.nom }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p></div>
 </details>
 {% endif %}
 {% endblock %}

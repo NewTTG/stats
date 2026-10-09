@@ -53,6 +53,7 @@ class Creneau(models.Model):
     class Meta:
         ordering = ["debut"]
         verbose_name = "créneau"
+        verbose_name_plural = "créneaux"
 
     def __str__(self):
         return f"{self.debut:%d/%m/%Y %H:%M} → {self.fin:%d/%m/%Y %H:%M}"

@@ -1,6 +1,6 @@
 {% load l10n %}
-<section class="compris" aria-label="Ce qui a été compris (cliquer pour modifier)">
-  <span class="compris-titre">Compris</span>
+<section class="compris" aria-label="Votre demande (cliquer sur un élément pour le modifier)">
+  <span class="compris-titre">Votre demande</span>
   {% for p in puces %}
   <details class="puce{% if p.puce.defaut %} defaut{% endif %}">
     <summary{% if p.puce.titre %} title="{{ p.puce.titre }}"{% endif %}>
@@ -8,6 +8,15 @@
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
     </summary>
     <div class="panneau{% if p.puce.champ == 'kpis' %} large{% endif %}">
+      {% if p.puce.champ == "kpis" and edition.rapports %}
+      <form class="rapports-panneau" method="get" action="{% url 'kpi:requete' %}">
+        {% for cle, valeur in p.caches %}<input type="hidden" name="{{ cle }}" value="{{ valeur }}">{% endfor %}
+        <h3>Rapports types</h3>
+        <div class="presets">
+          {% for code, titre in edition.rapports %}<button class="bouton secondaire petit{% if code in edition.intentions %} actif{% endif %}" type="submit" name="intention" value="{{ code }}">{{ titre }}</button>{% endfor %}
+        </div>
+      </form>
+      {% endif %}
       <form method="get" action="{% url 'kpi:requete' %}">
         {% for cle, valeur in p.caches %}<input type="hidden" name="{{ cle }}" value="{{ valeur }}">{% endfor %}
         {% if p.puce.champ == "techno" %}
@@ -18,7 +27,7 @@
             {% endfor %}
           </div>
         {% elif p.puce.champ == "kpis" %}
-          <h3>Indicateurs</h3>
+          <h3>Ou indicateurs au choix</h3>
           <div class="liste-kpi">
             {% for g in edition.kpis %}
             <fieldset><legend>{{ g.nom }}</legend>
@@ -51,12 +60,12 @@
             <div><label for="pf-{{ forloop.counter }}">Au</label><input id="pf-{{ forloop.counter }}" type="date" name="fin" value="{{ edition.fin|date:'Y-m-d' }}"></div>
           </div>
         {% elif p.puce.champ == "granularite_temps" %}
-          <h3>Pas de temps</h3>
+          <h3>Détail temporel</h3>
           <div class="choix-puces">
             {% for code, libelle in edition.gran_temps %}<label><input type="radio" name="granularite_temps" value="{{ code }}"{% if code == interp.params.granularite_temps %} checked{% endif %}> {{ libelle }}</label>{% endfor %}
           </div>
         {% elif p.puce.champ == "granularite_espace" %}
-          <h3>Niveau d'agrégation</h3>
+          <h3>Regroupement</h3>
           <div class="choix-puces">
             {% for code, libelle in edition.gran_espace %}<label><input type="radio" name="granularite_espace" value="{{ code }}"{% if code == interp.params.granularite_espace %} checked{% endif %}> {{ libelle }}</label>{% endfor %}
           </div>
@@ -71,7 +80,7 @@
     </div>
   </details>
   {% endfor %}
-  <span class="source{% if interp.source == 'ia' %} ia{% endif %}" title="Méthode d'interprétation">{% if interp.source == "ia" %}✨ Interprété par l'IA{% else %}Règles locales{% endif %}</span>
+  {% if interp.source == "ia" %}<span class="source ia" title="Méthode d'interprétation">✨ Interprété par l'IA</span>{% endif %}
 </section>
 <datalist id="lieux-suggestions">
   {% for s in edition.suggestions %}<option value="{{ s.valeur }}">{{ s.libelle }}</option>{% endfor %}

@@ -27,3 +27,6 @@ class CelluleAdmin(admin.ModelAdmin):
 class ImportReferentielAdmin(admin.ModelAdmin):
     list_display = ["date", "fichier", "auteur", "nb_sites", "nb_secteurs"]
     readonly_fields = [f.name for f in ImportReferentiel._meta.fields] + ["ajouts", "suppressions", "anomalies"]
+
+    def has_add_permission(self, request):
+        return False  # historique tenu par « manage.py import_referentiel » (rappel sur le tableau de bord)

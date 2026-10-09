@@ -145,7 +145,84 @@
     });
   }
 
+  /* Accueil : rapport type + lieu + période. Sans JavaScript, le formulaire fonctionne tel quel ;
+     ici : dates précises affichées à la demande, « Sur mesure » ouvert quand on le choisit,
+     lieux (sites) suggérés au fil de la saisie, et URL sans paramètres vides. */
+  function constructeur(form) {
+    var dates = form.querySelector("#dates-precises");
+    var surMesure = form.querySelector("#sur-mesure");
+    var radioSurMesure = form.querySelector('input[name="intention"][value=""]');
+    var kpis = form.querySelectorAll('input[name="kpis"]');
+
+    function majDates() {
+      var choisie = form.querySelector('input[name="periode"]:checked');
+      var precises = choisie && choisie.value === "dates";
+      dates.hidden = !precises;
+      dates.querySelectorAll("input").forEach(function (i) { i.disabled = !precises; i.required = precises; });
+    }
+    form.querySelectorAll('input[name="periode"]').forEach(function (r) { r.addEventListener("change", majDates); });
+    majDates();
+
+    form.querySelectorAll('input[name="intention"]').forEach(function (r) {
+      r.addEventListener("change", function () { if (r.value === "" && r.checked) surMesure.open = true; });
+    });
+    kpis.forEach(function (c) {
+      c.addEventListener("change", function () { if (c.checked) radioSurMesure.checked = true; });
+    });
+
+    form.addEventListener("submit", function (e) {
+      var intention = form.querySelector('input[name="intention"]:checked');
+      var surMesureChoisi = !intention || intention.value === "";
+      if (surMesureChoisi && !Array.prototype.some.call(kpis, function (c) { return c.checked; })) {
+        e.preventDefault();
+        surMesure.open = true;
+        surMesure.scrollIntoView({ block: "center", behavior: "smooth" });
+        if (kpis.length) kpis[0].focus({ preventScroll: true });
+        return;
+      }
+      // Rapport type choisi : les cases « sur mesure » ne sont pas transmises.
+      if (!surMesureChoisi) kpis.forEach(function (c) { c.disabled = true; });
+      if (surMesureChoisi && intention) intention.disabled = true;
+      var periode = form.querySelector('input[name="periode"]:checked');
+      if (periode && periode.value === "dates") periode.disabled = true;
+      form.querySelectorAll("select").forEach(function (s) { if (!s.value) s.disabled = true; });
+      // Retour arrière du navigateur : formulaire de nouveau utilisable.
+      setTimeout(function () {
+        form.querySelectorAll("input, select").forEach(function (x) { x.disabled = false; });
+        majDates();
+      }, 0);
+    });
+
+    // Sites proposés au fil de la saisie (communes, régions et événements sont déjà dans la liste).
+    var champ = form.querySelector("#lieu"), liste = document.getElementById("lieux-accueil");
+    if (!champ || !liste || !window.fetch) return;
+    var base = liste.innerHTML, attente, derniere = "";
+    champ.addEventListener("input", function () {
+      clearTimeout(attente);
+      var texte = champ.value.split(/,| et /).pop().trim();
+      if (texte.length < 2 || texte === derniere) return;
+      attente = setTimeout(function () {
+        derniere = texte;
+        fetch(form.dataset.suggestions + "?q=" + encodeURIComponent(texte), { headers: { "Accept": "application/json" } })
+          .then(function (r) { return r.ok ? r.json() : { lieux: [] }; })
+          .then(function (d) {
+            var options = d.lieux.filter(function (l) { return l.type === "site"; }).map(function (l) {
+              var o = document.createElement("option");
+              o.value = l.valeur;
+              o.textContent = l.libelle;
+              return o.outerHTML;
+            });
+            liste.innerHTML = base + options.join("");
+          })
+          .catch(function () {});
+      }, 200);
+    });
+  }
+
   function demarrer() {
+    document.documentElement.classList.add("js");
+    var form = document.getElementById("constructeur");
+    if (form) constructeur(form);
     if (window.echarts) {
       document.querySelectorAll(".graphiques[data-source]").forEach(courbes);
       document.querySelectorAll(".graphique-causes[data-source]").forEach(causes);

@@ -87,21 +87,3 @@ def champs_depuis_requete(req) -> dict:
         "kpis": list(req.kpis),
     }
 
-
-def champs_depuis_params(params: dict) -> dict:
-    """Pré-remplissage du formulaire avancé à partir d'une interprétation (même incomplète)."""
-    initial = {}
-    if params.get("techno"):
-        initial["techno"] = list(params["techno"])
-    if params.get("kpis"):
-        initial["kpis"] = list(params["kpis"])
-    if params.get("perimetre"):
-        initial["perimetre_type"] = params["perimetre"]["type"]
-        initial["perimetre_valeurs"] = ", ".join(params["perimetre"]["valeurs"])
-    if params.get("periode"):
-        initial["debut"] = params["periode"]["debut"]
-        initial["fin"] = params["periode"]["fin"]
-    for cle in ("granularite_temps", "granularite_espace", "fenetre_horaire"):
-        if params.get(cle):
-            initial[cle] = params[cle]
-    return initial

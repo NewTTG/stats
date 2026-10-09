@@ -249,9 +249,9 @@ def test_parametres_explicites_priment(ctx, rf):
 def test_option_kpi_par_famille(ctx, rf):
     i = interpreter("Nouméa hier", J, ctx)
     q = next(q for q in i.questions if q.champ == "kpis")
-    assert [o.libelle for o in q.options] == ["Drop", "Taux d'accès", "Débit", "Trafic data", "Appels", "SMS",
-                                              "Disponibilité", "Congestion"]
-    i = avec_parametres(i, rf.get("/", q.options[0].params).GET, ctx, J)
+    assert [o.libelle for o in q.options] == ["Bilan complet", "Drop", "Taux d'accès", "Débit", "Trafic data", "Appels",
+                                              "SMS", "Disponibilité", "Congestion", "Utilisateurs connectés"]
+    i = avec_parametres(i, rf.get("/", q.options[1].params).GET, ctx, J)
     assert i.complete and i.params["kpis"] == ["lte_erab_drop", "wcdma_cs_drop", "wcdma_ps_drop"]
 
 

@@ -2,6 +2,8 @@
 
 Chaque KPI est ramené à un couple (numérateur, dénominateur) par ligne source ;
 on somme sur le temps et l'espace, puis on divise. Jamais de moyenne de ratios.
+KPI « pic » (``agregation: pic``) : somme des cellules à chaque horodatage, puis
+maximum sur le temps.
 """
 
 import numpy as np
@@ -58,19 +60,41 @@ def composantes(df: pd.DataFrame, kpis: list[DefinitionKpi]) -> pd.DataFrame:
     return sortie
 
 
+def _pics(df: pd.DataFrame, comp: pd.DataFrame, pics: list[DefinitionKpi], par: list[str]) -> pd.DataFrame:
+    """Numérateurs des KPI « pic » : somme des cellules à chaque horodatage (sum(min_count=1)),
+    puis maximum de ces totaux sur les horodatages de chaque groupe ``par``. Un horodatage
+    sans donnée est ignoré ; un groupe sans aucune donnée reste NaN."""
+    colonnes = [_num(k.code) for k in pics]
+    instants = [*par, "horodatage"]
+    par_instant = pd.concat([df[instants], comp[colonnes]], axis=1).groupby(instants, dropna=False).sum(min_count=1)
+    if par:
+        return par_instant.groupby(level=par, dropna=False).max()
+    return par_instant.max().to_frame().T
+
+
 def agreger(df: pd.DataFrame, kpis: list[DefinitionKpi], par: list[str]) -> pd.DataFrame:
     """Agrège ``df`` selon les colonnes ``par`` (liste vide => agrégat global).
 
     Renvoie, pour chaque KPI : la valeur, et les sommes num/den (utiles pour les tests
     et pour ré-agréger sans perte). Un KPI composite vaut le produit des ratios de sommes
     de ses composants : jamais la moyenne de produits calculés ligne à ligne.
+    KPI « pic » : num = pic (voir ``_pics``), den = 1 s'il est défini.
     """
     comp = composantes(df, kpis)
     if par:
-        comp = pd.concat([df[par], comp], axis=1)
-        sommes = comp.groupby(par, dropna=False).sum(min_count=1)
+        sommes = pd.concat([df[par], comp], axis=1).groupby(par, dropna=False).sum(min_count=1)
     else:
         sommes = comp.sum(min_count=1).to_frame().T
+    # Pic : remplace la somme. Sans colonne ``horodatage``, les lignes sont tenues pour
+    # simultanées et le pic reste la somme simple ; de même si ``par`` contient l'horodatage
+    # (un seul instant par groupe).
+    pics = [k for k in ratios_simples(kpis) if k.pic]
+    if pics and "horodatage" in df.columns and "horodatage" not in par:
+        maxima = _pics(df, comp, pics, par).reindex(sommes.index)
+        for k in pics:
+            sommes[_num(k.code)] = maxima[_num(k.code)]
+            sommes[_den(k.code)] = np.where(maxima[_num(k.code)].isna(), np.nan, 1.0)
+
     def ratio(k: DefinitionKpi) -> pd.Series:
         return sommes[_num(k.code)] / sommes[_den(k.code)].replace(0, np.nan)
 

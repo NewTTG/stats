@@ -11,7 +11,9 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, login
+from django.contrib.auth.hashers import UNUSABLE_PASSWORD_PREFIX
 from django.contrib.auth.models import Group
+from django.db.models import Q
 from django.utils import timezone
 
 PREFIXE = "visiteur-"
@@ -23,6 +25,11 @@ BACKEND = "django.contrib.auth.backends.ModelBackend"
 
 def est_visiteur(user) -> bool:
     return user.is_authenticated and user.username.startswith(PREFIXE) and not user.has_usable_password()
+
+
+def filtre_visiteurs() -> Q:
+    """``est_visiteur`` en requête : préfixe et mot de passe inutilisable (« ! », cf. ``make_password(None)``)."""
+    return Q(username__startswith=PREFIXE, password__startswith=UNUSABLE_PASSWORD_PREFIX)
 
 
 def creer_visiteur():

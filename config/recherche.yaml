@@ -56,7 +56,74 @@ indisponibles:
 # absorbe : qualificatif (voir « qualificatifs ») -> intention précise. Quand la demande
 #   contient cette intention, un mot qualificatif (« voix », « data »…) la précise au lieu
 #   d'ouvrir l'intention Appels / Trafic : « taux de coupure voix » = drop voix seul.
+# mots_generiques : mots qui ne valent cette intention que si la demande n'en cite aucune
+#   autre : « bilan Nouméa » = bilan complet, « bilan des coupures » = drop seul ;
+#   « qualité à Koné » = qualité de service, « qualité du débit » = débit.
+# rapport : rapport type proposé sur l'accueil (une carte, dans l'ordre du fichier) ;
+#   l'ordre des KPI de chaque techno est celui de la synthèse du résultat.
 intentions:
+  # ------------------------------------------------------------ rapports types
+  # Les demandes habituelles en un mot (« bilan », « rapport trafic »…) ou un clic sur l'accueil.
+  bilan:
+    libelle: Bilan complet
+    famille: true
+    rapport:
+      description: Appels, SMS, data 4G, débit, congestion PRB, accès, coupures, utilisateurs
+      icone: bilan
+    mots: [bilan complet, bilan global, bilan general, bilans complets, rapport complet, rapport global,
+           rapport general, synthese complete, synthese globale, stats habituelles, statistiques habituelles,
+           kpi habituels, indicateurs habituels, rapport habituel, rapports habituels, rapport standard,
+           rapport type, principaux kpi, kpi principaux, indicateurs principaux, principaux indicateurs,
+           faire le point, point complet, point general, vue d ensemble, tableau de bord, dashboard,
+           bilan mensuel, bilan hebdo, bilan hebdomadaire, rapport mensuel, rapport hebdo, rapport hebdomadaire,
+           point mensuel, point hebdo]
+    mots_generiques: [bilan, bilans, synthese, resume, rapport, rapports, point]
+    technos_defaut: [WCDMA, LTE]
+    kpis:
+      WCDMA: [wcdma_appels_voix, wcdma_sms, wcdma_cssr_cs, wcdma_cssr_ps, wcdma_cs_drop, wcdma_ps_drop]
+      LTE: [lte_csfb_appels, lte_payload_dl, lte_rrc_conn_max, lte_dl_user_thp, lte_prb_dl_util, lte_acces,
+            lte_erab_drop]
+
+  rapport_trafic:
+    libelle: Trafic voix, SMS et data
+    rapport:
+      titre: Trafic
+      description: Appels voix (3G et CSFB), SMS, volume data 4G
+      icone: trafic
+    mots: [bilan trafic, rapport trafic, point trafic, trafic complet, tout le trafic, bilan du trafic,
+           trafic voix et data, trafic voix sms et data, voix sms et data, appels sms et data, appels sms data]
+    technos_defaut: [WCDMA, LTE]
+    kpis:
+      WCDMA: [wcdma_appels_voix, wcdma_sms]
+      LTE: [lte_csfb_appels, lte_payload_dl]
+
+  rapport_data:
+    libelle: Data 4G
+    rapport:
+      description: Volume data, débit, congestion PRB, utilisateurs connectés
+      icone: data
+    mots: [bilan data, rapport data, point data, performance data, performances data, perf data, data complet,
+           bilan internet, rapport internet, experience data]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_payload_dl, lte_dl_user_thp, lte_prb_dl_util, lte_rrc_conn_max]
+
+  rapport_qualite:
+    libelle: Qualité de service
+    rapport:
+      description: Taux d'accès et taux de coupure (drop), 3G et 4G
+      icone: qualite
+    mots: [qualite de service, qos, bilan qualite, rapport qualite, point qualite, qualite reseau,
+           qualite du reseau, qualite radio, acces et coupures, acces et drop, accessibilite et coupures,
+           accessibilite et retenabilite, taux d acces et de coupure, taux d acces et drop, kpi qualite,
+           indicateurs qualite, kpi de qualite, indicateurs de qualite]
+    mots_generiques: [qualite]
+    technos_defaut: [LTE, WCDMA]
+    kpis:
+      LTE: [lte_acces, lte_erab_drop]
+      WCDMA: [wcdma_cssr_cs, wcdma_cssr_ps, wcdma_cs_drop, wcdma_ps_drop]
+
+  # ------------------------------------------------------------ indicateurs
   drop:
     libelle: Drop
     absorbe: {voix: drop_voix, data: drop_data}
@@ -260,6 +327,25 @@ intentions:
     kpis:
       LTE: [lte_ho_intra_sr]
 
+  # Rapport type et indicateur : estimation du nombre d'utilisateurs connectés (4G).
+  utilisateurs:
+    libelle: Utilisateurs connectés
+    famille: true
+    rapport:
+      titre: Utilisateurs 4G
+      description: Estimation du nombre d'utilisateurs connectés (pic RRC)
+      icone: utilisateurs
+    mots: [nombre d utilisateurs, nombre utilisateurs, nb utilisateurs, nbre utilisateurs, nombre de users,
+           nombre d users, users, utilisateurs connectes, utilisateur connecte, utilisateurs simultanes,
+           connexions simultanees, pic d utilisateurs, pic utilisateurs, pic de connexions, combien d utilisateurs,
+           nombre de clients, clients connectes, abonnes connectes, nombre d abonnes, ue connectes, nombre d ue,
+           rrc connectes, rrc conn max, rrc connmax, rrcconnmax, connmax, rrc max, utilisateurs rrc,
+           frequentation, affluence]
+    mots_generiques: [utilisateurs, clients, abonnes]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_rrc_conn_max]
+
 # Mots qui qualifient une intention (« coupure voix », « accès data ») ; seuls, ils ouvrent
 # l'intention Appels (voix) ou Trafic data (data).
 qualificatifs:
@@ -286,12 +372,12 @@ modificateurs:
 
 # Mots courants sans effet sur la requête : reconnus, jamais signalés comme incompris.
 neutres: [kpi, kpis, stat, stats, statistique, statistiques, indicateur, indicateurs, evolution, courbe, courbes,
-          graphe, graphique, graphiques, tableau, valeur, valeurs, niveau, niveaux, taux, qualite, performance,
-          performances, mesure, mesures, analyse, analyser, regarde, regarder, situation, bilan, etat, resume,
-          synthese, moyen, moyenne, moyennes, total, totaux, nombre, combien, montre, montrer, affiche, afficher,
+          graphe, graphique, graphiques, tableau, valeur, valeurs, niveau, niveaux, taux, performance,
+          performances, mesure, mesures, analyse, analyser, regarde, regarder, situation, etat,
+          moyen, moyenne, moyennes, total, totaux, nombre, combien, montre, montrer, affiche, afficher,
           donne, donner, voir, veux, voudrais, aimerais, besoin, sortir, sors, calcule, calculer, liste, lister,
           probleme, problemes, souci, soucis, incident, incidents, pendant, lors, depuis, mobile, mobiles,
-          utilisateur, utilisateurs, client, clients, cellule, cellules, site, sites, commune, communes, secteur,
+          utilisateur, client, cellule, cellules, site, sites, commune, communes, secteur,
           secteurs, zone, zones, ville, region, province, quelle, quel, quels, quelles, comment, ya, eu, avoir,
           ete, fait, faire, merci, stp, svp, please, show, me, the, of, at, in, for, rate, radio, mobile, reseaux,
           detail, details, detaille, operateur, opt, journee, journees, jour, jours, periode,
@@ -377,10 +463,12 @@ pas_trigrammes: [les, des, une, par, sur, pour, est, ont, son, ses, mes, tes, no
                  dom, dor, fay, foc, foy, gad, gam, gar, got, gou, hou, kin, mag, nom, poi, pon, por, pou, ras, tit,
                  tom, too, ulm, uni, val]
 
-# Exemples proposés sur l'écran d'accueil.
+# Exemples proposés sur l'écran d'accueil (chacun cite une commune : remplacée par une commune
+# du périmètre pour un lecteur restreint).
 exemples:
   - Drop 3G à Nouméa la semaine dernière
-  - Taux d'accès 4G à Païta en septembre
-  - Causes de coupure 4G à Koné hier
   - Appels et SMS à Lifou ce mois-ci
+  - Congestion PRB par site à Païta entre 18h et 22h hier
+  - Causes de coupure 4G à Koné hier
   - Débit 4G par site à Dumbéa les 7 derniers jours
+  - Utilisateurs connectés à Koumac ce mois-ci

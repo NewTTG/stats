@@ -1,10 +1,16 @@
 {% extends "base.html" %}
 {% load static kpi_extras %}
-{% block titre %}{{ evenement.nom }} — Stats KPI réseau{% endblock %}
+{% block titre %}{{ evenement.nom }} — Stats réseau{% endblock %}
 {% block contenu %}
+<p class="fil"><a href="{% url 'evenements:liste' %}">← Tous les événements</a></p>
 <div class="entete-page">
-  <h1>{{ evenement.nom }}{% if evenement.type %} <span class="aide">· {{ evenement.type }}</span>{% endif %}</h1>
-  <a class="bouton secondaire petit" href="{% url 'evenements:liste' %}">← Tous les événements</a>
+  <div>
+    <h1>{{ evenement.nom }}</h1>
+    {% if evenement.type %}<p class="sous-titre">{{ evenement.type }}</p>{% endif %}
+  </div>
+  {% if perms.evenements.change_evenement %}
+  <div class="boutons"><a class="bouton secondaire" href="{% url 'admin:evenements_evenement_change' evenement.pk %}">Modifier l'événement</a></div>
+  {% endif %}
 </div>
 <section class="carte">
   {% if evenement.description %}<p>{{ evenement.description }}</p>{% endif %}
@@ -14,22 +20,21 @@
     Référence : mêmes jours et heures des {{ analyse.semaines }} semaines précédentes.
   </p>
   {% endif %}
-  {% if perms.evenements.change_evenement %}<p class="aide"><a href="{% url 'admin:evenements_evenement_change' evenement.pk %}">Modifier l'événement</a></p>{% endif %}
 </section>
 
 {% if erreur %}<div class="erreur">{{ erreur }}</div>{% endif %}
 
 {% if analyse %}
-<div class="actions" style="justify-content: space-between;">
-  <nav class="onglets">{% for code, libelle in niveaux.items %}<a href="?niveau={{ code }}" class="{% if code == niveau %}actif{% endif %}">Par {{ libelle|lower }}</a>{% endfor %}</nav>
-  <div class="actions" style="margin: 0;">
-    <form method="post" action="{% url 'rapports:evenement' evenement.pk %}">{% csrf_token %}
-      <input type="hidden" name="niveau" value="{{ niveau }}"><input type="hidden" name="format" value="pptx">
-      <button class="bouton" type="submit" style="margin-top:0">Rapport PowerPoint</button>
-    </form>
+<div class="barre-evenement">
+  <nav class="onglets" aria-label="Niveau d'analyse">{% for code, libelle in niveaux.items %}<a href="?niveau={{ code }}" class="{% if code == niveau %}actif{% endif %}"{% if code == niveau %} aria-current="page"{% endif %}>Par {{ libelle|lower }}</a>{% endfor %}</nav>
+  <div class="boutons">
     <form method="post" action="{% url 'rapports:evenement' evenement.pk %}">{% csrf_token %}
       <input type="hidden" name="niveau" value="{{ niveau }}"><input type="hidden" name="format" value="xlsx">
-      <button class="bouton secondaire" type="submit" style="margin-top:0">Rapport Excel</button>
+      <button class="bouton secondaire" type="submit">Rapport Excel</button>
+    </form>
+    <form method="post" action="{% url 'rapports:evenement' evenement.pk %}">{% csrf_token %}
+      <input type="hidden" name="niveau" value="{{ niveau }}"><input type="hidden" name="format" value="pptx">
+      <button class="bouton" type="submit">Rapport PowerPoint</button>
     </form>
   </div>
 </div>
