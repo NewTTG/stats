@@ -36,6 +36,9 @@ python manage.py createsuperuser
 # 4. Chargement du référentiel (+ cellules lues dans les extraits KPI) — sur une seule ligne
 python manage.py import_referentiel OPT_Network_Database_V2.xlsx --cellules lte_cell_hour.csv lte_cell_day.csv wcdma_cell_hour.csv wcdma_cell_day.csv
 
+# 4 bis. Avec la base KPI : date de passage de 3 à 4 secteurs des sites concernés (DTS009, MDO355…)
+python manage.py detecter_bascules --enregistrer
+
 # 5. (une fois) Événements initiaux depuis l'onglet Cluster — créneaux à renseigner ensuite dans l'admin
 python manage.py import_clusters OPT_Network_Database_V2.xlsx
 
@@ -66,6 +69,7 @@ docker compose up -d --build           # PostgreSQL + application, migrations ap
 docker compose exec app python manage.py createsuperuser
 docker compose exec app python manage.py import_referentiel OPT_Network_Database_V2.xlsx \
     --cellules lte_cell_hour.csv lte_cell_day.csv wcdma_cell_hour.csv wcdma_cell_day.csv
+docker compose exec app python manage.py detecter_bascules --enregistrer
 docker compose exec app python manage.py import_clusters OPT_Network_Database_V2.xlsx   # une seule fois
 ```
 
@@ -268,9 +272,17 @@ les pages. Dès que `KPI_DB_HOST` est renseigné, la base PostgreSQL est utilis�
 ### Import du référentiel : règles
 
 - relancer `import_referentiel` à chaque nouvelle version du xlsx : chaque import est historisé ;
-- secteurs en double : première ligne conservée ; secteurs sans site : rejetés ;
-- trigramme partagé par plusieurs sites : le premier site du fichier fait foi ;
-- cellules dont le secteur est absent du xlsx : conservées sans rattachement et signalées.
+- seul l'onglet `Site_File` est lu (commune, nom de site unifié `siteName`…) ; `Cell_File`
+  est ignoré, sa numérotation des secteurs n'étant pas fiable ;
+- les secteurs sont déduits des noms de cellules (`AIG1011` = secteur 1 d'AIG101 : AIG101A/D/J,
+  AIGe1/e11/e21) et rattachés au site par le trigramme (en 3G : par le codeSite, sinon par
+  le trigramme) ; trigramme partagé par plusieurs sites : le premier site du fichier fait foi ;
+- site à 3 secteurs : e4 = e1, e5 = e2, e6 = e3 (couche supplémentaire, site déporté) ;
+- site à 4 secteurs (`nbSect` = 4, cellule 3G M, ou porteuse LTE avec e1 à e4) : D et e4 =
+  secteur 4. S'il est passé de 3 à 4 secteurs, D et e4 comptaient avant dans le secteur 1 :
+  la date de passage (admin → Sites, ou `manage.py detecter_bascules --enregistrer`, qui la
+  lit dans la base KPI) est appliquée aux calculs par secteur ;
+- cellules dont le site est absent de `Site_File` : conservées sans rattachement et signalées.
 
 ## Exploration de la base KPI (phase 0)
 

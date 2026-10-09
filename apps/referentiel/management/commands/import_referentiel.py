@@ -10,7 +10,7 @@ class Command(BaseCommand):
     help = "Importe le référentiel réseau (xlsx) et, optionnellement, les cellules d'exports KPI CSV."
 
     def add_arguments(self, parser):
-        parser.add_argument("fichier", type=Path, help="référentiel xlsx (onglets Site_File, Cell_File)")
+        parser.add_argument("fichier", type=Path, help="référentiel xlsx (onglet Site_File)")
         parser.add_argument("--cellules", type=Path, nargs="*", default=[],
                             help="exports KPI CSV (LTE ou WCDMA) dont on extrait les noms de cellules")
         parser.add_argument("--auteur", help="nom d'utilisateur enregistré comme auteur de l'import")

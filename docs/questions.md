@@ -26,15 +26,18 @@ Les hypothèses retenues en attendant sont indiquées.
    - ✅ WCDMA : secteur 1 = A/D/G/J, 2 = B/E/H/K, 3 = C/F/I/L (porteuses 1 à 4) ;
      site à 4 secteurs : A/B/C/D porteuse 1, J/K/L/M porteuse 2.
    - ✅ Secteur du reporting = secteur physique du site, toutes technos et porteuses
-     confondues (ex. secteur 1 d'Aiguade : AIG101A/D/J, AIGe1/e11/e21). Site à 4 secteurs :
-     `nbSect` = 4, secteurs 1 à 4 dans Cell_File, ou cellule 3G M.
-   - Sites à 4 secteurs : que valent les lettres E et F (DTS009E/F, MDO355E/F, non
-     rattachées) ?
+     confondues (ex. secteur 1 d'Aiguade : AIG101A/D/J, AIGe1/e11/e21), déduit des noms de
+     cellules ; site rattaché par le trigramme dans `Site_File` (`Cell_File` non utilisé).
+   - ✅ Passage de 3 à 4 secteurs (DTS009, MDO355) : D/E/F = secteurs 1-3 avant, D = secteur 4
+     ensuite, E et F sans statistiques. Date : `manage.py detecter_bascules` (1re apparition
+     de e4 / M dans la base KPI) ou admin → Sites.
+   - Sites détectés à 4 secteurs (`nbSect` = 4, cellule M, ou e1 à e4 sur une porteuse LTE) :
+     BAU472, DTS009, LEB353, MDO355, NES466, PRB220, ROC735, SLR682, TSI667. Liste à valider
+     (BAU472 et NES466 sont déclarés à 3 secteurs dans `Site_File`).
 5. ✅ **Trigrammes partagés** (3VL, CHT, NKA) : le premier site du fichier fait foi (provisoire).
-5 bis. **Trous du référentiel** : avec les équivalences de secteurs, 1,4 % des cellules 4G
-   et 3,2 % des cellules 3G restent sans secteur dans `Cell_File` (ex. EXP099, FLA384,
-   MB2997, MBN999, CGO491, NDI186 rangé sous NDI187…) — la liste complète est dans
-   l'historique des imports (admin). À compléter dans le xlsx ?
+5 bis. **Trous du référentiel** : 0,3 % des cellules 4G (trigrammes EXP, OHP) et 1,7 % des
+   cellules 3G (EXP099, MB2997, MB3998, MBN999, MCO060, OHP527) n'ont pas de site dans
+   `Site_File` — la liste est dans l'historique des imports (admin). À compléter dans le xlsx ?
 6. ✅ **Unités** : `PayloadDl_mB` et `PayloadPsHs_mb` sont tous deux en mégaoctets.
 7. ✅ **Seuils** : valeurs provisoires conservées, réglables dans l'admin (Seuils KPI).
 8. **Liste des 5-6 KPI LTE du MVP** : proposition = débit DL, débit UL, volume DL,

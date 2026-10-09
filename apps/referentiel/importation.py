@@ -1,11 +1,14 @@
-"""Import versionné du référentiel (xlsx Site_File / Cell_File) et des cellules radio.
+"""Import versionné du référentiel (xlsx, onglet Site_File) et des cellules radio.
 
 Règles :
-- un secteur (``Cell_File.cells``) dont le site est absent de ``Site_File`` est rejeté ;
-- doublons (codeSite, secteur) : la première ligne est conservée ;
-- sur un site à 3 secteurs, les secteurs 4 à 6 (site déporté) valent 1 à 3 ;
-- trigramme partagé par plusieurs sites : le premier site du fichier fait foi pour
-  rattacher les cellules LTE (règle provisoire) ;
+- seuls les sites (Site_File) sont lus dans le xlsx : commune, nom unifié (``siteName``)… ;
+  l'onglet Cell_File n'est pas utilisé (numérotation des secteurs peu fiable) ;
+- secteurs et cellules sont déduits des noms de cellules (cf. ``nommage``) et rattachés
+  au site par le trigramme ; en 3G, par le codeSite s'il existe, sinon par le trigramme ;
+- trigramme partagé par plusieurs sites : le premier site du fichier fait foi (provisoire) ;
+- site à 4 secteurs : ``nbSect`` = 4, cellule 3G M, ou une porteuse LTE avec e1 à e4 ;
+  les cellules qui changent de secteur à la bascule 3 -> 4 secteurs (D, e4…) gardent
+  leur secteur d'avant dans ``secteur_avant`` ;
 - chaque anomalie est consignée dans l'``ImportReferentiel`` créé.
 """
 
@@ -16,10 +19,10 @@ import pandas as pd
 from django.db import transaction
 
 from .models import Cellule, ImportReferentiel, Secteur, Site
-from .nommage import decoder_lte, decoder_wcdma, secteur_equivalent, sites_wcdma_4_secteurs
+from .nommage import (decoder_lte, decoder_wcdma, lte_4_secteurs, lte_brut, prefixe_wcdma,
+                      sites_wcdma_4_secteurs)
 
 COLONNES_SITE = ["codeSite", "Trigramme", "siteName", "commune", "region"]
-COLONNES_SECTEUR = ["cells", "codeSite"]
 
 
 @dataclass
@@ -38,48 +41,17 @@ def _nombre(valeur):
     return None if pd.isna(valeur) else valeur
 
 
-def lire_referentiel(chemin: Path, rapport: Rapport) -> tuple[pd.DataFrame, pd.DataFrame]:
+def lire_sites(chemin: Path, rapport: Rapport) -> pd.DataFrame:
     sites = pd.read_excel(chemin, sheet_name="Site_File", dtype={"codeSite": str, "Trigramme": str})
-    secteurs = pd.read_excel(chemin, sheet_name="Cell_File", dtype={"cells": str, "codeSite": str})
-    for df, colonnes, onglet in ((sites, COLONNES_SITE, "Site_File"), (secteurs, COLONNES_SECTEUR, "Cell_File")):
-        manquantes = [c for c in colonnes if c not in df.columns]
-        if manquantes:
-            raise ValueError(f"onglet {onglet} : colonnes manquantes {manquantes}")
+    manquantes = [c for c in COLONNES_SITE if c not in sites.columns]
+    if manquantes:
+        raise ValueError(f"onglet Site_File : colonnes manquantes {manquantes}")
 
     sites["codeSite"] = sites["codeSite"].map(_texte)
     sites = sites[sites["codeSite"] != ""]
     for code in sites.loc[sites["codeSite"].duplicated(), "codeSite"]:
         rapport.signaler(f"site {code} en double : première ligne conservée")
-    sites = sites.drop_duplicates("codeSite")
-
-    secteurs["cells"] = secteurs["cells"].map(_texte)
-    secteurs["codeSite"] = secteurs["codeSite"].map(_texte)
-    for code in secteurs.loc[secteurs["cells"].duplicated(), "cells"]:
-        rapport.signaler(f"secteur {code} en double : première ligne conservée")
-    secteurs = secteurs.drop_duplicates("cells")
-    orphelins = ~secteurs["codeSite"].isin(sites["codeSite"])
-    for code, site in secteurs.loc[orphelins, ["cells", "codeSite"]].itertuples(index=False):
-        rapport.signaler(f"secteur {code} rejeté : site {site} absent de Site_File")
-    return sites, secteurs[~orphelins]
-
-
-def _numero_secteur(code: str, code_site: str) -> int | None:
-    suffixe = code[len(code_site):] if code.startswith(code_site) else code[-1:]
-    return int(suffixe) if suffixe.isdigit() else None
-
-
-def sites_a_4_secteurs(df_sites: pd.DataFrame, df_secteurs: pd.DataFrame, cellules=None) -> set[str]:
-    """Sites à 4 secteurs : ``nbSect`` >= 4, secteurs 1 à 4 dans Cell_File, ou cellule 3G M."""
-    quatre = set()
-    if "nbSect" in df_sites:
-        quatre |= set(df_sites.loc[pd.to_numeric(df_sites["nbSect"], errors="coerce") >= 4, "codeSite"])
-    numeros = {}
-    for code, code_site in df_secteurs[["cells", "codeSite"]].itertuples(index=False):
-        numeros.setdefault(code_site, set()).add(_numero_secteur(code, code_site))
-    quatre |= {site for site, n in numeros.items() if {1, 2, 3, 4} <= n}
-    if cellules:
-        quatre |= sites_wcdma_4_secteurs(cellules["WCDMA"])
-    return quatre
+    return sites.drop_duplicates("codeSite")
 
 
 def lire_cellules(chemins: list[Path]) -> dict[str, list[str]]:
@@ -100,9 +72,7 @@ def lire_cellules(chemins: list[Path]) -> dict[str, list[str]]:
 @transaction.atomic
 def importer(chemin: Path, fichiers_cellules: list[Path] = (), auteur=None) -> ImportReferentiel:
     rapport = Rapport()
-    df_sites, df_secteurs = lire_referentiel(chemin, rapport)
-    cellules = lire_cellules(list(fichiers_cellules)) if fichiers_cellules else None
-    quatre = sites_a_4_secteurs(df_sites, df_secteurs, cellules)
+    df_sites = lire_sites(chemin, rapport)
 
     avant_sites = set(Site.objects.values_list("code_site", flat=True))
     avant_secteurs = set(Secteur.objects.values_list("code", flat=True))
@@ -126,77 +96,120 @@ def importer(chemin: Path, fichiers_cellules: list[Path] = (), auteur=None) -> I
         )
         sites[site.code_site] = site
 
-    secteurs = {}
-    for ligne in df_secteurs.to_dict("records"):
-        code, code_site = ligne["cells"], ligne["codeSite"]
-        numero = _numero_secteur(code, code_site)
-        if numero is None:
-            rapport.signaler(f"secteur {code} rejeté : numéro de secteur illisible")
-            continue
-        numero = secteur_equivalent(numero, code_site in quatre)
-        if (code_site, numero) in secteurs:
-            rapport.signaler(f"secteur {code} ignoré : équivalent de {secteurs[(code_site, numero)].code}")
-            continue
-        secteur, _ = Secteur.objects.update_or_create(
-            code=code,
-            defaults={
-                "site": sites[code_site],
-                "numero": numero,
-                "azimut": _nombre(ligne.get("azimut")),
-                "province": _texte(ligne.get("province")),
-            },
-        )
-        secteurs[(code_site, numero)] = secteur
-
     supprimes_sites = sorted(avant_sites - set(sites))
-    supprimes_secteurs = sorted(avant_secteurs - {s.code for s in secteurs.values()})
-    Secteur.objects.filter(code__in=supprimes_secteurs).delete()
     Site.objects.filter(code_site__in=supprimes_sites).delete()
 
-    if cellules:
-        _importer_cellules(cellules, df_sites, secteurs, quatre, rapport)
+    if fichiers_cellules:
+        _importer_cellules(lire_cellules(list(fichiers_cellules)), sites, rapport)
 
+    apres_secteurs = set(Secteur.objects.values_list("code", flat=True))
     return ImportReferentiel.objects.create(
         auteur=auteur,
         fichier=Path(chemin).name,
         nb_sites=len(sites),
-        nb_secteurs=len(secteurs),
-        ajouts=sorted(set(sites) - avant_sites) + sorted({s.code for s in secteurs.values()} - avant_secteurs),
-        suppressions=supprimes_sites + supprimes_secteurs,
+        nb_secteurs=len(apres_secteurs),
+        ajouts=sorted(set(sites) - avant_sites) + sorted(apres_secteurs - avant_secteurs),
+        suppressions=supprimes_sites + sorted(avant_secteurs - apres_secteurs),
         anomalies=rapport.anomalies,
     )
 
 
-def _importer_cellules(cellules, df_sites, secteurs, quatre: set[str], rapport: Rapport):
-    # Trigramme -> premier site du fichier (règle provisoire pour les trigrammes partagés).
-    site_par_trigramme = {}
-    for code_site, trigramme in df_sites[["codeSite", "Trigramme"]].itertuples(index=False):
-        trigramme = _texte(trigramme)
-        if trigramme and trigramme in site_par_trigramme:
-            rapport.signaler(f"trigramme {trigramme} partagé : {site_par_trigramme[trigramme]} retenu, {code_site} ignoré")
-        site_par_trigramme.setdefault(trigramme, code_site)
+def _site_par_trigramme(sites: dict[str, Site], rapport: Rapport) -> dict[str, str]:
+    """Trigramme -> premier site du fichier (règle provisoire pour les trigrammes partagés)."""
+    resultat = {}
+    for code_site, site in sites.items():
+        if site.trigramme and site.trigramme in resultat:
+            rapport.signaler(f"trigramme {site.trigramme} partagé : {resultat[site.trigramme]} retenu, "
+                             f"{code_site} ignoré")
+        resultat.setdefault(site.trigramme, code_site)
+    return resultat
+
+
+def _rattacher(cellules, sites: dict[str, Site], rapport: Rapport) -> dict[tuple[str, str], str | None]:
+    """(techno, cellule) -> code du site : trigramme en 4G ; codeSite, sinon trigramme, en 3G."""
+    par_trigramme = _site_par_trigramme(sites, rapport)
+    rattachement, signales = {}, set()
+    for nom in cellules["LTE"]:
+        brut = lte_brut(nom)
+        code_site = par_trigramme.get(brut[0]) if brut else None
+        if brut and code_site is None and brut[0] not in signales:
+            signales.add(brut[0])
+            rapport.signaler(f"trigramme {brut[0]} (cellules LTE) absent de Site_File")
+        rattachement[("LTE", nom)] = code_site
+    for nom in cellules["WCDMA"]:
+        prefixe = prefixe_wcdma(nom)
+        code_site = None
+        if prefixe in sites:
+            code_site = prefixe
+        elif prefixe:
+            code_site = par_trigramme.get(prefixe[:3])
+            if prefixe not in signales:
+                signales.add(prefixe)
+                rapport.signaler(f"codeSite {prefixe} (cellules WCDMA) absent de Site_File"
+                                 + (f" : rattaché à {code_site} par le trigramme" if code_site else ""))
+        rattachement[("WCDMA", nom)] = code_site
+    return rattachement
+
+
+def sites_a_4_secteurs(rattachement: dict[tuple[str, str], str | None], sites: dict[str, Site]) -> set[str]:
+    """Sites à 4 secteurs : ``nbSect`` >= 4, cellule 3G M, ou porteuse LTE avec e1 à e4."""
+    quatre = {code for code, site in sites.items() if (site.nb_secteurs or 0) >= 4}
+    par_site = {}
+    for (techno, nom), code_site in rattachement.items():
+        if code_site:
+            par_site.setdefault((techno, code_site), []).append(nom)
+    for (techno, code_site), noms in par_site.items():
+        if techno == "WCDMA" and sites_wcdma_4_secteurs(noms):
+            quatre.add(code_site)
+        if techno == "LTE" and lte_4_secteurs(noms):
+            quatre.add(code_site)
+    return quatre
+
+
+def _decoder(techno: str, nom: str, quatre_secteurs: bool):
+    if techno == "LTE":
+        return decoder_lte(nom, quatre_secteurs)
+    return decoder_wcdma(nom, quatre_secteurs)
+
+
+def _importer_cellules(cellules, sites: dict[str, Site], rapport: Rapport):
+    rattachement = _rattacher(cellules, sites, rapport)
+    quatre = sites_a_4_secteurs(rattachement, sites)
+    for code_site in sorted(quatre):
+        bascule = sites[code_site].bascule_4_secteurs
+        rapport.signaler(f"site {code_site} : 4 secteurs"
+                         + (f" depuis le {bascule:%d/%m/%Y}" if bascule else " (pas de date de passage renseignée)"))
+
+    secteurs = {}
+
+    def secteur(code_site: str, numero: int) -> Secteur:
+        if (code_site, numero) not in secteurs:
+            secteurs[(code_site, numero)], _ = Secteur.objects.update_or_create(
+                code=f"{code_site}{numero}", defaults={"site": sites[code_site], "numero": numero})
+        return secteurs[(code_site, numero)]
 
     a_creer = []
-    for nom in cellules["LTE"]:
-        decodee = decoder_lte(nom)
-        code_site = site_par_trigramme.get(decodee.prefixe) if decodee else None
+    for (techno, nom), code_site in rattachement.items():
+        if code_site is None:
+            if _decoder(techno, nom, False) is None:
+                rapport.signaler(f"cellule {techno} {nom} : nom non décodable")
+            a_creer.append(Cellule(nom=nom, techno=techno))
+            continue
+        actuel, avant = _decoder(techno, nom, code_site in quatre), None
         if code_site in quatre:
-            decodee = decoder_lte(nom, quatre_secteurs=True)
-        a_creer.append(_cellule(nom, "LTE", decodee, code_site, secteurs, rapport))
-
-    for nom in cellules["WCDMA"]:
-        decodee = decoder_wcdma(nom, quatre_secteurs=nom[:-1] in quatre)
-        a_creer.append(_cellule(nom, "WCDMA", decodee, decodee and decodee.prefixe, secteurs, rapport))
+            avant = _decoder(techno, nom, False)
+            if actuel is None:  # E, F… : n'existent qu'avant le passage à 4 secteurs
+                actuel, avant = avant, None
+            elif avant and avant.secteur == actuel.secteur:
+                avant = None
+        if actuel is None:
+            rapport.signaler(f"cellule {techno} {nom} : nom non décodable")
+            a_creer.append(Cellule(nom=nom, techno=techno))
+            continue
+        a_creer.append(Cellule(nom=nom, techno=techno, secteur=secteur(code_site, actuel.secteur),
+                               porteuse=actuel.porteuse,
+                               secteur_avant=secteur(code_site, avant.secteur) if avant else None))
 
     Cellule.objects.all().delete()
     Cellule.objects.bulk_create(a_creer)
-
-
-def _cellule(nom, techno, decodee, code_site, secteurs, rapport: Rapport) -> Cellule:
-    if decodee is None:
-        rapport.signaler(f"cellule {techno} {nom} : nom non décodable")
-        return Cellule(nom=nom, techno=techno)
-    secteur = secteurs.get((code_site, decodee.secteur))
-    if secteur is None:
-        rapport.signaler(f"cellule {techno} {nom} : secteur {decodee.secteur} du site {code_site or decodee.prefixe} introuvable")
-    return Cellule(nom=nom, techno=techno, secteur=secteur, porteuse=decodee.porteuse)
+    Secteur.objects.exclude(pk__in=[s.pk for s in secteurs.values()]).delete()

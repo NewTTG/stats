@@ -15,11 +15,11 @@ Conventions de nommage (confirmées) :
     secteur 3 = C/F/I/L, porteuses 1 à 4 dans cet ordre ;
     site à 4 secteurs : A/B/C/D = secteurs 1-4 porteuse 1, J/K/L/M = secteurs 1-4 porteuse 2.
 
-Un site compte 4 secteurs si le référentiel le déclare (``nbSect`` = 4, ou secteurs 1 à 4
-dans Cell_File) ou s'il porte une cellule 3G M (cf. ``importation.sites_a_4_secteurs``).
+Un site passé de 3 à 4 secteurs (ex. DTS009, MDO355) change le sens de D (secteur 1
+porteuse 2 -> secteur 4) et de e4 (secteur 1 -> secteur 4) à la date de la bascule ;
+E et F ne produisent plus de statistiques ensuite (cf. ``importation``).
 
-Le secteur référentiel (onglet Cell_File) s'écrit ``<codeSite><secteur>`` ; sur un site
-à 3 secteurs, les numéros 4 à 6 (sites déportés) valent aussi 1 à 3.
+Le secteur s'écrit ``<codeSite><n° secteur>`` (ex. ``AIG1011``).
 """
 
 import re
@@ -55,23 +55,49 @@ def secteur_equivalent(numero: int, quatre_secteurs: bool = False) -> int:
     return (numero - 1) % nb + 1
 
 
-def decoder_lte(nom: str, quatre_secteurs: bool = False) -> CelluleDecodee | None:
+def lte_brut(nom: str) -> tuple[str, int, int] | None:
+    """(trigramme, porteuse, chiffre du secteur tel qu'écrit) : ``RAVe14`` -> (RAV, 2, 4)."""
     m = _LTE.match(nom)
     if not m or m["num"][-1] == "0":
         return None
     num = m["num"]
-    porteuse, secteur = (1, int(num)) if len(num) == 1 else (int(num[0]) + 1, int(num[1]))
-    return CelluleDecodee("LTE", m["prefixe"], porteuse, secteur_equivalent(secteur, quatre_secteurs))
+    porteuse, chiffre = (1, int(num)) if len(num) == 1 else (int(num[0]) + 1, int(num[1]))
+    return m["prefixe"], porteuse, chiffre
+
+
+def decoder_lte(nom: str, quatre_secteurs: bool = False) -> CelluleDecodee | None:
+    brut = lte_brut(nom)
+    if brut is None:
+        return None
+    prefixe, porteuse, chiffre = brut
+    return CelluleDecodee("LTE", prefixe, porteuse, secteur_equivalent(chiffre, quatre_secteurs))
+
+
+def lte_4_secteurs(noms: list[str]) -> bool:
+    """Cellules LTE d'un site : une porteuse a exactement les secteurs 1 à 4 (e1..e4, pas de e5/e6).
+
+    Distingue un vrai 4e secteur (LEBe4, LEBe14) d'une couche supplémentaire (RAVe4..e6)
+    ou d'un site déporté (DNUe4, KGRe4/e5, sans e1).
+    """
+    par_porteuse = {}
+    for brut in filter(None, map(lte_brut, noms)):
+        par_porteuse.setdefault(brut[1], set()).add(brut[2])
+    return any(chiffres == {1, 2, 3, 4} for chiffres in par_porteuse.values())
 
 
 def decoder_wcdma(nom: str, quatre_secteurs: bool = False) -> CelluleDecodee | None:
-    """``quatre_secteurs`` : site à 4 secteurs (cf. ``importation.sites_a_4_secteurs``)."""
+    """``quatre_secteurs`` : site à 4 secteurs (cf. ``importation``)."""
     m = _WCDMA.match(nom)
     table = _WCDMA_4_SECTEURS if quatre_secteurs else _WCDMA_3_SECTEURS
     if not m or m["lettre"] not in table:
         return None
     porteuse, secteur = table[m["lettre"]]
     return CelluleDecodee("WCDMA", m["prefixe"], porteuse, secteur)
+
+
+def prefixe_wcdma(nom: str) -> str | None:
+    m = _WCDMA.match(nom)
+    return m["prefixe"] if m else None
 
 
 def sites_wcdma_4_secteurs(noms: list[str]) -> set[str]:

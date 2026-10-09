@@ -1,7 +1,7 @@
 import pytest
 
-from apps.referentiel.nommage import (decoder_lte, decoder_wcdma, nom_site_normalise, secteur_equivalent,
-                                      sites_wcdma_4_secteurs)
+from apps.referentiel.nommage import (decoder_lte, decoder_wcdma, lte_4_secteurs, nom_site_normalise,
+                                      secteur_equivalent, sites_wcdma_4_secteurs)
 
 
 @pytest.mark.parametrize("nom,attendu", [
@@ -24,6 +24,17 @@ def test_decoder_lte(nom, attendu):
 def test_decoder_lte_4_secteurs():
     assert decoder_lte("LEBe4", quatre_secteurs=True).secteur == 4
     assert decoder_lte("LEBe14", quatre_secteurs=True).secteur == 4
+
+
+@pytest.mark.parametrize("noms,attendu", [
+    (["LEBe1", "LEBe2", "LEBe3", "LEBe4", "LEBe14"], True),
+    (["RAVe1", "RAVe2", "RAVe3", "RAVe4", "RAVe5", "RAVe6"], False),   # couche supplémentaire
+    (["PRPe1", "PRPe2", "PRPe3", "PRPe11", "PRPe12", "PRPe13", "PRPe14", "PRPe16"], False),
+    (["DNUe4", "DNUe14"], False),                                       # site déporté
+    (["KGRe4", "KGRe5", "KGRe14", "KGRe15"], False),
+])
+def test_lte_4_secteurs(noms, attendu):
+    assert lte_4_secteurs(noms) is attendu
 
 
 def test_secteur_aiguade():
