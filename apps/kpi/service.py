@@ -9,6 +9,7 @@ from django.db.models import Q
 
 from apps.comptes.acces import cellules_autorisees, kpis_autorises
 from apps.referentiel.models import Cellule
+from apps.referentiel.secteurs import cellules_des_secteurs, secteur_par_ligne
 
 from .catalogue import DefinitionKpi, catalogue
 from .moteur import agreger, ratios_simples
@@ -64,9 +65,10 @@ def cellules_du_perimetre(requete: RequeteKpi, techno: str) -> list[str] | None:
         "commune": Q(secteur__site__commune__in=[v.upper() for v in valeurs]),
         "site": Q(secteur__site__code_site__in=valeurs) | Q(secteur__site__nom__in=valeurs),
         "trigramme": Q(secteur__site__trigramme__in=valeurs),
-        "secteur": Q(secteur__code__in=valeurs),
         "cellule": Q(nom__in=valeurs),
     }
+    if p.type == "secteur":  # secteur à la date : cf. bascule de 3 à 4 secteurs
+        return cellules_des_secteurs(techno, valeurs, requete.periode.debut, requete.periode.fin)
     if p.type == "evenement":
         from apps.evenements.models import Evenement
 
@@ -110,7 +112,6 @@ def _periode(horodatage: pd.Series, granularite: str) -> pd.Series:
 def _entites(techno: str, granularite: str) -> dict[str, str]:
     """Cellule -> libellé de l'entité spatiale d'agrégation."""
     champ = {
-        "secteur": "secteur__code",
         "site": "secteur__site__nom",
         "commune": "secteur__site__commune",
     }.get(granularite)
@@ -180,6 +181,8 @@ def executer(requete: RequeteKpi, user, engine) -> Resultat:
 
         df = lire(engine, techno, resolution, colonnes_utilisees(kpis),
                   requete.periode.debut, requete.periode.fin, cellules)
+        if requete.perimetre.type == "secteur":
+            df = df[secteur_par_ligne(df, techno).isin(requete.perimetre.valeurs).to_numpy()]
         couverture = couverture_donnees(df, requete.periode.debut, requete.periode.fin)
         if couverture:
             resultat.avertissements.append(f"{techno} : {couverture}")
@@ -192,6 +195,8 @@ def executer(requete: RequeteKpi, user, engine) -> Resultat:
             df = df.assign(entite="Global")
         elif requete.granularite_espace == "cellule":
             df = df.assign(entite=df["cellule"])
+        elif requete.granularite_espace == "secteur":
+            df = df.assign(entite=secteur_par_ligne(df, techno).fillna(NON_RATTACHEE))
         else:
             correspondance = _entites(techno, requete.granularite_espace)
             df = df.assign(entite=df["cellule"].map(correspondance).fillna(NON_RATTACHEE))

@@ -1,4 +1,5 @@
-"""Référentiel réseau importé depuis le fichier xlsx (onglets Site_File / Cell_File).
+"""Référentiel réseau : sites importés du xlsx (onglet Site_File), secteurs et cellules
+déduits des noms de cellules (rattachés aux sites par le trigramme).
 
 Le xlsx n'est jamais interrogé en direct : il est chargé ici par
 ``manage.py import_referentiel`` (phase 1), chaque import étant versionné.
@@ -39,6 +40,11 @@ class Site(models.Model):
     longitude = models.FloatField(null=True, blank=True)
     type_zone = models.CharField("type de zone", max_length=16, blank=True)
     nb_secteurs = models.PositiveSmallIntegerField("nb secteurs", null=True, blank=True)
+    # Passage de 3 à 4 secteurs : avant cette date, les cellules concernées (D, e4…)
+    # comptent dans leur ``secteur_avant``. Vide : disposition actuelle sur tout l'historique.
+    bascule_4_secteurs = models.DateField(
+        "passage à 4 secteurs", null=True, blank=True,
+        help_text="Premier jour en 4 secteurs (cf. manage.py detecter_bascules).")
 
     class Meta:
         ordering = ["code_site"]
@@ -51,8 +57,6 @@ class Secteur(models.Model):
     code = models.CharField(max_length=16, unique=True)  # <codeSite><n° secteur>
     site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name="secteurs")
     numero = models.PositiveSmallIntegerField("n° secteur")
-    azimut = models.SmallIntegerField(null=True, blank=True)
-    province = models.CharField(max_length=16, blank=True)
 
     class Meta:
         ordering = ["code"]
@@ -65,6 +69,8 @@ class Cellule(models.Model):
     """Cellule radio rattachée à un secteur (dérivée des conventions de nommage).
 
     ``secteur`` vide : cellule non rattachée (voir les anomalies du dernier import).
+    ``secteur_avant`` : secteur avant la ``bascule_4_secteurs`` du site (ex. D = secteur 1
+    porteuse 2 sur 3 secteurs, secteur 4 ensuite).
     """
 
     TECHNOS = [("LTE", "LTE"), ("WCDMA", "WCDMA")]
@@ -72,6 +78,9 @@ class Cellule(models.Model):
     nom = models.CharField(max_length=32)
     techno = models.CharField(max_length=8, choices=TECHNOS)
     secteur = models.ForeignKey(Secteur, null=True, on_delete=models.SET_NULL, related_name="cellules")
+    secteur_avant = models.ForeignKey(Secteur, null=True, blank=True, on_delete=models.SET_NULL,
+                                      related_name="cellules_avant_bascule",
+                                      verbose_name="secteur avant passage à 4 secteurs")
     porteuse = models.PositiveSmallIntegerField(default=1)
 
     class Meta:

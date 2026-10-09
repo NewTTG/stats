@@ -128,3 +128,41 @@ def test_fonctions_non_disponibles(referentiel, base_kpi, analyste):
         executer(requete(fenetre_horaire="heure_chargee"), analyste, base_kpi)
     with pytest.raises(RequeteRefusee):
         executer(requete(perimetre={"type": "evenement", "valeurs": ["x"]}), analyste, base_kpi)
+
+
+@pytest.fixture
+def bascule_aaa(referentiel):
+    """AAA100 passe à 4 secteurs le 2 septembre : AAAe2 était dans le secteur 1 avant."""
+    Site.objects.filter(code_site="AAA100").update(bascule_4_secteurs=date(2026, 9, 2))
+    Cellule.objects.filter(nom="AAAe2").update(secteur_avant=Secteur.objects.get(code="AAA1001"))
+
+
+def test_secteur_a_la_date_de_la_bascule(bascule_aaa, base_kpi, analyste):
+    res = executer(requete(granularite_espace="secteur", kpis=["lte_payload_dl"]), analyste, base_kpi).par_techno[0]
+    t = res.table["lte_payload_dl"]
+    # 1er septembre : AAAe1 + AAAe2 dans AAA1001 ; 2 septembre : AAAe2 dans AAA1002
+    assert t[(pd.Timestamp("2026-09-01"), "AAA1001")] == pytest.approx(40.0)
+    assert (pd.Timestamp("2026-09-01"), "AAA1002") not in t.index
+    assert t[(pd.Timestamp("2026-09-02"), "AAA1001")] == pytest.approx(20.0)
+    assert t[(pd.Timestamp("2026-09-02"), "AAA1002")] == pytest.approx(20.0)
+
+
+def test_perimetre_secteur_a_la_date(bascule_aaa, base_kpi, analyste):
+    res = executer(requete(perimetre={"type": "secteur", "valeurs": ["AAA1002"]}, kpis=["lte_payload_dl"]),
+                   analyste, base_kpi).par_techno[0]
+    t = res.table["lte_payload_dl"]
+    assert list(t.index.get_level_values(0)) == [pd.Timestamp("2026-09-02")]
+    assert t.iloc[0] == pytest.approx(20.0)
+    # avant la bascule seulement : AAAe2 compte dans AAA1001
+    res = executer(requete(perimetre={"type": "secteur", "valeurs": ["AAA1001"]}, kpis=["lte_payload_dl"],
+                           periode={"debut": date(2026, 9, 1), "fin": date(2026, 9, 1)}),
+                   analyste, base_kpi).par_techno[0]
+    assert res.table["lte_payload_dl"].iloc[0] == pytest.approx(40.0)
+    assert res.cellules_demandees == 2 and not res.cellules_sans_donnees
+
+
+def test_secteurs_sans_bascule_dans_le_perimetre(bascule_aaa, base_kpi, analyste):
+    """Aucune cellule lue n'a de bascule (Païta) : calcul par secteur normal."""
+    res = executer(requete(perimetre={"type": "commune", "valeurs": ["PAITA"]}, granularite_espace="secteur",
+                           kpis=["lte_payload_dl"]), analyste, base_kpi).par_techno[0]
+    assert set(res.table.index.get_level_values(1)) == {"BBB2001"}

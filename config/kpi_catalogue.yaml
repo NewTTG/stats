@@ -396,8 +396,8 @@ kpis:
     numerateur: ReqSms
     sens: haut_est_mieux
     note: >-
-      Demandes de connexion RRC pour SMS en 3G. Les SMS traités en 4G (SGs) ne sont pas
-      dans les tables KPI.
+      Demandes de connexion RRC pour SMS en 3G. Il n'existe pas de statistique de SMS
+      en 4G.
 
   - code: wcdma_speech_traffic
     libelle: Trafic voix
@@ -465,7 +465,7 @@ kpis:
     qualite: approx
 
   - code: wcdma_drop_voisinage_manquant
-    libelle: "Coupures voix 3G : voisinage manquant"
+    libelle: "Coupures voix 3G : relation de voisinage manquante"
     techno: WCDMA
     unite: "%"
     categorie: retainability
@@ -476,7 +476,7 @@ kpis:
     sens: bas_est_mieux
     ecart_min: 0.1
     qualite: approx
-    note: Interprétation de MissRel à confirmer (cf. docs/questions.md).
+    note: Coupures dues à une relation de voisinage 3G manquante (MissRel).
 
   - code: wcdma_drop_ifho
     libelle: "Coupures voix 3G : handover inter-fréquence"

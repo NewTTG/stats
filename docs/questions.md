@@ -21,30 +21,40 @@ Les hypothèses retenues en attendant sont indiquées.
 
 4. **Nommage des cellules** — confirmer :
    - ✅ LTE : `XXXeS` = porteuse 1, secteur S ; `XXXePS` = porteuse P + 1, secteur S.
+     Site à 3 secteurs : e4 = e1, e5 = e2, e6 = e3 (couche supplémentaire ou site déporté,
+     ce dernier avec son propre trigramme). Site à 4 secteurs : e4 = secteur 4.
    - ✅ WCDMA : secteur 1 = A/D/G/J, 2 = B/E/H/K, 3 = C/F/I/L (porteuses 1 à 4) ;
-     site à 4 secteurs (lettre M) : A/B/C/D porteuse 1, J/K/L/M porteuse 2.
-     Cas résiduels non décodables signalés à l'import (ex. DTS009E/F dans l'extrait 2024).
-   - Que représente la notion de « secteur » pour le reporting : `Cell_File.cells` ?
+     site à 4 secteurs : A/B/C/D porteuse 1, J/K/L/M porteuse 2.
+   - ✅ Secteur du reporting = secteur physique du site, toutes technos et porteuses
+     confondues (ex. secteur 1 d'Aiguade : AIG101A/D/J, AIGe1/e11/e21), déduit des noms de
+     cellules ; site rattaché par le trigramme dans `Site_File` (`Cell_File` non utilisé).
+   - ✅ Passage de 3 à 4 secteurs (DTS009, MDO355) : D/E/F = secteurs 1-3 avant, D = secteur 4
+     ensuite, E et F sans statistiques. Date : `manage.py detecter_bascules` (1re apparition
+     de e4 / M dans la base KPI) ou admin → Sites. Sans cellule M (MDO355), la date de
+     la 4G (1re apparition de e4) vaut aussi pour la 3G — confirmé.
+   - ✅ Sites à 4 secteurs (`nbSect` = 4, cellule M, ou e1 à e4 sur une porteuse LTE) :
+     BAU472, DTS009, LEB353, MDO355, NES466, PRB220, ROC735, SLR682, TSI667 — confirmé,
+     y compris BAU472 et NES466, déclarés à 3 secteurs dans `Site_File`.
+   - ✅ IPOe4 = secteur 1 d'IPO209 (e4 = e1 sur un site à 3 secteurs).
 5. ✅ **Trigrammes partagés** (3VL, CHT, NKA) : le premier site du fichier fait foi (provisoire).
-5 bis. **Trous du référentiel** : ~4 % des cellules n'ont pas de secteur dans `Cell_File`
-   (ex. EXP099, FLA384, NDI186, CGO491…) — la liste complète est dans l'historique
-   des imports (admin). À compléter dans le xlsx ?
+5 bis. **Trous du référentiel** : 0,3 % des cellules 4G (trigrammes EXP, OHP) et 1,7 % des
+   cellules 3G (EXP099, MB2997, MB3998, MBN999, MCO060, OHP527) n'ont pas de site dans
+   `Site_File` — la liste est dans l'historique des imports (admin). À compléter dans le xlsx ?
 6. ✅ **Unités** : `PayloadDl_mB` et `PayloadPsHs_mb` sont tous deux en mégaoctets.
 7. ✅ **Seuils** : valeurs provisoires conservées, réglables dans l'admin (Seuils KPI).
 8. **Liste des 5-6 KPI LTE du MVP** : proposition = débit DL, débit UL, volume DL,
    RRC SR, E-RAB drop, PRB DL, HO intra, disponibilité.
 9. ✅ **Historique** : horaire ≈ 14 mois, journalier depuis 2020 ; chargement horaire (H-1)
    et journalier (J-1) d'après les bornes observées.
-10. **Fuseau** des horodatages (heure locale Nouméa supposée).
+10. ✅ **Fuseau** : horodatages déjà en heure locale (GMT+11, Nouvelle-Calédonie), sans conversion.
 10 bis. **Données de base** (cf. `docs/donnees_de_base.md`) — à confirmer :
-   - `RabDropCsMissRel_p` : coupure pour voisinage manquant (« missing neighbour relation ») ?
-     Libellé provisoire « voisinage manquant ».
+   - ✅ `RabDropCsMissRel_p` : coupure due à une relation de voisinage 3G manquante.
    - Causes de coupure voix 3G : elles n'expliquent qu'~54 % des coupures. Existe-t-il
      d'autres colonnes ou compteurs (ex. `pmNoSysRelSpeech*`) pour le reste ?
    - ✅ `SpeechTrafficDay_erlg` journalier = somme des Erlangs horaires (Erl·h) : la durée
      moyenne d'appel qui en découle (≈ 2 min) est cohérente.
-   - SMS : seul `ReqSms` (3G) existe. Les SMS en 4G (SGs / IMS) sont-ils dans une autre
-     table (MSC, SMSC) ? Pas de compteur VoLTE : en 4G, la voix n'est visible qu'en CSFB.
+   - ✅ SMS : seul `ReqSms` (3G) existe, pas de statistique de SMS en 4G. Pas de compteur
+     VoLTE : en 4G, la voix n'est visible qu'en CSFB.
    - Seuils provisoires des nouveaux KPI (taux d'accès 98 / 95 %, drop data 3G 2 / 5 %).
 
 ## 🟢 Plus tard

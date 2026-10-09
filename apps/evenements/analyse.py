@@ -17,6 +17,7 @@ from apps.kpi.moteur import agreger
 from apps.kpi.service import colonnes_utilisees
 from apps.kpi.source import lire
 from apps.referentiel.models import Cellule
+from apps.referentiel.secteurs import secteurs_a_la_date
 
 from . import detection
 from .models import Evenement, ReglagesAnomalies
@@ -132,9 +133,11 @@ def _valeurs(df: pd.DataFrame, kpis: list[DefinitionKpi], par: list[str]):
     return valeurs, reference, hebdo
 
 
-def _entites(techno: str, niveau: str, cellules: list[str]) -> dict[str, str]:
-    champ = "secteur__code" if niveau == "secteur" else "secteur__site__nom"
-    connues = dict(Cellule.objects.filter(techno=techno, nom__in=cellules).values_list("nom", champ))
+def _entites(techno: str, niveau: str, cellules: list[str], jour) -> dict[str, str]:
+    if niveau == "secteur":  # disposition des secteurs le jour de l'événement
+        connues = secteurs_a_la_date(techno, jour)
+    else:
+        connues = dict(Cellule.objects.filter(techno=techno, nom__in=cellules).values_list("nom", "secteur__site__nom"))
     return {c: connues.get(c) or c for c in cellules}  # non rattachée : son propre nom
 
 
@@ -205,7 +208,7 @@ def analyser(evenement: Evenement, user, engine, niveau: str = "secteur") -> Ana
 
         colonnes = colonnes_utilisees(kpis)
         df = _lire_fenetres(engine, techno, colonnes, cellules, fenetres)
-        entites = _entites(techno, niveau, cellules)
+        entites = _entites(techno, niveau, cellules, min(debut for debut, _ in creneaux).date())
         df = df.assign(entite=df["cellule"].map(entites))
 
         valeurs, reference, hebdo = _valeurs(df.assign(tout="Global"), kpis, ["tout"])

@@ -5,20 +5,20 @@ from .models import Cellule, ImportReferentiel, Secteur, Site
 
 @admin.register(Site)
 class SiteAdmin(admin.ModelAdmin):
-    list_display = ["code_site", "nom", "trigramme", "commune", "region"]
+    list_display = ["code_site", "nom", "trigramme", "commune", "region", "nb_secteurs", "bascule_4_secteurs"]
     list_filter = ["region", "commune"]
     search_fields = ["code_site", "nom", "trigramme", "nom_lte", "nom_wcdma"]
 
 
 @admin.register(Secteur)
 class SecteurAdmin(admin.ModelAdmin):
-    list_display = ["code", "site", "numero", "azimut"]
+    list_display = ["code", "site", "numero"]
     search_fields = ["code", "site__nom"]
 
 
 @admin.register(Cellule)
 class CelluleAdmin(admin.ModelAdmin):
-    list_display = ["nom", "techno", "secteur", "porteuse"]
+    list_display = ["nom", "techno", "secteur", "porteuse", "secteur_avant"]
     list_filter = ["techno"]
     search_fields = ["nom"]
 

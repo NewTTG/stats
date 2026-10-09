@@ -1,4 +1,4 @@
-# Schéma de la base KPI (généré le 2026-10-07 13:53)
+# Schéma de la base KPI (généré le 2026-10-09 11:06)
 
 PostgreSQL : `PostgreSQL 17.5 on x86_64-windows`
 
@@ -14,25 +14,25 @@ PostgreSQL : `PostgreSQL 17.5 on x86_64-windows`
 | public | enm_temperature | table | 1,244 | 0 Mo |
 | public | enm_users_4g | table | 1,009 | 0 Mo |
 | public | gsm_bsc_day | table | 3,883 | 6 Mo |
-| public | gsm_bsc_hour | table | 2,920 | 5 Mo |
-| public | gsm_cell_day | table | 1,443,788 | 2,129 Mo |
-| public | gsm_cell_hour | table | 636,795 | 1,134 Mo |
+| public | gsm_bsc_hour | table | 2,894 | 5 Mo |
+| public | gsm_cell_day | table | 1,443,788 | 2,132 Mo |
+| public | gsm_cell_hour | table | 634,104 | 1,134 Mo |
 | public | gsm_lac_day | table | 14,129 | 22 Mo |
-| public | gsm_lac_hour | table | 10,227 | 19 Mo |
+| public | gsm_lac_hour | table | 10,192 | 19 Mo |
 | public | gsm_neigh_day | table | 195,810 | 50 Mo |
 | public | gsm_network_day | table | 2,042 | 3 Mo |
-| public | gsm_network_hour | table | 1,462 | 3 Mo |
-| public | gsm_rbs_day | table | 619,952 | 932 Mo |
-| public | gsm_rbs_hour | table | 270,816 | 473 Mo |
-| public | lte_cell_day | table | 3,110,856 | 4,642 Mo |
-| public | lte_cell_hour | table | 16,120,160 | 27,456 Mo |
+| public | gsm_network_hour | table | 1,458 | 3 Mo |
+| public | gsm_rbs_day | table | 619,952 | 933 Mo |
+| public | gsm_rbs_hour | table | 271,374 | 473 Mo |
+| public | lte_cell_day | table | 3,110,856 | 4,648 Mo |
+| public | lte_cell_hour | table | 16,242,184 | 27,465 Mo |
 | public | lte_neigh_day | table | 25,454,508 | 6,015 Mo |
 | public | lte_network_day | table | 2,260 | 3 Mo |
 | public | lte_network_hour | table | 49,164 | 65 Mo |
-| public | lte_rbs_day | table | 950,022 | 1,420 Mo |
-| public | lte_rbs_hour | table | 21,710,852 | 36,614 Mo |
+| public | lte_rbs_day | table | 950,022 | 1,422 Mo |
+| public | lte_rbs_hour | table | 21,710,852 | 36,995 Mo |
 | public | lte_tac_day | table | 14,385 | 18 Mo |
-| public | lte_tac_hour | table | 343,737 | 500 Mo |
+| public | lte_tac_hour | table | 296,787 | 502 Mo |
 | public | ref_cells | table | 0 | 0 Mo |
 | public | ref_clusters | table | 0 | 0 Mo |
 | public | ref_sites | table | 576 | 0 Mo |
@@ -40,19 +40,19 @@ PostgreSQL : `PostgreSQL 17.5 on x86_64-windows`
 | public | vw_calendar_day | vue | 0 | 0 Mo |
 | public | vw_calendar_hour | vue | 0 | 0 Mo |
 | public | vw_lte_wcdma_aug2026 | vue | 0 | 0 Mo |
-| public | wcdma_cell_day | table | 3,431,508 | 4,473 Mo |
-| public | wcdma_cell_hour | table | 12,937,168 | 19,161 Mo |
-| public | wcdma_ifho_day | table | 9,329,438 | 1,305 Mo |
-| public | wcdma_iratho_day | table | 7,483,374 | 1,195 Mo |
+| public | wcdma_cell_day | table | 3,431,508 | 4,477 Mo |
+| public | wcdma_cell_hour | table | 12,937,168 | 19,190 Mo |
+| public | wcdma_ifho_day | table | 9,329,438 | 1,309 Mo |
+| public | wcdma_iratho_day | table | 7,483,374 | 1,198 Mo |
 | public | wcdma_lac_day | table | 14,588 | 19 Mo |
-| public | wcdma_lac_hour | table | 350,458 | 506 Mo |
+| public | wcdma_lac_hour | table | 350,458 | 511 Mo |
 | public | wcdma_network_day | table | 2,071 | 2 Mo |
 | public | wcdma_network_hour | table | 50,097 | 71 Mo |
-| public | wcdma_rbs_day | table | 1,081,570 | 1,396 Mo |
-| public | wcdma_rbs_hour | table | 23,672,690 | 34,495 Mo |
+| public | wcdma_rbs_day | table | 1,081,570 | 1,397 Mo |
+| public | wcdma_rbs_hour | table | 23,672,690 | 34,498 Mo |
 | public | wcdma_rnc_day | table | 3,076 | 4 Mo |
 | public | wcdma_rnc_hour | table | 72,113 | 106 Mo |
-| public | wcdma_sho_day | table | 13,203,285 | 1,935 Mo |
+| public | wcdma_sho_day | table | 13,203,285 | 1,941 Mo |
 
 ## `public.enm_cell_state_3g` (table)
 
@@ -86,7 +86,7 @@ Index :
 - `CREATE UNIQUE INDEX pk_bsc_cell_day ON public.gsm_cell_day USING btree ("DateDay", "CellGsm")`
 - `CREATE INDEX idx_gsm_cell_day_col2 ON public.gsm_cell_day USING btree ("DateDay")`
 
-- `DateDay` : 2020-12-14 → 2026-10-06
+- `DateDay` : 2020-12-14 → 2026-10-08
 
 ## `public.gsm_cell_hour` (table)
 
@@ -97,7 +97,7 @@ Index :
 - `CREATE INDEX idx_gsm_cell_hour1 ON public.gsm_cell_hour USING btree ("CellGsm")`
 - `CREATE INDEX idx_gsm_cell_hour2 ON public.gsm_cell_hour USING btree ("DateHour")`
 
-- `DateHour` : 2026-08-07 15:00:00 → 2026-10-07 12:00:00
+- `DateHour` : 2026-08-09 15:00:00 → 2026-10-09 09:00:00
 
 ## `public.lte_cell_day` (table)
 
@@ -109,7 +109,7 @@ Index :
 - `CREATE INDEX idx_lte_cell_day_col2 ON public.lte_cell_day USING btree ("DateDay")`
 - `CREATE INDEX idx_lte_cell_day_site_date ON public.lte_cell_day USING btree ("ERBS_Id", "DateDay")`
 
-- `DateDay` : 2020-02-27 → 2026-10-06
+- `DateDay` : 2020-02-27 → 2026-10-08
 
 ## `public.lte_cell_hour` (table)
 
@@ -120,7 +120,7 @@ Index :
 - `CREATE INDEX idx_lte_cell_hour_col1 ON public.lte_cell_hour USING btree ("EutranCell_Id")`
 - `CREATE INDEX idx_lte_cell_hour_col2 ON public.lte_cell_hour USING btree ("DateHour")`
 
-- `DateHour` : 2025-08-13 00:00:00 → 2026-10-07 13:00:00
+- `DateHour` : 2025-08-13 00:00:00 → 2026-10-09 10:00:00
 
 ## `public.lte_neigh_day` (table)
 
@@ -141,7 +141,7 @@ Index :
 - `CREATE UNIQUE INDEX pk_lte_network_day ON public.lte_network_day USING btree ("DateDay")`
 - `CREATE INDEX idx_lte_network_day_col1 ON public.lte_network_day USING btree ("DateDay")`
 
-- `DateDay` : 2020-02-27 → 2026-10-06
+- `DateDay` : 2020-02-27 → 2026-10-08
 
 ## `public.lte_network_hour` (table)
 
@@ -151,7 +151,7 @@ Index :
 - `CREATE UNIQUE INDEX pk_lte_network_hour ON public.lte_network_hour USING btree ("DateHour")`
 - `CREATE INDEX idx_lte_network_hour_col1 ON public.lte_network_hour USING btree ("DateHour")`
 
-- `DateHour` : 2020-12-14 00:00:00 → 2026-10-07 13:00:00
+- `DateHour` : 2020-12-14 00:00:00 → 2026-10-09 10:00:00
 
 ## `public.lte_rbs_day` (table)
 
@@ -162,7 +162,7 @@ Index :
 - `CREATE INDEX idx_lte_rbs_day_col1 ON public.lte_rbs_day USING btree ("ERBS_Id")`
 - `CREATE INDEX idx_lte_rbs_day_col2 ON public.lte_rbs_day USING btree ("DateDay")`
 
-- `DateDay` : 2020-12-14 → 2026-10-06
+- `DateDay` : 2020-12-14 → 2026-10-08
 
 ## `public.lte_rbs_hour` (table)
 
@@ -173,7 +173,7 @@ Index :
 - `CREATE INDEX idx_lte_rbs_hour_col1 ON public.lte_rbs_hour USING btree ("ERBS_Id")`
 - `CREATE INDEX idx_lte_rbs_hour_col2 ON public.lte_rbs_hour USING btree ("DateHour")`
 
-- `DateHour` : 2020-12-14 00:00:00 → 2026-10-07 13:00:00
+- `DateHour` : 2020-12-14 00:00:00 → 2026-10-09 10:00:00
 
 ## `public.lte_tac_day` (table)
 
@@ -184,7 +184,7 @@ Index :
 - `CREATE INDEX idx_lte_tac_day_col1 ON public.lte_tac_day USING btree ("Tac")`
 - `CREATE INDEX idx_lte_tac_day_col2 ON public.lte_tac_day USING btree ("DateDay")`
 
-- `DateDay` : 2020-10-28 → 2026-10-06
+- `DateDay` : 2020-10-28 → 2026-10-08
 
 ## `public.lte_tac_hour` (table)
 
@@ -195,7 +195,7 @@ Index :
 - `CREATE INDEX idx_lte_tac_hour_col1 ON public.lte_tac_hour USING btree ("Tac")`
 - `CREATE INDEX idx_lte_tac_hour_col2 ON public.lte_tac_hour USING btree ("DateHour")`
 
-- `DateHour` : 2020-12-14 00:00:00 → 2026-10-07 13:00:00
+- `DateHour` : 2020-12-14 00:00:00 → 2026-10-09 10:00:00
 
 ## `public.ref_cells` (table)
 
@@ -213,7 +213,7 @@ Index :
 
 Index : aucun
 
-- `date_day` : 2020-02-27 → 2026-10-06
+- `date_day` : 2020-02-27 → 2026-10-08
 
 <details><summary>Définition</summary>
 
@@ -239,7 +239,7 @@ SELECT d::date AS date_day,
 
 Index : aucun
 
-- `timestamp` : 2026-08-01 00:00:00 → 2026-10-07 13:00:00
+- `timestamp` : 2026-08-01 00:00:00 → 2026-10-09 10:00:00
 
 <details><summary>Définition</summary>
 
@@ -314,7 +314,7 @@ Index :
 - `CREATE INDEX idx_wcdma_cell_day_col2 ON public.wcdma_cell_day USING btree ("DateDay")`
 - `CREATE INDEX idx_wcdma_cell_day_col3 ON public.wcdma_cell_day USING btree ("SiteWcdma")`
 
-- `DateDay` : 2020-10-01 → 2026-10-06
+- `DateDay` : 2020-10-01 → 2026-10-08
 
 ## `public.wcdma_cell_hour` (table)
 
@@ -326,7 +326,7 @@ Index :
 - `CREATE INDEX idx_wcdma_cell_hour_col2 ON public.wcdma_cell_hour USING btree ("DateHour")`
 - `CREATE INDEX idx_wcdma_cell_hour_col3 ON public.wcdma_cell_hour USING btree ("SiteWcdma")`
 
-- `DateHour` : 2025-07-31 00:00:00 → 2026-10-07 12:00:00
+- `DateHour` : 2025-07-31 00:00:00 → 2026-10-09 09:00:00
 
 ## `public.wcdma_ifho_day` (table)
 
@@ -335,7 +335,7 @@ Index :
 Index :
 - `CREATE UNIQUE INDEX wcdma_ifho_day_pk ON public.wcdma_ifho_day USING btree ("CellWcdma", "NeighWcdma", "DateDay")`
 
-- `DateDay` : 2025-06-03 → 2026-10-06
+- `DateDay` : 2025-06-03 → 2026-10-08
 
 ## `public.wcdma_iratho_day` (table)
 
@@ -346,7 +346,7 @@ Index :
 - `CREATE INDEX idx_wcdma_iratho_day1 ON public.wcdma_iratho_day USING btree ("CellWcdma")`
 - `CREATE INDEX idx_wcdma_iratho_day2 ON public.wcdma_iratho_day USING btree ("DateDay")`
 
-- `DateDay` : 2024-08-05 → 2026-10-06
+- `DateDay` : 2024-08-05 → 2026-10-08
 
 ## `public.wcdma_lac_day` (table)
 
@@ -357,7 +357,7 @@ Index :
 - `CREATE INDEX idx_wcdma_lac_day_col1 ON public.wcdma_lac_day USING btree ("DateDay")`
 - `CREATE INDEX idx_wcdma_lac_day_col2 ON public.wcdma_lac_day USING btree ("LAC")`
 
-- `DateDay` : 2020-10-01 → 2026-10-06
+- `DateDay` : 2020-10-01 → 2026-10-08
 
 ## `public.wcdma_lac_hour` (table)
 
@@ -368,7 +368,7 @@ Index :
 - `CREATE INDEX idx_wcdma_lac_hour_col1 ON public.wcdma_lac_hour USING btree ("DateHour")`
 - `CREATE INDEX idx_wcdma_lac_hour_col2 ON public.wcdma_lac_hour USING btree ("LAC")`
 
-- `DateHour` : 2020-12-06 00:00:00 → 2026-10-07 12:00:00
+- `DateHour` : 2020-12-06 00:00:00 → 2026-10-09 09:00:00
 
 ## `public.wcdma_network_day` (table)
 
@@ -378,7 +378,7 @@ Index :
 - `CREATE UNIQUE INDEX pk_wcdma_network_day ON public.wcdma_network_day USING btree ("DateDay")`
 - `CREATE INDEX idx_wcdma_network_day_col1 ON public.wcdma_network_day USING btree ("DateDay")`
 
-- `DateDay` : 2020-10-01 → 2026-10-06
+- `DateDay` : 2020-10-01 → 2026-10-08
 
 ## `public.wcdma_network_hour` (table)
 
@@ -388,7 +388,7 @@ Index :
 - `CREATE UNIQUE INDEX pk_wcdma_network_hour ON public.wcdma_network_hour USING btree ("DateHour")`
 - `CREATE INDEX idx_wcdma_network_hour_col1 ON public.wcdma_network_hour USING btree ("DateHour")`
 
-- `DateHour` : 2020-12-06 00:00:00 → 2026-10-07 12:00:00
+- `DateHour` : 2020-12-06 00:00:00 → 2026-10-09 09:00:00
 
 ## `public.wcdma_rbs_day` (table)
 
@@ -399,7 +399,7 @@ Index :
 - `CREATE INDEX idx_wcdma_rbs_day_col1 ON public.wcdma_rbs_day USING btree ("SiteWcdma")`
 - `CREATE INDEX idx_wcdma_rbs_day_col2 ON public.wcdma_rbs_day USING btree ("DateDay")`
 
-- `DateDay` : 2020-10-01 → 2026-10-06
+- `DateDay` : 2020-10-01 → 2026-10-08
 
 ## `public.wcdma_rbs_hour` (table)
 
@@ -410,7 +410,7 @@ Index :
 - `CREATE INDEX idx_wcdma_rbs_hour_col1 ON public.wcdma_rbs_hour USING btree ("SiteWcdma")`
 - `CREATE INDEX idx_wcdma_rbs_hour_col2 ON public.wcdma_rbs_hour USING btree ("DateHour")`
 
-- `DateHour` : 2020-12-06 00:00:00 → 2026-10-07 12:00:00
+- `DateHour` : 2020-12-06 00:00:00 → 2026-10-09 09:00:00
 
 ## `public.wcdma_rnc_day` (table)
 
@@ -421,7 +421,7 @@ Index :
 - `CREATE INDEX idx_wcdma_rnc_day_col1 ON public.wcdma_rnc_day USING btree ("Rnc")`
 - `CREATE INDEX idx_wcdma_rnc_day_col2 ON public.wcdma_rnc_day USING btree ("DateDay")`
 
-- `DateDay` : 2020-10-01 → 2026-10-06
+- `DateDay` : 2020-10-01 → 2026-10-08
 
 ## `public.wcdma_rnc_hour` (table)
 
@@ -432,7 +432,7 @@ Index :
 - `CREATE INDEX idx_wcdma_rnc_hour_col1 ON public.wcdma_rnc_hour USING btree ("Rnc")`
 - `CREATE INDEX idx_wcdma_rnc_hour_col2 ON public.wcdma_rnc_hour USING btree ("DateHour")`
 
-- `DateHour` : 2020-12-06 00:00:00 → 2026-10-07 12:00:00
+- `DateHour` : 2020-12-06 00:00:00 → 2026-10-09 09:00:00
 
 ## `public.wcdma_sho_day` (table)
 
@@ -441,4 +441,4 @@ Index :
 Index :
 - `CREATE UNIQUE INDEX wcdma_sho_day_pk ON public.wcdma_sho_day USING btree ("CellWcdma", "NeighWcdma", "DateDay")`
 
-- `DateDay` : 2025-06-03 → 2026-10-06
+- `DateDay` : 2025-06-03 → 2026-10-08

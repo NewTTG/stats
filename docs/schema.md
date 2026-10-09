@@ -26,7 +26,7 @@ PostgreSQL 17.5, schéma `public`, accès lecture seule.
   états de cellules ENM, alarmes, `ref_sites` (576 lignes), `ref_cells` (vide).
 - `vw_calendar_hour` ne couvre que les 2 derniers mois ; `vw_lte_wcdma_aug2026` est une
   vue ponctuelle (événement août 2026, jointure LTE/WCDMA par 3 premiers caractères).
-- Horodatages `timestamp without time zone` : heure locale supposée.
+- Horodatages `timestamp without time zone` : heure locale de Nouvelle-Calédonie (GMT+11), **confirmé** : aucune conversion.
 
 ## 1. Tables KPI
 
@@ -68,7 +68,7 @@ Les colonnes `Max_max` (ex. `RrcConnMax_max_nb`) s'agrègent en **max**, pas en 
 | Onglet | Lignes | Rôle | Colonnes clés |
 |---|---|---|---|
 | `Site_File` | 588 | un site physique | `codeSite`, `Trigramme`, `commune` (33), `region` (NORD, SUD, GRD NEA 1, NEA, ILES), `siteNameWcdma`, `siteNameLte`, `RBS_Name_3G`, `ERBS`, `lonWgs84`/`latWgs84`, `nbSect`, `bandType` |
-| `Cell_File` | 1 391 | un **secteur** (`cells` = `codeSite` + n° secteur) | `cells`, `codeSite`, `commune`, `province` (SUD, NORD, ILES), `azimut`, `NbCarrierLte`, `nbCarrierWcdma`, `Trigramme` |
+| `Cell_File` | 1 391 | un secteur (`cells` = `codeSite` + n° secteur) — **non utilisé** : numérotation peu fiable (sites déportés en 4-6, secteurs manquants) | `cells`, `codeSite`, `commune`, `province`, `azimut`, `NbCarrierLte`, `nbCarrierWcdma`, `Trigramme` |
 | `Cluster` | 342 | cellules par **événement** (24 clusters : carnaval, foires…) | `Cluster`, `RBS`, `Trigramme`, `Cellule`, `Type` (Concert / Day) |
 
 Coordonnées GPS disponibles → carte possible pour la sélection de cellules.
@@ -78,27 +78,42 @@ Coordonnées GPS disponibles → carte possible pour la sélection de cellules.
 ### LTE
 `EutranCell_Id` = `<Trigramme>e<S>` (porteuse 1) ou `<Trigramme>e<P><S>` (porteuse P + 1),
 S = secteur — **confirmé**. Ex. site DZU (3 porteuses) : `DZUe1..3` (porteuse 1),
-`DZUe11..13` (porteuse 2), `DZUe21..23` (porteuse 3).
+`DZUe11..13` (porteuse 2), `DZUe21..23` (porteuse 3). Sur un site à 3 secteurs,
+e4 = e1, e5 = e2, e6 = e3 (et e7-e9 de même) : couche supplémentaire (RAVe4) ou site
+déporté, qui porte toujours son propre trigramme (ACRe4/e5/e6 = secteurs 1 à 3 d'ACR).
+Sur un site à 4 secteurs, e4 = secteur 4.
 → 99,9 % des préfixes trouvent un `Trigramme` dans `Site_File`.
 `ERBS_Id` correspond à la colonne `ERBS` dans 97,9 % des cas.
 
 ### WCDMA
 `CellWcdma` = `<codeSite><lettre>` — **confirmé** : secteur 1 = A/D/G/J, secteur 2 = B/E/H/K,
-secteur 3 = C/F/I/L (porteuses 1 à 4). Site à 4 secteurs (présence d'un M, ex. DTS009) :
-A/B/C/D = secteurs 1-4 porteuse 1, J/K/L/M = secteurs 1-4 porteuse 2.
-→ 98,1 % des préfixes trouvent un `codeSite`. Non trouvés : ex. `EXP099*`, `FLA384*`.
+secteur 3 = C/F/I/L (porteuses 1 à 4). Site à 4 secteurs (ex. DTS009) :
+A/B/C/D = secteurs 1-4 porteuse 1, J/K/L/M = secteurs 1-4 porteuse 2. Un site compte
+4 secteurs si Site_File le déclare (`nbSect` = 4), s'il porte une cellule M ou si une
+porteuse LTE a les secteurs e1 à e4 (pas e5/e6) : BAU472, DTS009, LEB353, MDO355, NES466,
+PRB220, ROC735, SLR682, TSI667. Ex. secteur 1 d'Aiguade : AIG101A, AIG101D, AIG101J (3G),
+AIGe1, AIGe11, AIGe21 (4G).
+→ 98,1 % des préfixes trouvent un `codeSite` ; à défaut, rattachement par le trigramme
+(DNU057 → DNU089, FLA384 → FLA375, NAT154 → NAT118, OUL782 → OUL779). Sans site :
+`EXP099`, `MB2997`, `MB3998`, `MBN999`, `MCO060`, `OHP527`.
+
+### Passage de 3 à 4 secteurs
+Ex. DTS009 : en 2024, A-F + J-L (3 secteurs, D/E/F = secteurs 1-3 porteuse 2) ; en 2026,
+A-D + J-M (4 secteurs, D = secteur 4), E et F ne produisent plus de statistiques.
+MDO355 : D/E/F = secteurs 1-3 avant, D = secteur 4 ensuite. À la date de passage
+(`Site.bascule_4_secteurs`), D et e4/e14 changent de secteur (`Cellule.secteur_avant`
+avant) ; les calculs par secteur en tiennent compte ligne par ligne.
 
 ### Résultat de l'import (`import_referentiel` sur le xlsx + les 4 extraits)
-588 sites, 1 383 secteurs ; cellules rattachées à un secteur : LTE 1 958 / 2 044,
-WCDMA 1 914 / 1 990 (≈ 96 %). Les non-rattachées correspondent à des sites ou secteurs
-absents de `Cell_File` et sont listées dans l'historique de l'import.
+588 sites, 1 392 secteurs ; cellules rattachées à un secteur : LTE 2 038 / 2 044,
+WCDMA 1 956 / 1 990. Les non-rattachées correspondent à des sites absents de
+`Site_File` et sont listées dans l'historique de l'import.
 
 ### Pièges relevés
 - `Trigramme` **non unique** : `3VL` (2 sites), `CHT` (3 sites), `NKA` (2 sites). La
   jointure LTE par trigramme seul est donc ambiguë : règle provisoire, le premier site
   du fichier fait foi.
 - Suffixes `bb` / `e` dans les noms ERBS (`TIARIbb`, `KARIKATEe`) et `s` (`3_VALLEESbbs`).
-- Secteur `BGV0021` en double dans `Cell_File`.
 - Onglet `Cluster` : noms de cellules mixtes LTE (`ZIZe3`) / WCDMA (`ZIZ179C`) et
   `RBS` avec espaces (`PIC MARTIN`) au lieu de `_` ; seules 260 / 342 cellules
   se retrouvent dans les extraits horaires.
