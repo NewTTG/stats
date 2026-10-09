@@ -3,6 +3,7 @@
 Règles :
 - un secteur (``Cell_File.cells``) dont le site est absent de ``Site_File`` est rejeté ;
 - doublons (codeSite, secteur) : la première ligne est conservée ;
+- sur un site à 3 secteurs, les secteurs 4 à 6 (site déporté) valent 1 à 3 ;
 - trigramme partagé par plusieurs sites : le premier site du fichier fait foi pour
   rattacher les cellules LTE (règle provisoire) ;
 - chaque anomalie est consignée dans l'``ImportReferentiel`` créé.
@@ -15,7 +16,7 @@ import pandas as pd
 from django.db import transaction
 
 from .models import Cellule, ImportReferentiel, Secteur, Site
-from .nommage import decoder_lte, decoder_wcdma, sites_wcdma_4_secteurs
+from .nommage import decoder_lte, decoder_wcdma, secteur_equivalent, sites_wcdma_4_secteurs
 
 COLONNES_SITE = ["codeSite", "Trigramme", "siteName", "commune", "region"]
 COLONNES_SECTEUR = ["cells", "codeSite"]
@@ -67,6 +68,20 @@ def _numero_secteur(code: str, code_site: str) -> int | None:
     return int(suffixe) if suffixe.isdigit() else None
 
 
+def sites_a_4_secteurs(df_sites: pd.DataFrame, df_secteurs: pd.DataFrame, cellules=None) -> set[str]:
+    """Sites à 4 secteurs : ``nbSect`` >= 4, secteurs 1 à 4 dans Cell_File, ou cellule 3G M."""
+    quatre = set()
+    if "nbSect" in df_sites:
+        quatre |= set(df_sites.loc[pd.to_numeric(df_sites["nbSect"], errors="coerce") >= 4, "codeSite"])
+    numeros = {}
+    for code, code_site in df_secteurs[["cells", "codeSite"]].itertuples(index=False):
+        numeros.setdefault(code_site, set()).add(_numero_secteur(code, code_site))
+    quatre |= {site for site, n in numeros.items() if {1, 2, 3, 4} <= n}
+    if cellules:
+        quatre |= sites_wcdma_4_secteurs(cellules["WCDMA"])
+    return quatre
+
+
 def lire_cellules(chemins: list[Path]) -> dict[str, list[str]]:
     """Noms de cellules distincts par techno, lus dans des exports KPI CSV."""
     cellules = {"LTE": set(), "WCDMA": set()}
@@ -86,6 +101,8 @@ def lire_cellules(chemins: list[Path]) -> dict[str, list[str]]:
 def importer(chemin: Path, fichiers_cellules: list[Path] = (), auteur=None) -> ImportReferentiel:
     rapport = Rapport()
     df_sites, df_secteurs = lire_referentiel(chemin, rapport)
+    cellules = lire_cellules(list(fichiers_cellules)) if fichiers_cellules else None
+    quatre = sites_a_4_secteurs(df_sites, df_secteurs, cellules)
 
     avant_sites = set(Site.objects.values_list("code_site", flat=True))
     avant_secteurs = set(Secteur.objects.values_list("code", flat=True))
@@ -116,6 +133,10 @@ def importer(chemin: Path, fichiers_cellules: list[Path] = (), auteur=None) -> I
         if numero is None:
             rapport.signaler(f"secteur {code} rejeté : numéro de secteur illisible")
             continue
+        numero = secteur_equivalent(numero, code_site in quatre)
+        if (code_site, numero) in secteurs:
+            rapport.signaler(f"secteur {code} ignoré : équivalent de {secteurs[(code_site, numero)].code}")
+            continue
         secteur, _ = Secteur.objects.update_or_create(
             code=code,
             defaults={
@@ -132,8 +153,8 @@ def importer(chemin: Path, fichiers_cellules: list[Path] = (), auteur=None) -> I
     Secteur.objects.filter(code__in=supprimes_secteurs).delete()
     Site.objects.filter(code_site__in=supprimes_sites).delete()
 
-    if fichiers_cellules:
-        _importer_cellules(lire_cellules(list(fichiers_cellules)), df_sites, secteurs, rapport)
+    if cellules:
+        _importer_cellules(cellules, df_sites, secteurs, quatre, rapport)
 
     return ImportReferentiel.objects.create(
         auteur=auteur,
@@ -146,7 +167,7 @@ def importer(chemin: Path, fichiers_cellules: list[Path] = (), auteur=None) -> I
     )
 
 
-def _importer_cellules(cellules, df_sites, secteurs, rapport: Rapport):
+def _importer_cellules(cellules, df_sites, secteurs, quatre: set[str], rapport: Rapport):
     # Trigramme -> premier site du fichier (règle provisoire pour les trigrammes partagés).
     site_par_trigramme = {}
     for code_site, trigramme in df_sites[["codeSite", "Trigramme"]].itertuples(index=False):
@@ -159,9 +180,10 @@ def _importer_cellules(cellules, df_sites, secteurs, rapport: Rapport):
     for nom in cellules["LTE"]:
         decodee = decoder_lte(nom)
         code_site = site_par_trigramme.get(decodee.prefixe) if decodee else None
+        if code_site in quatre:
+            decodee = decoder_lte(nom, quatre_secteurs=True)
         a_creer.append(_cellule(nom, "LTE", decodee, code_site, secteurs, rapport))
 
-    quatre = sites_wcdma_4_secteurs(cellules["WCDMA"])
     for nom in cellules["WCDMA"]:
         decodee = decoder_wcdma(nom, quatre_secteurs=nom[:-1] in quatre)
         a_creer.append(_cellule(nom, "WCDMA", decodee, decodee and decodee.prefixe, secteurs, rapport))

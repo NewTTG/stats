@@ -64,7 +64,7 @@ coupures (54 % sur l’extrait journalier). Le reste est affiché **« non venti
 |---|---|---|
 | `wcdma_drop_sho` | soft handover | `RabDropCsSho_p` |
 | `wcdma_drop_perte_synchro` | perte de synchronisation radio | `RabDropCsOutOfSync_p` |
-| `wcdma_drop_voisinage_manquant` | voisinage manquant (à confirmer) | `RabDropCsMissRel_p` |
+| `wcdma_drop_voisinage_manquant` | relation de voisinage 3G manquante | `RabDropCsMissRel_p` |
 | `wcdma_drop_ifho` | handover inter-fréquence | `RabDropCsIfho_p` |
 | `wcdma_drop_irat` | handover vers la 2G | `RabDropCsIratho_p` |
 | `wcdma_drop_congestion` | congestion | `RabDropCsRelCong_p` (toujours 0 sur l'extrait) |

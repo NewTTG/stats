@@ -26,7 +26,7 @@ PostgreSQL 17.5, schéma `public`, accès lecture seule.
   états de cellules ENM, alarmes, `ref_sites` (576 lignes), `ref_cells` (vide).
 - `vw_calendar_hour` ne couvre que les 2 derniers mois ; `vw_lte_wcdma_aug2026` est une
   vue ponctuelle (événement août 2026, jointure LTE/WCDMA par 3 premiers caractères).
-- Horodatages `timestamp without time zone` : heure locale supposée.
+- Horodatages `timestamp without time zone` : heure locale de Nouvelle-Calédonie (GMT+11), **confirmé** : aucune conversion.
 
 ## 1. Tables KPI
 
@@ -78,14 +78,20 @@ Coordonnées GPS disponibles → carte possible pour la sélection de cellules.
 ### LTE
 `EutranCell_Id` = `<Trigramme>e<S>` (porteuse 1) ou `<Trigramme>e<P><S>` (porteuse P + 1),
 S = secteur — **confirmé**. Ex. site DZU (3 porteuses) : `DZUe1..3` (porteuse 1),
-`DZUe11..13` (porteuse 2), `DZUe21..23` (porteuse 3).
+`DZUe11..13` (porteuse 2), `DZUe21..23` (porteuse 3). Sur un site à 3 secteurs,
+e4 = e1, e5 = e2, e6 = e3 (et e7-e9 de même) : couche supplémentaire (RAVe4) ou site
+déporté, qui porte toujours son propre trigramme (ACRe4/e5/e6 = secteurs 1 à 3 d'ACR ;
+Cell_File les numérote aussi 4 à 6). Sur un site à 4 secteurs, e4 = secteur 4.
 → 99,9 % des préfixes trouvent un `Trigramme` dans `Site_File`.
 `ERBS_Id` correspond à la colonne `ERBS` dans 97,9 % des cas.
 
 ### WCDMA
 `CellWcdma` = `<codeSite><lettre>` — **confirmé** : secteur 1 = A/D/G/J, secteur 2 = B/E/H/K,
-secteur 3 = C/F/I/L (porteuses 1 à 4). Site à 4 secteurs (présence d'un M, ex. DTS009) :
-A/B/C/D = secteurs 1-4 porteuse 1, J/K/L/M = secteurs 1-4 porteuse 2.
+secteur 3 = C/F/I/L (porteuses 1 à 4). Site à 4 secteurs (ex. DTS009) :
+A/B/C/D = secteurs 1-4 porteuse 1, J/K/L/M = secteurs 1-4 porteuse 2. Un site compte
+4 secteurs si Site_File le déclare (`nbSect` = 4), si Cell_File liste ses secteurs 1 à 4
+ou s'il porte une cellule M. Ex. secteur 1 d'Aiguade : AIG101A, AIG101D, AIG101J (3G),
+AIGe1, AIGe11, AIGe21 (4G).
 → 98,1 % des préfixes trouvent un `codeSite`. Non trouvés : ex. `EXP099*`, `FLA384*`.
 
 ### Résultat de l'import (`import_referentiel` sur le xlsx + les 4 extraits)

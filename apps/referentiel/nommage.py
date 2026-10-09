@@ -6,14 +6,20 @@ Conventions de nommage (confirmées) :
     ``DZUe2``  -> trigramme DZU, porteuse 1, secteur 2
     ``DZUe12`` -> trigramme DZU, porteuse 2, secteur 2
     ``DZUe22`` -> trigramme DZU, porteuse 3, secteur 2
-  Le secteur 4 suit la même règle (``XXXe4``, ``XXXe14``…).
+  Site à 3 secteurs (cas général) : e4 = e1, e5 = e2, e6 = e3 (et e7-e9 de même),
+  qu'il s'agisse d'une couche supplémentaire (RAVe4) ou d'un site déporté, qui porte
+  son propre trigramme (ACRe4/e5/e6 = secteurs 1 à 3 d'ACR).
+  Site à 4 secteurs : ``XXXe4`` / ``XXXe14`` = secteur 4.
 - WCDMA : ``<codeSite><lettre>``
     cas général (3 secteurs) : secteur 1 = A/D/G/J, secteur 2 = B/E/H/K,
     secteur 3 = C/F/I/L, porteuses 1 à 4 dans cet ordre ;
-    site à 4 secteurs (présence d'une lettre M) : A/B/C/D = secteurs 1-4 porteuse 1,
-    J/K/L/M = secteurs 1-4 porteuse 2.
+    site à 4 secteurs : A/B/C/D = secteurs 1-4 porteuse 1, J/K/L/M = secteurs 1-4 porteuse 2.
 
-Le secteur référentiel (onglet Cell_File) s'écrit ``<codeSite><secteur>``.
+Un site compte 4 secteurs si le référentiel le déclare (``nbSect`` = 4, ou secteurs 1 à 4
+dans Cell_File) ou s'il porte une cellule 3G M (cf. ``importation.sites_a_4_secteurs``).
+
+Le secteur référentiel (onglet Cell_File) s'écrit ``<codeSite><secteur>`` ; sur un site
+à 3 secteurs, les numéros 4 à 6 (sites déportés) valent aussi 1 à 3.
 """
 
 import re
@@ -43,17 +49,23 @@ class CelluleDecodee:
     secteur: int
 
 
-def decoder_lte(nom: str) -> CelluleDecodee | None:
+def secteur_equivalent(numero: int, quatre_secteurs: bool = False) -> int:
+    """Numéro de secteur ramené à 1-3 (ou 1-4) : sur un site à 3 secteurs, 4 = 1, 5 = 2…"""
+    nb = 4 if quatre_secteurs else 3
+    return (numero - 1) % nb + 1
+
+
+def decoder_lte(nom: str, quatre_secteurs: bool = False) -> CelluleDecodee | None:
     m = _LTE.match(nom)
-    if not m:
+    if not m or m["num"][-1] == "0":
         return None
     num = m["num"]
     porteuse, secteur = (1, int(num)) if len(num) == 1 else (int(num[0]) + 1, int(num[1]))
-    return CelluleDecodee("LTE", m["prefixe"], porteuse, secteur)
+    return CelluleDecodee("LTE", m["prefixe"], porteuse, secteur_equivalent(secteur, quatre_secteurs))
 
 
 def decoder_wcdma(nom: str, quatre_secteurs: bool = False) -> CelluleDecodee | None:
-    """``quatre_secteurs`` : le site porte une cellule M (cf. ``sites_wcdma_4_secteurs``)."""
+    """``quatre_secteurs`` : site à 4 secteurs (cf. ``importation.sites_a_4_secteurs``)."""
     m = _WCDMA.match(nom)
     table = _WCDMA_4_SECTEURS if quatre_secteurs else _WCDMA_3_SECTEURS
     if not m or m["lettre"] not in table:
