@@ -13,6 +13,15 @@ LIBELLES_TECHNO = {"LTE": "4G", "WCDMA": "3G"}
 
 
 @dataclass
+class RapportType:
+    """Rapport type proposé sur l'accueil : une carte (titre, description, icône)."""
+
+    titre: str
+    description: str
+    icone: str = ""
+
+
+@dataclass
 class Intention:
     code: str
     libelle: str
@@ -22,6 +31,9 @@ class Intention:
     famille: bool = False
     # qualificatif (« voix », « data ») -> intention précise : « coupure voix » = drop voix
     absorbe: dict[str, str] = field(default_factory=dict)
+    # Mots qui ne valent cette intention que si la demande n'en cite aucune autre (« bilan »).
+    mots_generiques: list[str] = field(default_factory=list)
+    rapport: RapportType | None = None
 
 
 @dataclass
@@ -57,6 +69,11 @@ class Vocabulaire:
     def familles(self) -> list[Intention]:
         return [i for i in self.intentions.values() if i.famille]
 
+    @property
+    def rapports(self) -> list[Intention]:
+        """Rapports types (cartes de l'accueil), dans l'ordre du fichier."""
+        return [i for i in self.intentions.values() if i.rapport]
+
 
 def charger_vocabulaire(chemin: Path) -> Vocabulaire:
     with open(chemin, encoding="utf-8") as f:
@@ -67,9 +84,15 @@ def charger_vocabulaire(chemin: Path) -> Vocabulaire:
         inconnues = set(kpis) - set(TECHNOS)
         if inconnues:
             raise ValueError(f"intention {code} : techno inconnue {sorted(inconnues)}")
+        rapport = d.get("rapport")
         intentions[code] = Intention(code=code, libelle=d["libelle"], mots=[str(m) for m in d["mots"]], kpis=kpis,
                                      technos_defaut=list(d.get("technos_defaut") or TECHNOS),
-                                     famille=bool(d.get("famille")), absorbe=dict(d.get("absorbe") or {}))
+                                     famille=bool(d.get("famille")), absorbe=dict(d.get("absorbe") or {}),
+                                     mots_generiques=[str(m) for m in d.get("mots_generiques") or []],
+                                     rapport=RapportType(titre=str(rapport.get("titre") or d["libelle"]),
+                                                         description=str(rapport.get("description") or ""),
+                                                         icone=str(rapport.get("icone") or ""))
+                                     if rapport else None)
     voc = Vocabulaire(
         technos={t: [str(m) for m in mots] for t, mots in brut["technos"].items()},
         intentions=intentions,
@@ -109,6 +132,8 @@ def charger_vocabulaire(chemin: Path) -> Vocabulaire:
     for intention in intentions.values():
         for mot in intention.mots:
             voc.mots.ajouter(mot, ("intention", intention.code))
+        for mot in intention.mots_generiques:
+            voc.mots.ajouter(mot, ("generique", intention.code))
     for code, mots in voc.qualificatifs.items():
         for mot in mots:
             voc.mots.ajouter(mot, ("qualificatif", code))

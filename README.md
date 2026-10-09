@@ -9,7 +9,8 @@ de données par utilisateur et exports Excel / PowerPoint. Cahier des charges :
 avec détection d'anomalies, rapports PowerPoint / Excel en tâche de fond, KPI WCDMA, seuils
 réglables dans l'admin ; barre de recherche en langage libre (règles locales, IA facultative) ;
 rapports enregistrés, relancés à la demande ou planifiés (phase 3, sans SSO ni SharePoint) ;
-base de démonstration synthétique utilisable sans accès à la base KPI.
+rapports types en trois choix (rapport, lieu, période) sur l'accueil ; espace
+d'administration séparé ; base de démonstration synthétique utilisable sans accès à la base KPI.
 Données décrites dans [`docs/schema.md`](docs/schema.md), questions ouvertes dans
 [`docs/questions.md`](docs/questions.md).
 
@@ -83,7 +84,26 @@ sont conservés dans le volume `media`.
 
 ### Ce que l'on peut faire aujourd'hui
 
-- **Recherche en langage libre** (page d'accueil, http://localhost:8000) : « Drop 3G à
+- **Rapports types** (page d'accueil, http://localhost:8000) : les demandes habituelles sans
+  phrase à écrire, en trois choix — **quel rapport** (carte), **où** (vide = tout le réseau ;
+  commune(s), province, site, événement, avec suggestions), **quand** (hier, 7 derniers jours,
+  semaine dernière, ce mois-ci, mois dernier, 30 derniers jours ou dates précises) ; options
+  repliées : détail temporel, regroupement (par commune, site…), heures.
+
+  | Rapport | Indicateurs |
+  |---|---|
+  | Bilan complet | appels voix 3G, SMS, accès voix / data 3G, coupures voix / data 3G ; appels CSFB, volume data 4G, utilisateurs connectés, débit DL 4G, PRB DL, taux d'accès 4G, coupures E-RAB |
+  | Trafic | appels voix 3G, SMS, appels CSFB, volume data 4G |
+  | Data 4G | volume data, débit DL, PRB DL, utilisateurs connectés |
+  | Qualité de service | taux d'accès 4G, accès voix / data 3G, coupures E-RAB, coupures voix / data 3G |
+  | Utilisateurs 4G | utilisateurs connectés (pic RRC, estimation) |
+  | Sur mesure | indicateurs cochés un par un |
+
+  Les rapports types sont des intentions de `config/recherche.yaml` (clé `rapport`) : les
+  modifier ou en ajouter un ne demande pas de code. Le résultat commence par une
+  **synthèse par thème** (trafic, débit et charge, accès, coupures…) qui réunit 4G et 3G,
+  puis le détail par technologie.
+- **Recherche en langage libre** (même page, sous les rapports types) : « Drop 3G à
   Nouméa la semaine dernière », « Causes de coupure 4G à Koné hier », « Débit 4G par site
   à Dumbéa les 7 derniers jours »… (voir [Recherche](#recherche-en-langage-libre)). Résultat :
   cartes KPI (valeur sur toute la période en ratio de sommes, statut OK / alerte /
@@ -92,9 +112,9 @@ sont conservés dans le volume `media`.
   chargés » pour les volumes de trafic ; « top 5 », « les 10 cellules » fixent le nombre de
   lignes, 10 par défaut ; la durée moyenne d'appel n'est pas classée), courbes avec seuils,
   tableau détaillé et cellules sans données repliables.
-- **Recherche avancée** (formulaire repliable, pré-rempli par la recherche) : technologie,
-  périmètre (commune, site, trigramme, secteur, cellule, événement), période, fenêtre
-  horaire, pas de temps, niveau d'agrégation, KPI.
+- **Modifier un résultat** : chaque élément de la demande (indicateurs ou rapport type, lieu,
+  période, détail, regroupement, heures, techno) est une puce cliquable. Les paramètres GET de
+  l'ancien formulaire « Recherche avancée » (`perimetre_type`, `debut`, `fin`…) restent acceptés.
 - **Export Excel** (bouton sur l'écran de résultat) : onglet *Paramètres* (requête,
   cellules sans données, avertissements), par technologie un onglet *Synthèse*
   (ensemble du périmètre puis chaque entité, sur toute la période) et un onglet
@@ -109,14 +129,18 @@ sont conservés dans le volume `media`.
     cellule sans données sur un créneau, saturation (PRB DL haute + débit DL bas) ;
   - classement des secteurs (ou sites) les plus dégradés ;
   - rapports PowerPoint et Excel, par secteur ou par site.
-- **Rapports enregistrés** : depuis un résultat, « Enregistrer / planifier » garde la requête
+- **Rapports enregistrés** : depuis un résultat, « Enregistrer ce rapport » garde la requête
   (lieu, KPI, granularités) avec une **période relative** (hier, 7 / 30 derniers jours, semaine
   dernière, mois dernier, ce mois-ci), recalculée à chaque lancement. Lancement à la demande
   ou automatique : chaque jour, chaque semaine (jour au choix) ou le 1er du mois, à l'heure
   choisie (heure de Nouméa), en PowerPoint ou Excel, avec les droits de l'auteur.
-- **Mes rapports** (/rapports) : rapports enregistrés (lancer, suspendre, supprimer),
-  historique et téléchargement des rapports générés.
-- **Administration** (/admin) : sites / secteurs / cellules, historique des imports,
+- **Mes rapports** (/rapports) : rapports enregistrés (afficher à l'écran sur leur période
+  relative, générer le fichier, suspendre, supprimer ; les 5 premiers aussi sur l'accueil),
+  historique et téléchargement des fichiers générés.
+- **Administration** (/admin), à part des statistiques : lien « Administration » en haut à
+  droite pour un compte administrateur, « Accès administrateur » en pied de page sinon. Les
+  pages des statistiques n'affichent aucun détail technique à un utilisateur (commande de la
+  démo, configuration de la base KPI : réservés aux administrateurs). Contenu : sites / secteurs / cellules, historique des imports,
   utilisateurs, groupes, périmètres, journal d'audit, **événements** (cellules,
   créneaux, semaines de référence), **seuils KPI**, **réglages de détection d'anomalies**.
 
@@ -163,11 +187,19 @@ La barre de recherche transforme le texte en requête (même objet que le formul
 validé par Pydantic) puis exécute directement. Elle ne bloque jamais : s'il manque
 quelque chose, elle pose une question avec des réponses en un clic.
 
-- **Compris** : chaque élément reconnu (techno · KPI · lieu · période · pas · niveau ·
-  heures) est une puce cliquable pour le modifier ; les mots non compris sont listés.
+- **Votre demande** : chaque élément reconnu (techno · indicateurs · lieu · période · détail ·
+  regroupement · heures) est une puce cliquable pour le modifier (la puce des indicateurs
+  propose aussi les rapports types) ; les mots non compris sont listés.
+- **Rapports types en un mot** : « bilan », « rapport », « synthèse », « stats habituelles »,
+  « tableau de bord » → bilan complet ; « rapport trafic », « voix, SMS et data » → trafic ;
+  « bilan data » → data 4G ; « qualité », « QoS » → qualité de service ; « utilisateurs »,
+  « nombre d'utilisateurs », « RRC conn max », « affluence » → utilisateurs connectés. Les mots
+  génériques (`mots_generiques` : bilan, rapport, synthèse, qualité, utilisateurs, clients…)
+  ne comptent que si aucun indicateur n'est cité : « bilan des coupures » = drop,
+  « qualité du débit » = débit. « Bilan 4G » = le bilan limité à la 4G.
 - **Questions** : période absente (Hier, 7 derniers jours, Semaine dernière…, ou dates
-  libres), KPI non reconnu (Drop, Taux d'accès, Débit, Trafic data, Appels, SMS,
-  Disponibilité, Congestion), lieu ambigu (trigramme partagé `CHT`, événements en double),
+  libres), KPI non reconnu (Bilan complet, Drop, Taux d'accès, Débit, Trafic data, Appels, SMS,
+  Disponibilité, Congestion, Utilisateurs connectés), lieu ambigu (trigramme partagé `CHT`, événements en double),
   lieu mal orthographié ou inconnu (« Nouméaa » → « vouliez-vous dire Nouméa ? », ou
   « Tout le réseau ») : jamais de repli silencieux sur tout le réseau.
 - **Vocabulaire** dans [`config/recherche.yaml`](config/recherche.yaml) : intentions →

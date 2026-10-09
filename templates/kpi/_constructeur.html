@@ -1,0 +1,93 @@
+{% comment %}
+Accueil : rapport type + lieu + période, sans phrase à écrire. Formulaire GET (fonctionne sans
+JavaScript) : rapport -> « intention », lieu -> « q » (texte compris par la recherche),
+période -> « periode » ou « debut » / « fin ». Les options vides ne sont pas transmises.
+{% endcomment %}
+<form class="constructeur carte" method="get" action="{% url 'kpi:requete' %}" id="constructeur" data-suggestions="{% url 'kpi:suggestions' %}">
+  <fieldset class="etape">
+    <legend><span class="numero" aria-hidden="true">1</span> Quel rapport&nbsp;?</legend>
+    <div class="choix-rapports">
+      {% for r in rapports_types %}
+      <label class="choix-rapport">
+        <input type="radio" name="intention" value="{{ r.code }}"{% if forloop.first %} checked{% endif %}>
+        <span class="icone">{% include "kpi/_icone.html" with nom=r.icone %}</span>
+        <span class="texte"><strong>{{ r.titre }}</strong><span>{{ r.description }}</span></span>
+        <span class="sr-only">Contient : {{ r.contenu }}</span>
+      </label>
+      {% endfor %}
+      <label class="choix-rapport">
+        <input type="radio" name="intention" value=""{% if not rapports_types %} checked{% endif %}>
+        <span class="icone">{% include "kpi/_icone.html" with nom="sur_mesure" %}</span>
+        <span class="texte"><strong>Sur mesure</strong><span>Choisir les indicateurs un par un</span></span>
+      </label>
+    </div>
+    <details class="sur-mesure" id="sur-mesure">
+      <summary>Indicateurs sur mesure <span class="aide">cochés, ils remplacent le rapport choisi</span></summary>
+      <div class="liste-kpi">
+        {% for g in kpis_sur_mesure %}
+        <fieldset><legend><span class="badge-techno {{ g.techno }}">{% if g.techno == "LTE" %}4G{% else %}3G{% endif %}</span> {{ g.nom }}</legend>
+          {% for categorie, kpis in g.categories %}<p class="categorie-kpi">{{ categorie }}</p>
+            {% for k in kpis %}
+            <label class="{% if k.cause %}cause{% endif %}"><input type="checkbox" name="kpis" value="{{ k.code }}"> {{ k.libelle }} <span class="aide">({{ k.unite }})</span></label>
+            {% endfor %}
+          {% endfor %}
+        </fieldset>
+        {% endfor %}
+      </div>
+    </details>
+  </fieldset>
+
+  <div class="etapes-cote">
+    <fieldset class="etape">
+      <legend><span class="numero" aria-hidden="true">2</span> Où&nbsp;?</legend>
+      <label class="sr-only" for="lieu">Lieu</label>
+      <input id="lieu" name="q" list="lieux-accueil" autocomplete="off" spellcheck="false"
+             placeholder="Tout le réseau" aria-describedby="aide-lieu">
+      <datalist id="lieux-accueil">
+        {% for l in lieux %}<option value="{{ l.valeur }}">{{ l.type }}</option>{% endfor %}
+      </datalist>
+      <p class="aide" id="aide-lieu">Vide : tout le réseau. Sinon une ou plusieurs communes, une province, un site
+        (code ou nom) ou un événement — ex. « Nouméa », « Koné et Pouembout », « Province Nord ».</p>
+    </fieldset>
+
+    <fieldset class="etape">
+      <legend><span class="numero" aria-hidden="true">3</span> Quand&nbsp;?</legend>
+      <div class="choix-puces choix-periode">
+        {% for code, libelle in periodes %}
+        <label><input type="radio" name="periode" value="{{ code }}"{% if code == periode_defaut %} checked{% endif %}> {{ libelle }}</label>
+        {% endfor %}
+        <label><input type="radio" name="periode" value="dates"> Dates précises…</label>
+      </div>
+      <div class="dates-precises deux-colonnes" id="dates-precises">
+        <div><label for="debut">Du</label><input id="debut" type="date" name="debut"></div>
+        <div><label for="fin">Au</label><input id="fin" type="date" name="fin"></div>
+      </div>
+    </fieldset>
+  </div>
+
+  <details class="options">
+    <summary>Options d'affichage <span class="aide">détail temporel, regroupement, heures</span></summary>
+    <div class="grille">
+      <div><label for="o-temps">Détail temporel</label>
+        <select id="o-temps" name="granularite_temps">
+          <option value="">Automatique (selon la période)</option>
+          {% for code, libelle in gran_temps %}<option value="{{ code }}">Par {{ libelle|lower }}</option>{% endfor %}
+        </select></div>
+      <div><label for="o-espace">Regroupement</label>
+        <select id="o-espace" name="granularite_espace">
+          <option value="">Automatique</option>
+          {% for code, libelle in gran_espace %}{% if code != "global" %}<option value="{{ code }}">Par {{ libelle|lower }}</option>{% endif %}{% endfor %}
+        </select></div>
+      <div><label for="o-heures">Heures</label>
+        <select id="o-heures" name="fenetre_horaire">
+          <option value="">Journée complète</option>
+          {% for code, libelle in fenetres %}{% if code != "journee" %}<option value="{{ code }}">{{ libelle }}</option>{% endif %}{% endfor %}
+        </select></div>
+    </div>
+  </details>
+
+  <div class="actions-constructeur">
+    <button class="bouton grand" type="submit">Afficher le rapport
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+  </div>
+</form>

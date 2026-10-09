@@ -22,10 +22,14 @@ def _intentions(voc, correspondances, d: Demande) -> list[str]:
     Un qualificatif (« voix », « appel », « data ») précise une intention présente qui
     l'accepte (drop -> drop voix, accès -> accès data, durée d'appel…) au lieu d'ouvrir
     l'intention Appels / Trafic : « taux de coupure voix » ne demande pas les appels.
+    Un mot générique (« bilan », « qualité ») ne compte que si aucune autre intention n'est
+    citée : « bilan Nouméa » = bilan complet, « bilan des coupures » = drop.
     """
     elements = []  # (intentions du mot, qualificatif du mot)
+    generiques: list[str] = []
     for _indices, valeurs in correspondances:
         intentions = [code for nature, code in valeurs if nature == "intention"]
+        generiques += [code for nature, code in valeurs if nature == "generique" and not intentions]
         qualificatif = next((code for nature, code in valeurs if nature == "qualificatif"), None)
         for nature, code in valeurs:
             if nature == "modificateur":
@@ -65,7 +69,7 @@ def _intentions(voc, correspondances, d: Demande) -> list[str]:
         sortie = [i for i in sortie if i != "drop"]
     if {"acces_voix", "acces_data"} & set(sortie):
         sortie = [i for i in sortie if i != "acces"]
-    return sortie
+    return sortie or list(dict.fromkeys(generiques))
 
 
 def analyser(texte: str, aujourdhui: date, contexte: Contexte) -> tuple[Demande, list[str], list[str]]:

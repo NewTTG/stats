@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block titre %}Stats KPI réseau{% endblock %}</title>
+  <title>{% block titre %}Stats réseau{% endblock %}</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   {% block entete %}{% endblock %}
@@ -14,23 +14,26 @@
     <div class="conteneur">
       <a class="marque" href="{% url 'kpi:requete' %}">
         <span class="marque-logo" aria-hidden="true">K</span>
-        <span>Stats KPI réseau<small>OPT · 4G LTE · 3G WCDMA</small></span>
+        <span>Stats réseau<small>OPT · 4G · 3G</small></span>
       </a>
       {% if user.is_authenticated %}
-      {% with nom_url=request.resolver_match.namespace %}
+      {% with espace=request.resolver_match.namespace %}
       <nav aria-label="Navigation principale">
         <ul class="navigation">
-          <li><a href="{% url 'kpi:requete' %}"{% if nom_url == "kpi" %} aria-current="page"{% endif %}>Recherche</a></li>
-          <li><a href="{% url 'evenements:liste' %}"{% if nom_url == "evenements" %} aria-current="page"{% endif %}>Événements</a></li>
-          <li><a href="{% url 'rapports:liste' %}"{% if nom_url == "rapports" %} aria-current="page"{% endif %}>Mes rapports</a></li>
-          {% if user.is_staff %}<li><a href="{% url 'admin:index' %}">Administration</a></li>{% endif %}
+          <li><a href="{% url 'kpi:requete' %}"{% if espace == "kpi" %} aria-current="page"{% endif %}>Statistiques</a></li>
+          <li><a href="{% url 'evenements:liste' %}"{% if espace == "evenements" %} aria-current="page"{% endif %}>Événements</a></li>
+          <li><a href="{% url 'rapports:liste' %}"{% if espace == "rapports" %} aria-current="page"{% endif %}>Mes rapports</a></li>
         </ul>
       </nav>
       {% endwith %}
       <div class="utilisateur">
-        {% if visiteur %}
-        <span class="nom" title="Sans compte : votre historique et vos rapports sont gardés dans ce navigateur (cookie).">Session de ce navigateur</span>
-        {% else %}
+        {% if user.is_staff %}
+        {# Espace d'administration : à part de la navigation des statistiques. #}
+        <a class="lien-admin" href="{% url 'admin:index' %}" title="Événements, seuils KPI, accès, référentiel">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+          <span>Administration</span></a>
+        {% endif %}
+        {% if not visiteur %}
         <span class="nom">{{ user.get_username }}</span>
         <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="bouton-discret" type="submit">Déconnexion</button></form>
         {% endif %}
@@ -42,9 +45,9 @@
   <div class="bandeau-demo" role="note">
     <div class="conteneur">
       <strong>Données de démonstration (synthétiques)</strong>
-      <span>Valeurs générées à partir des extraits CSV, sans lien avec le réseau réel{% if demo_debut %}, du {{ demo_debut|date:"d/m/Y" }} au {{ demo_fin|date:"d/m/Y" }}{% endif %}.</span>
-      {% if demo_fin %}<span class="aide-demo">Pour actualiser : <code>python manage.py charger_demo_kpi</code></span>{% endif %}
+      <span>Valeurs fictives, sans lien avec le réseau réel{% if demo_debut %}, du {{ demo_debut|date:"d/m/Y" }} au {{ demo_fin|date:"d/m/Y" }}{% endif %}.</span>
       {% block bandeau_demo %}{% endblock %}
+      {% if demo_fin and user.is_staff %}<span class="aide-demo">Pour actualiser : <code>python manage.py charger_demo_kpi</code></span>{% endif %}
     </div>
   </div>
   {% endif %}
@@ -54,7 +57,14 @@
       {% block contenu %}{% endblock %}
     </div>
   </main>
-  <footer class="pied-page"><div class="conteneur">Stats KPI réseau — usage interne. Ratios agrégés en ratio de sommes.</div></footer>
+  <footer class="pied-page">
+    <div class="conteneur">
+      <span>Stats réseau — OPT, usage interne.</span>
+      {% if visiteur %}<span>Session de ce navigateur : vos recherches et vos rapports y sont gardés, sans compte.</span>{% endif %}
+      {% if user.is_staff %}<a href="{% url 'admin:index' %}">Administration</a>
+      {% elif visiteur or not user.is_authenticated %}<a href="{% url 'login' %}">Accès administrateur</a>{% endif %}
+    </div>
+  </footer>
   {% block scripts %}{% endblock %}
 </body>
 </html>

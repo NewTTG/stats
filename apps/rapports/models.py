@@ -1,9 +1,11 @@
 """Rapports générés en tâche de fond (django-q2) et rapports enregistrés, éventuellement planifiés."""
 
 from datetime import date, datetime, time, timedelta
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.db import models
+from django.urls import reverse
 from django.utils import timezone
 
 JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
@@ -76,6 +78,21 @@ class RapportPlanifie(models.Model):
         if self.frequence == "mensuelle":
             return jour.day == 1
         return True
+
+    def lien_ecran(self) -> str | None:
+        """Affichage à l'écran (page des statistiques), sur la période relative ; None si la requête
+        enregistrée est illisible."""
+        r = self.requete if isinstance(self.requete, dict) else {}
+        try:
+            params = {"q": "", "kpis": [str(c) for c in r["kpis"]], "periode": self.periode,
+                      "perimetre_type": r["perimetre"]["type"],
+                      "perimetre_valeurs": ", ".join(r["perimetre"].get("valeurs") or [])}
+        except (KeyError, TypeError, AttributeError):
+            return None
+        for cle in ("granularite_temps", "granularite_espace", "fenetre_horaire"):
+            if isinstance(r.get(cle), str):
+                params[cle] = r[cle]
+        return reverse("kpi:requete") + "?" + urlencode(params, doseq=True)
 
     def planifier(self, maintenant: datetime | None = None):
         """Recalcule ``prochain_lancement`` (vide si inactif ou sur demande)."""

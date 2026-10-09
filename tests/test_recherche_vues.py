@@ -70,7 +70,7 @@ def test_recherche_complete_affiche_le_resultat(admin, base_recherche):
     assert 'id="graphiques-WCDMA"' in html and "echarts" in html
     assert "export=xlsx" in html and "Rapport PowerPoint" in html
     assert 'name="perimetre_valeurs" value="NOUMEA"' in html and 'name="debut" value="2026-09-28"' in html
-    assert 'action="/rapports/enregistrer/"' in html and "Enregistrer / planifier" in html
+    assert 'action="/rapports/enregistrer/"' in html and "Enregistrer ce rapport" in html
     assert "Sur quelle période" not in html
     trace = JournalAudit.objects.get(action="recherche_kpi").requete
     assert trace["q"] == "drop 3G à Nouméa la semaine dernière" and trace["ia"] is False
