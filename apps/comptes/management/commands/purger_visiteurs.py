@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from apps.comptes.visiteurs import PREFIXE
+from apps.comptes.visiteurs import filtre_visiteurs
 
 
 class Command(BaseCommand):
@@ -16,8 +16,7 @@ class Command(BaseCommand):
 
     def handle(self, jours, **options):
         limite = timezone.now() - timedelta(days=jours)
-        anciens = get_user_model().objects.filter(username__startswith=PREFIXE, password__startswith="!",
-                                                  last_login__lt=limite)
+        anciens = get_user_model().objects.filter(filtre_visiteurs(), last_login__lt=limite)
         nombre = anciens.count()
         anciens.delete()
         self.stdout.write(f"{nombre} visiteur(s) inactif(s) depuis plus de {jours} jours supprimé(s).")

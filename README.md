@@ -138,11 +138,17 @@ sont conservés dans le volume `media`.
   relative, générer le fichier, suspendre, supprimer ; les 5 premiers aussi sur l'accueil),
   historique et téléchargement des fichiers générés.
 - **Administration** (/admin), à part des statistiques : lien « Administration » en haut à
-  droite pour un compte administrateur, « Accès administrateur » en pied de page sinon. Les
-  pages des statistiques n'affichent aucun détail technique à un utilisateur (commande de la
-  démo, configuration de la base KPI : réservés aux administrateurs). Contenu : sites / secteurs / cellules, historique des imports,
-  utilisateurs, groupes, périmètres, journal d'audit, **événements** (cellules,
-  créneaux, semaines de référence), **seuils KPI**, **réglages de détection d'anomalies**.
+  droite pour un compte administrateur, « Accès administrateur » (/connexion) en pied de page
+  sinon ; les pages des statistiques n'affichent aucun détail technique à un utilisateur
+  (commande de la démo, configuration de la base KPI). Espace aux couleurs de l'application,
+  lien « ← Retour aux statistiques » : tableau de bord avec accès rapides (créer un événement,
+  événements sans créneau à compléter, seuils KPI, périmètres, comptes, journal d'audit) et
+  rappel des commandes à lancer sur le serveur ; sections rangées par usage : **événements**
+  (cellules, créneaux, semaines de référence), KPI (**seuils KPI**, **réglages de détection
+  d'anomalies**), comptes et périmètres (utilisateurs, groupes, périmètres d'accès, journal
+  d'audit), référentiel réseau (sites / secteurs / cellules, historique des imports), rapports,
+  tâches de fond. La liste des utilisateurs masque par défaut les sessions visiteur (filtre
+  « Type de compte »).
 
 ### Événements
 
@@ -313,13 +319,14 @@ dans un cookie : ses **dernières recherches** (relancer en un clic, ou « Modif
 reprendre dans la barre et changer communes / dates) et ses rapports lui restent propres.
 Effacer les cookies ou changer de navigateur repart d'une session vierge. Les visiteurs voient
 tout le réseau (groupe Analyste). L'administration reste réservée aux comptes avec mot de
-passe (`/connexion`, puis `/admin`). Ménage des sessions abandonnées :
+passe : `/admin` renvoie vers `/connexion` (« Accès administrateur »), qui mène ensuite au
+tableau de bord de l'administration. Ménage des sessions abandonnées :
 `python manage.py purger_visiteurs` (inactives depuis plus de 400 jours). `ACCES_ANONYME=0`
 rétablit la connexion obligatoire, avec les règles ci-dessous.
 
 - superutilisateur ou membre du groupe **Admin** ou **Analyste** : tout le réseau, tous les KPI ;
 - autre utilisateur : uniquement les cellules et KPI de ses **Périmètres** (admin →
-  Périmètres), rattachés à lui ou à l'un de ses groupes. Sans périmètre : aucune donnée.
+  Périmètres d'accès), rattachés à lui ou à l'un de ses groupes. Sans périmètre : aucune donnée.
 
 ### Import du référentiel : règles
 
@@ -353,7 +360,7 @@ python scripts/explorer_schema.py   # depuis la racine du dépôt ; lecture seul
 
 | Chemin | Rôle |
 |---|---|
-| `config/` | settings Django, `kpi_catalogue.yaml`, vocabulaire de recherche `recherche.yaml` |
+| `config/` | settings Django, `kpi_catalogue.yaml`, vocabulaire de recherche `recherche.yaml`, site d'administration (`admin.py` : ordre des sections, tableau de bord ; gabarits dans `templates/admin/`) |
 | `apps/comptes/` | périmètres d'accès, journal d'audit |
 | `apps/referentiel/` | sites / secteurs / cellules importés du xlsx, décodage des noms de cellules |
 | `apps/kpi/` | modèle de requête (Pydantic), catalogue, moteur de calcul, seuils réglables, écran de recherche |

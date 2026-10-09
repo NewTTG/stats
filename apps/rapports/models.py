@@ -119,6 +119,8 @@ class Rapport(models.Model):
 
     class Meta:
         ordering = ["-cree_le"]
+        verbose_name = "rapport généré"
+        verbose_name_plural = "rapports générés"
 
     def __str__(self):
         return self.titre

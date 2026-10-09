@@ -1,0 +1,80 @@
+{% extends "admin/index.html" %}
+{% comment %}Tableau de bord : accès rapides aux tâches courantes, puis la liste des sections (rangées
+par usage, cf. config/admin.py) et les actions récentes de Django, puis un rappel des commandes.{% endcomment %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+.dashboard #content { width: auto; max-width: 940px; }  /* Django : 600px */
+.tableau-de-bord-titre { margin: 0 0 4px; font-size: .9375rem; font-weight: 600; color: var(--body-loud-color); }
+.acces-rapides { margin: 0 0 24px; padding: 16px; border-radius: 10px; background: var(--darkened-bg);
+  border: 1px solid var(--hairline-color); }
+.acces-rapides > p { margin: 0 0 12px; color: var(--body-quiet-color); }
+ul.cartes-admin { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;
+  margin: 0; padding: 0; }
+ul.cartes-admin li { list-style: none; margin: 0; padding: 0; }
+a.carte-admin:link, a.carte-admin:visited { display: flex; flex-direction: column; gap: 4px; height: 100%;
+  box-sizing: border-box; padding: 12px 14px; border: 1px solid var(--border-color); border-left: 4px solid var(--accent);
+  border-radius: 8px; background: var(--body-bg); box-shadow: var(--carte-ombre); color: var(--body-quiet-color); }
+a.carte-admin:hover, a.carte-admin:focus { border-color: var(--link-fg); border-left-color: var(--accent);
+  text-decoration: none; color: var(--body-quiet-color); }
+a.carte-admin:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.carte-admin-titre { display: flex; align-items: center; gap: 8px; font-size: .9375rem; font-weight: 600; color: var(--link-fg); }
+.carte-admin-description { font-size: .8125rem; line-height: 1.4; }
+.carte-admin-compteur { margin-inline-start: auto; min-width: 1.5em; padding: 1px 8px; border-radius: 999px; text-align: center;
+  font-size: .75rem; font-weight: 700; background: #f0a500; color: #14284b; }
+.carte-admin-compteur.nul { background: var(--selected-bg); color: var(--body-medium-color); }
+.rappels-commandes { margin: 8px 0 0; padding: 12px 16px; border: 1px dashed var(--border-color); border-radius: 8px; }
+.rappels-commandes p { margin: 0 0 8px; color: var(--body-quiet-color); }
+.rappels-commandes dl { margin: 0; }
+.rappels-commandes dt { font-weight: 400; color: var(--body-medium-color); }
+.rappels-commandes dd { margin: 2px 0 10px; }
+.rappels-commandes dd code { display: block; padding: 6px 10px; border-radius: 6px; background: var(--darkened-bg);
+  font-size: .8125rem; color: var(--body-fg); overflow-wrap: anywhere; }
+.rappels-commandes .dernier-import { margin: 4px 0 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  {% if acces_rapides %}
+  <section class="acces-rapides" aria-labelledby="titre-acces-rapides">
+    <h2 id="titre-acces-rapides" class="tableau-de-bord-titre">Accès rapides</h2>
+    <p>Les tâches les plus courantes ; toutes les rubriques sont listées plus bas.</p>
+    <ul class="cartes-admin">
+      {% for carte in acces_rapides %}
+      <li>
+        <a class="carte-admin" href="{{ carte.url }}">
+          <span class="carte-admin-titre">{% if carte.ajout %}<span aria-hidden="true">+</span> {% endif %}{{ carte.titre }}
+            {% if carte.compteur is not None %}<span class="carte-admin-compteur{% if not carte.compteur %} nul{% endif %}" title="{{ carte.compteur }} à compléter">{{ carte.compteur }}</span>{% endif %}
+          </span>
+          <span class="carte-admin-description">{{ carte.description }}</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
+
+  {% if rappels_commandes %}
+  <section class="rappels-commandes" aria-labelledby="titre-commandes">
+    <h2 id="titre-commandes" class="tableau-de-bord-titre">En ligne de commande</h2>
+    <p>Sur le serveur, depuis la racine du dépôt (avec Docker : <code>docker compose exec app …</code>).</p>
+    <dl>
+      {% for libelle, commande in rappels_commandes %}
+      <dt>{{ libelle }}</dt>
+      <dd><code>{{ commande }}</code></dd>
+      {% endfor %}
+    </dl>
+    {% if referentiel %}
+    <p class="dernier-import">
+      {% if referentiel.import %}Dernier import du référentiel : {{ referentiel.import.date|date:"d/m/Y H:i" }} ({{ referentiel.import.fichier }}, {{ referentiel.import.nb_sites }} sites).
+      {% else %}Aucun import du référentiel pour l'instant.{% endif %}
+      {% if referentiel.url %}<a href="{{ referentiel.url }}">Historique des imports</a>{% endif %}
+    </p>
+    {% endif %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

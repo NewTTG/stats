@@ -2,6 +2,7 @@ import re
 
 from django import forms
 from django.contrib import admin
+from django.db.models import Exists, OuterRef
 
 from .models import Creneau, Evenement, ReglagesAnomalies
 
@@ -44,12 +45,30 @@ class CreneauInline(admin.TabularInline):
     extra = 1
 
 
+class CreneauxFilter(admin.SimpleListFilter):
+    """« Sans créneau » : événements à compléter (lien du tableau de bord de l'administration)."""
+
+    title = "créneaux"
+    parameter_name = "creneaux"
+
+    def lookups(self, request, model_admin):
+        return [("avec", "Avec créneau"), ("sans", "Sans créneau (à compléter)")]
+
+    def queryset(self, request, queryset):
+        a_un_creneau = Exists(Creneau.objects.filter(evenement=OuterRef("pk")))
+        if self.value() == "avec":
+            return queryset.filter(a_un_creneau)
+        if self.value() == "sans":
+            return queryset.filter(~a_un_creneau)
+        return queryset
+
+
 @admin.register(Evenement)
 class EvenementAdmin(admin.ModelAdmin):
     form = EvenementForm
     inlines = [CreneauInline]
     list_display = ["nom", "type", "premier_creneau", "nb_creneaux", "semaines_reference"]
-    list_filter = ["type"]
+    list_filter = [CreneauxFilter, "type"]
     search_fields = ["nom", "description"]
     readonly_fields = ["resolution", "cree_par", "cree_le"]
     fieldsets = [

@@ -22,7 +22,8 @@ class Perimetre(models.Model):
     kpis_autorises = models.JSONField("KPI autorisés", default=list, blank=True)
 
     class Meta:
-        verbose_name = "périmètre"
+        verbose_name = "périmètre d'accès"
+        verbose_name_plural = "périmètres d'accès"
 
     def __str__(self):
         return self.nom
