@@ -29,7 +29,8 @@
     {% if recentes %}
     <ul class="liste-recente">
       {% for r in recentes %}
-      <li><a href="{{ r.lien }}"><span>{% if r.ia %}✨ {% endif %}{{ r.texte }}</span><time datetime="{{ r.date|date:'c' }}">{{ r.date|date:"d/m H:i" }}</time></a></li>
+      <li><a href="{{ r.lien }}" title="Relancer"><span>{% if r.ia %}✨ {% endif %}{{ r.texte }}</span><time datetime="{{ r.date|date:'c' }}">{{ r.date|date:"d/m H:i" }}</time></a>
+        {% if r.modifier %}<a class="modifier" href="{{ r.modifier }}" title="Reprendre dans la barre pour la modifier">Modifier</a>{% endif %}</li>
       {% endfor %}
     </ul>
     {% else %}

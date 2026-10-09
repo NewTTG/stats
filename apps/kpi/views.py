@@ -249,7 +249,7 @@ def _entree_recente(action: str, r) -> tuple[str, str, dict] | None:
     return texte, json.dumps(["f", texte]), champs_depuis_requete(requete)
 
 
-def _recherches_recentes(user, nombre=6) -> list[dict]:
+def _recherches_recentes(user, nombre=10) -> list[dict]:
     """Dernières recherches de l'utilisateur (journal d'audit), sans doublon.
 
     Robuste à toute entrée malformée : une entrée illisible est ignorée, jamais d'erreur 500.
@@ -265,7 +265,10 @@ def _recherches_recentes(user, nombre=6) -> list[dict]:
             continue
         texte, cle, params = entree
         vues.add(cle)
+        q = params.get("q")
         sortie.append({"texte": texte, "lien": "?" + urlencode(params, doseq=True), "date": e.date,
+                       # Recherche en texte libre : reprise dans la barre, à modifier avant de relancer.
+                       "modifier": "?" + urlencode({"reprendre": q}) if q else None,
                        "ia": bool((e.requete or {}).get("ia")) if isinstance(e.requete, dict) else False})
         if len(sortie) >= nombre:
             break
@@ -319,6 +322,7 @@ def requete(request):
                 ctx["erreur"] = _message_validation(e)
     else:
         ctx["mode"] = "accueil"
+        ctx["q"] = get.get("reprendre", "").strip()[:300]  # « Modifier » une recherche de l'historique
         ctx["form"] = RequeteForm(kpis_visibles=visibles)
         ctx["recentes"] = _recherches_recentes(request.user)
         ctx["exemples"] = _exemples(request.user, aujourdhui)

@@ -7,6 +7,7 @@ import html as html_lib
 import io
 import re
 from datetime import date
+from urllib.parse import urlencode
 
 import pandas as pd
 import pytest
@@ -69,6 +70,7 @@ def test_recherche_complete_affiche_le_resultat(admin, base_recherche):
     assert 'id="graphiques-WCDMA"' in html and "echarts" in html
     assert "export=xlsx" in html and "Rapport PowerPoint" in html
     assert 'name="perimetre_valeurs" value="NOUMEA"' in html and 'name="debut" value="2026-09-28"' in html
+    assert 'action="/rapports/enregistrer/"' in html and "Enregistrer / planifier" in html
     assert "Sur quelle période" not in html
     trace = JournalAudit.objects.get(action="recherche_kpi").requete
     assert trace["q"] == "drop 3G à Nouméa la semaine dernière" and trace["ia"] is False
@@ -138,7 +140,7 @@ def test_export_excel_depuis_une_recherche(admin, base_recherche):
 
 
 def test_rapport_powerpoint_depuis_une_recherche(admin, base_recherche, monkeypatch):
-    monkeypatch.setattr("apps.rapports.views.async_task", lambda *a, **k: None)
+    monkeypatch.setattr("apps.rapports.lancement.async_task", lambda *a, **k: None)
     html = _html(admin.get("/", {"q": "drop 3G à Nouméa en soirée la semaine dernière"}))
     champs = re.search(r'action="/rapports/requete/">(.*?)</form>', html, re.S)[1]
     donnees = {}
@@ -189,3 +191,13 @@ def test_recherche_vide_et_texte_incomprehensible(admin, base_recherche):
     html = _html(admin.get("/", {"q": "xyzzy plop"}))
     assert "Mots non compris" in html and "xyzzy" in html
     assert "Que voulez-vous voir ?" in html and "Sur quelle période ?" in html
+
+
+def test_enregistrer_depuis_un_resultat(admin, base_recherche):
+    """Le formulaire d'enregistrement reprend la requête et devine la période relative."""
+    html = _html(admin.get("/", {"q": "drop 3G à Nouméa la semaine dernière"}))
+    champs = re.search(r'<form method="get" action="/rapports/enregistrer/">(.*?)</form>', html, re.S)[1]
+    params = [(m[1], html_lib.unescape(m[2])) for m in re.finditer(r'name="([^"]+)" value="([^"]*)"', champs)]
+    page = _html(admin.get("/rapports/enregistrer/?" + urlencode(params)))
+    assert re.search(r'<option value="semaine_derniere" selected>', page)
+    assert 'value="KPI WCDMA — NOUMEA"' in page

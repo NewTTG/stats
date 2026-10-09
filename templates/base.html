@@ -28,8 +28,12 @@
       </nav>
       {% endwith %}
       <div class="utilisateur">
+        {% if visiteur %}
+        <span class="nom" title="Sans compte : votre historique et vos rapports sont gardés dans ce navigateur (cookie).">Session de ce navigateur</span>
+        {% else %}
         <span class="nom">{{ user.get_username }}</span>
         <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="bouton-discret" type="submit">Déconnexion</button></form>
+        {% endif %}
       </div>
       {% endif %}
     </div>

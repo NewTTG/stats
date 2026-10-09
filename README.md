@@ -4,10 +4,11 @@ Application web interne de statistiques de trafic et de qualité radio, avec pé
 de données par utilisateur et exports Excel / PowerPoint. Cahier des charges :
 [`brief_app_kpi_reseau.md`](brief_app_kpi_reseau.md).
 
-**État : phase 2 + recherche en langage libre** — phase 1 (référentiel, catalogue KPI,
-moteur de calcul, périmètres d'accès, export Excel) + événements avec détection
-d'anomalies, rapports PowerPoint / Excel en tâche de fond, KPI WCDMA, seuils réglables
-dans l'admin ; barre de recherche en langage libre (règles locales, IA facultative) et
+**État : phase 2 + recherche en langage libre + rapports enregistrés et planifiés** — phase 1
+(référentiel, catalogue KPI, moteur de calcul, périmètres d'accès, export Excel) + événements
+avec détection d'anomalies, rapports PowerPoint / Excel en tâche de fond, KPI WCDMA, seuils
+réglables dans l'admin ; barre de recherche en langage libre (règles locales, IA facultative) ;
+rapports enregistrés, relancés à la demande ou planifiés (phase 3, sans SSO ni SharePoint) ;
 base de démonstration synthétique utilisable sans accès à la base KPI.
 Données décrites dans [`docs/schema.md`](docs/schema.md), questions ouvertes dans
 [`docs/questions.md`](docs/questions.md).
@@ -33,7 +34,9 @@ Copy-Item .env.example .env
 python manage.py migrate
 python manage.py createsuperuser
 
-# 4. Chargement du référentiel (+ cellules lues dans les extraits KPI) — sur une seule ligne
+# 4. Chargement du référentiel + cellules : avec la base KPI (toutes les cellules de l'historique)…
+python manage.py import_referentiel OPT_Network_Database_V2.xlsx --cellules-kpi
+#    … ou, sans accès à la base KPI, cellules lues dans les extraits CSV — sur une seule ligne
 python manage.py import_referentiel OPT_Network_Database_V2.xlsx --cellules lte_cell_hour.csv lte_cell_day.csv wcdma_cell_hour.csv wcdma_cell_day.csv
 
 # 4 bis. Avec la base KPI : date de passage de 3 à 4 secteurs des sites concernés (DTS009, MDO355…)
@@ -47,11 +50,13 @@ python manage.py charger_demo_kpi --jours 30
 
 # 6. Lancement : application + worker des rapports (deux terminaux)
 python manage.py runserver             # http://localhost:8000
-python manage.py qcluster              # génère les rapports PowerPoint / Excel
+python manage.py qcluster              # génère les rapports, lance les rapports planifiés
 ```
 
 Sans worker, mettre `Q_SYNC=1` dans `.env` : les rapports sont alors générés
-immédiatement, pendant la requête.
+immédiatement, pendant la requête. Les rapports **planifiés** ont besoin du worker (il les
+lance toutes les 15 minutes) ; à défaut, appeler `python manage.py lancer_rapports_planifies`
+depuis une tâche planifiée (cron, Planificateur de tâches Windows) toutes les 15 minutes.
 
 **Linux / macOS (bash)** : mêmes commandes, avec `source .venv/bin/activate` et
 `cp .env.example .env`.
@@ -67,8 +72,7 @@ Tests : `pytest` (aucun appel réseau : l'API IA est simulée).
 cp .env.example .env                   # renseigner DJANGO_SECRET_KEY, APP_DB_PASSWORD, KPI_DB_*
 docker compose up -d --build           # PostgreSQL + application, migrations appliquées au démarrage
 docker compose exec app python manage.py createsuperuser
-docker compose exec app python manage.py import_referentiel OPT_Network_Database_V2.xlsx \
-    --cellules lte_cell_hour.csv lte_cell_day.csv wcdma_cell_hour.csv wcdma_cell_day.csv
+docker compose exec app python manage.py import_referentiel OPT_Network_Database_V2.xlsx --cellules-kpi
 docker compose exec app python manage.py detecter_bascules --enregistrer
 docker compose exec app python manage.py import_clusters OPT_Network_Database_V2.xlsx   # une seule fois
 ```
@@ -105,7 +109,13 @@ sont conservés dans le volume `media`.
     cellule sans données sur un créneau, saturation (PRB DL haute + débit DL bas) ;
   - classement des secteurs (ou sites) les plus dégradés ;
   - rapports PowerPoint et Excel, par secteur ou par site.
-- **Mes rapports** (/rapports) : historique et téléchargement des rapports générés.
+- **Rapports enregistrés** : depuis un résultat, « Enregistrer / planifier » garde la requête
+  (lieu, KPI, granularités) avec une **période relative** (hier, 7 / 30 derniers jours, semaine
+  dernière, mois dernier, ce mois-ci), recalculée à chaque lancement. Lancement à la demande
+  ou automatique : chaque jour, chaque semaine (jour au choix) ou le 1er du mois, à l'heure
+  choisie (heure de Nouméa), en PowerPoint ou Excel, avec les droits de l'auteur.
+- **Mes rapports** (/rapports) : rapports enregistrés (lancer, suspendre, supprimer),
+  historique et téléchargement des rapports générés.
 - **Administration** (/admin) : sites / secteurs / cellules, historique des imports,
   utilisateurs, groupes, périmètres, journal d'audit, **événements** (cellules,
   créneaux, semaines de référence), **seuils KPI**, **réglages de détection d'anomalies**.
@@ -265,13 +275,27 @@ les pages. Dès que `KPI_DB_HOST` est renseigné, la base PostgreSQL est utilis�
 
 ## Droits d'accès
 
+**Sans compte (par défaut, `ACCES_ANONYME=1`)** : pas d'écran de connexion. Chaque navigateur
+reçoit à sa première visite une session « visiteur », gardée un an après la dernière visite
+dans un cookie : ses **dernières recherches** (relancer en un clic, ou « Modifier » pour la
+reprendre dans la barre et changer communes / dates) et ses rapports lui restent propres.
+Effacer les cookies ou changer de navigateur repart d'une session vierge. Les visiteurs voient
+tout le réseau (groupe Analyste). L'administration reste réservée aux comptes avec mot de
+passe (`/connexion`, puis `/admin`). Ménage des sessions abandonnées :
+`python manage.py purger_visiteurs` (inactives depuis plus de 400 jours). `ACCES_ANONYME=0`
+rétablit la connexion obligatoire, avec les règles ci-dessous.
+
 - superutilisateur ou membre du groupe **Admin** ou **Analyste** : tout le réseau, tous les KPI ;
 - autre utilisateur : uniquement les cellules et KPI de ses **Périmètres** (admin →
   Périmètres), rattachés à lui ou à l'un de ses groupes. Sans périmètre : aucune donnée.
 
 ### Import du référentiel : règles
 
-- relancer `import_referentiel` à chaque nouvelle version du xlsx : chaque import est historisé ;
+- relancer `import_referentiel` à chaque nouvelle version du xlsx ou après la mise en service de
+  cellules : chaque import est historisé ;
+- cellules : `--cellules-kpi` lit tous les noms des tables journalières de la base KPI (tout
+  l'historique, y compris les cellules arrêtées, pour garder leurs statistiques passées) ;
+  `--cellules` les lit dans des exports CSV ; les deux peuvent se combiner ;
 - seul l'onglet `Site_File` est lu (commune, nom de site unifié `siteName`…) ; `Cell_File`
   est ignoré, sa numérotation des secteurs n'étant pas fiable ;
 - les secteurs sont déduits des noms de cellules (`AIG1011` = secteur 1 d'AIG101 : AIG101A/D/J,

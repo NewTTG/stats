@@ -100,6 +100,17 @@ def moteur_kpi() -> sa.Engine:
     return sa.create_engine(url, connect_args={"options": options, "connect_timeout": 10}, pool_pre_ping=True)
 
 
+def cellules_distinctes(engine: sa.Engine, techno: str) -> list[str]:
+    """Noms de toutes les cellules de la table journalière (tout l'historique).
+
+    Lecture légère : la colonne cellule est indexée dans la base KPI.
+    """
+    table, col_cellule, _ = TABLES[(techno, "jour")]
+    sql = sa.text(f"SELECT DISTINCT {_citer(col_cellule)} FROM {_citer(table)} WHERE {_citer(col_cellule)} IS NOT NULL")
+    with engine.connect() as conn:
+        return sorted(conn.execute(sql).scalars())
+
+
 def lire(
     engine: sa.Engine,
     techno: str,

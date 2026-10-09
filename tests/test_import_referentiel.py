@@ -132,3 +132,49 @@ def test_reimport_versionne(referentiel, exports, tmp_path):
 def test_commande(referentiel, exports, capsys):
     call_command("import_referentiel", str(referentiel), "--cellules", *map(str, exports))
     assert "7 sites, " in capsys.readouterr().out
+
+
+@pytest.fixture
+def base_kpi(monkeypatch):
+    """Base KPI simulée : cellules des tables journalières (LEBe4 absente des CSV)."""
+    import sqlalchemy as sa
+
+    engine = sa.create_engine("sqlite://", poolclass=sa.pool.StaticPool)
+    pd.DataFrame({"EutranCell_Id": ["AAAe1", "AAAe1", "LEBe4", None], "DateDay": ["2026-09-01"] * 4}).to_sql(
+        "lte_cell_day", engine, index=False)
+    pd.DataFrame({"CellWcdma": ["AAA100B"], "DateDay": ["2026-09-01"]}).to_sql("wcdma_cell_day", engine, index=False)
+    monkeypatch.setattr("apps.referentiel.management.commands.import_referentiel.moteur_kpi", lambda: engine)
+    return engine
+
+
+def test_cellules_distinctes(base_kpi):
+    from apps.kpi.source import cellules_distinctes
+
+    assert cellules_distinctes(base_kpi, "LTE") == ["AAAe1", "LEBe4"]
+
+
+def test_commande_cellules_kpi(referentiel, base_kpi, capsys):
+    call_command("import_referentiel", str(referentiel), "--cellules-kpi")
+    assert "Base KPI : 2 cellules LTE, 1 cellules WCDMA." in capsys.readouterr().out
+    assert set(Cellule.objects.values_list("nom", flat=True)) == {"AAAe1", "LEBe4", "AAA100B"}
+    assert Cellule.objects.get(nom="LEBe4").secteur.code == "LEB5001"
+
+
+def test_commande_cellules_kpi_et_csv(referentiel, exports, base_kpi):
+    call_command("import_referentiel", str(referentiel), "--cellules-kpi", "--cellules", *map(str, exports))
+    assert Cellule.objects.count() == len(set(LTE) | {"AAAe1", "LEBe4"}) + len(WCDMA)
+    # avec les CSV, LEB500 a e1 à e4 : 4 secteurs
+    assert Cellule.objects.get(nom="LEBe4").secteur.code == "LEB5004"
+
+
+def test_commande_cellules_kpi_sans_base(referentiel, monkeypatch):
+    from django.core.management.base import CommandError
+
+    from apps.kpi.source import BaseKpiNonConfiguree
+
+    def absente():
+        raise BaseKpiNonConfiguree("Base KPI non configurée")
+
+    monkeypatch.setattr("apps.referentiel.management.commands.import_referentiel.moteur_kpi", absente)
+    with pytest.raises(CommandError, match="non configurée"):
+        call_command("import_referentiel", str(referentiel), "--cellules-kpi")

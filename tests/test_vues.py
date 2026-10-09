@@ -20,8 +20,10 @@ def client_admin(client):
     return client
 
 
-def test_connexion_requise(client):
-    assert client.get("/").status_code == 302
+def test_connexion_requise_sans_acces_anonyme(client, settings):
+    settings.ACCES_ANONYME, settings.LOGIN_URL = False, "login"
+    r = client.get("/")
+    assert r.status_code == 302 and r.url.startswith("/connexion/")
 
 
 def test_formulaire_vierge(client_admin):

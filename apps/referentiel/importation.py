@@ -70,7 +70,13 @@ def lire_cellules(chemins: list[Path]) -> dict[str, list[str]]:
 
 
 @transaction.atomic
-def importer(chemin: Path, fichiers_cellules: list[Path] = (), auteur=None) -> ImportReferentiel:
+def fusionner_cellules(*sources: dict[str, list[str]]) -> dict[str, list[str]]:
+    return {t: sorted(set().union(*(s.get(t, []) for s in sources))) for t in ("LTE", "WCDMA")}
+
+
+def importer(chemin: Path, fichiers_cellules: list[Path] = (), auteur=None,
+             cellules: dict[str, list[str]] | None = None) -> ImportReferentiel:
+    """``cellules`` : noms par techno lus ailleurs (base KPI), ajoutés à ceux des exports CSV."""
     rapport = Rapport()
     df_sites = lire_sites(chemin, rapport)
 
@@ -99,8 +105,8 @@ def importer(chemin: Path, fichiers_cellules: list[Path] = (), auteur=None) -> I
     supprimes_sites = sorted(avant_sites - set(sites))
     Site.objects.filter(code_site__in=supprimes_sites).delete()
 
-    if fichiers_cellules:
-        _importer_cellules(lire_cellules(list(fichiers_cellules)), sites, rapport)
+    if fichiers_cellules or cellules:
+        _importer_cellules(fusionner_cellules(lire_cellules(list(fichiers_cellules)), cellules or {}), sites, rapport)
 
     apres_secteurs = set(Secteur.objects.values_list("code", flat=True))
     return ImportReferentiel.objects.create(
