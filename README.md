@@ -33,7 +33,9 @@ Copy-Item .env.example .env
 python manage.py migrate
 python manage.py createsuperuser
 
-# 4. Chargement du référentiel (+ cellules lues dans les extraits KPI) — sur une seule ligne
+# 4. Chargement du référentiel + cellules : avec la base KPI (toutes les cellules de l'historique)…
+python manage.py import_referentiel OPT_Network_Database_V2.xlsx --cellules-kpi
+#    … ou, sans accès à la base KPI, cellules lues dans les extraits CSV — sur une seule ligne
 python manage.py import_referentiel OPT_Network_Database_V2.xlsx --cellules lte_cell_hour.csv lte_cell_day.csv wcdma_cell_hour.csv wcdma_cell_day.csv
 
 # 4 bis. Avec la base KPI : date de passage de 3 à 4 secteurs des sites concernés (DTS009, MDO355…)
@@ -67,8 +69,7 @@ Tests : `pytest` (aucun appel réseau : l'API IA est simulée).
 cp .env.example .env                   # renseigner DJANGO_SECRET_KEY, APP_DB_PASSWORD, KPI_DB_*
 docker compose up -d --build           # PostgreSQL + application, migrations appliquées au démarrage
 docker compose exec app python manage.py createsuperuser
-docker compose exec app python manage.py import_referentiel OPT_Network_Database_V2.xlsx \
-    --cellules lte_cell_hour.csv lte_cell_day.csv wcdma_cell_hour.csv wcdma_cell_day.csv
+docker compose exec app python manage.py import_referentiel OPT_Network_Database_V2.xlsx --cellules-kpi
 docker compose exec app python manage.py detecter_bascules --enregistrer
 docker compose exec app python manage.py import_clusters OPT_Network_Database_V2.xlsx   # une seule fois
 ```
@@ -271,7 +272,11 @@ les pages. Dès que `KPI_DB_HOST` est renseigné, la base PostgreSQL est utilis�
 
 ### Import du référentiel : règles
 
-- relancer `import_referentiel` à chaque nouvelle version du xlsx : chaque import est historisé ;
+- relancer `import_referentiel` à chaque nouvelle version du xlsx ou après la mise en service de
+  cellules : chaque import est historisé ;
+- cellules : `--cellules-kpi` lit tous les noms des tables journalières de la base KPI (tout
+  l'historique, y compris les cellules arrêtées, pour garder leurs statistiques passées) ;
+  `--cellules` les lit dans des exports CSV ; les deux peuvent se combiner ;
 - seul l'onglet `Site_File` est lu (commune, nom de site unifié `siteName`…) ; `Cell_File`
   est ignoré, sa numérotation des secteurs n'étant pas fiable ;
 - les secteurs sont déduits des noms de cellules (`AIG1011` = secteur 1 d'AIG101 : AIG101A/D/J,
