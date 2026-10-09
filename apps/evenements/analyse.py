@@ -2,7 +2,8 @@
 et heures des N semaines précédentes, sur les cellules autorisées de l'utilisateur.
 
 Toutes les valeurs sont des ratios de sommes. Pour un KPI additif (volume, trafic),
-la référence est la moyenne des semaines, pas leur somme.
+la référence est la moyenne des semaines, pas leur somme ; pour un KPI « pic », la
+moyenne des pics hebdomadaires, pas leur maximum.
 """
 
 from dataclasses import dataclass, field

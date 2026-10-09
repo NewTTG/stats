@@ -12,6 +12,9 @@
 # plafond          borne haute appliquée ligne à ligne au numérateur.
 # ecart_min        écart absolu minimal (unité du KPI) pour qu'un écart à la référence soit
 #                  significatif dans l'analyse d'un événement (en plus du % et des écarts-types).
+# agregation       somme (défaut) : ratio de sommes, ou somme simple sans dénominateur ;
+#                  pic : somme des cellules à chaque horodatage, puis maximum sur le temps
+#                  (ex. utilisateurs connectés simultanément). Numérateur seul.
 #
 # Formules et vérifications sur les extraits CSV : docs/donnees_de_base.md.
 #
@@ -62,6 +65,21 @@ kpis:
     categorie: trafic
     numerateur: PayloadDl_mB
     sens: haut_est_mieux
+
+  - code: lte_rrc_conn_max
+    libelle: Utilisateurs connectés (pic RRC)
+    techno: LTE
+    unite: utilisateurs
+    categorie: trafic
+    numerateur: RrcConnMax_max_nb
+    agregation: pic
+    sens: haut_est_mieux
+    qualite: approx
+    note: >-
+      Somme des pics de connexions RRC des cellules, puis maximum sur la période.
+      Estimation par excès (majorant) : les cellules n'atteignent pas leur pic au même
+      moment. Plus précis au pas horaire (pic de chaque heure) qu'au pas journalier
+      (pic de la journée de chaque cellule).
 
   - code: lte_rrc_setup_sr
     libelle: Taux de succès d'établissement RRC

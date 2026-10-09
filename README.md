@@ -354,6 +354,10 @@ Le moteur somme numérateurs et dénominateurs sur le périmètre et la période
 de diviser (ratio de sommes, jamais moyenne de ratios). `pytest` vérifie que toutes
 les expressions du catalogue sont évaluables.
 
+Pour un compteur de pic (ex. `RrcConnMax_max_nb`, utilisateurs connectés), `agregation: pic`
+(numérateur seul) : somme des cellules à chaque horodatage, puis maximum sur la période,
+au lieu de la somme simple.
+
 ## Données
 
 Le référentiel xlsx et les 4 extraits CSV à la racine sont conservés comme référence.
