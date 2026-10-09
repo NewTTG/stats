@@ -62,7 +62,7 @@
       <span>Stats réseau — OPT, usage interne.</span>
       {% if visiteur %}<span>Session de ce navigateur : vos recherches et vos rapports y sont gardés, sans compte.</span>{% endif %}
       {% if user.is_staff %}<a href="{% url 'admin:index' %}">Administration</a>
-      {% elif visiteur or not user.is_authenticated %}<a href="{% url 'login' %}">Accès administrateur</a>{% endif %}
+      {% elif visiteur %}<a href="{% url 'login' %}">Accès administrateur</a>{% endif %}
     </div>
   </footer>
   {% block scripts %}{% endblock %}
