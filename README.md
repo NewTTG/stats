@@ -82,6 +82,26 @@ Application sur http://<serveur>:8000. Le service `worker` (django-q2, sans Redi
 la file d'attente est dans la base applicative) génère les rapports ; les fichiers
 sont conservés dans le volume `media`.
 
+### Tableau de bord et exports PDF
+
+L’accueil affiche les KPI du périmètre autorisé et leurs courbes horaires : volume data
+4G descendant, pic d’utilisateurs, débit descendant et taux d’accès. Les sélecteurs
+**Aujourd’hui**, **Hier** (par défaut) et **7 derniers jours** permettent de changer de
+période. La journée en cours est signalée comme partielle ; une démo ancienne affiche
+sa dernière période disponible avec un avertissement. Aucune valeur n’est inventée.
+La recherche libre et les rapports en accès direct restent disponibles, ainsi que
+le constructeur de rapports personnalisés. Les graphiques proposent aussi un tableau
+de valeurs accessible sans JavaScript.
+
+Les résultats et événements proposent **Rapport PDF**, en plus de PowerPoint et Excel.
+Le PDF contient les paramètres, les synthèses, des graphiques vectoriels et les
+avertissements / cellules sans données. Il est généré par le worker et disponible
+dans **Mes rapports** ; le format PDF peut aussi être enregistré et planifié.
+La bibliothèque ReportLab et ses polices embarquées suffisent, sans service externe.
+Après mise à jour : `pip install -r requirements-dev.txt`, `python manage.py migrate`,
+et redémarrer l’application et le worker. En déploiement, exécuter aussi
+`python manage.py collectstatic --noinput`.
+
 ### Ce que l'on peut faire aujourd'hui
 
 - **Rapports types** (page d'accueil, http://localhost:8000) : les demandes habituelles sans

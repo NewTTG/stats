@@ -5,15 +5,26 @@
 <div class="entete-page">
   <div>
     <h1>Mes rapports</h1>
-    <p class="sous-titre">Rapports enregistrés (à afficher, lancer ou recevoir automatiquement) et fichiers PowerPoint / Excel générés.</p>
+    <p class="sous-titre">Rapports enregistrés (à afficher, lancer ou générer automatiquement) et fichiers PDF, PowerPoint et Excel générés.</p>
   </div>
-  <div class="boutons"><a class="bouton" href="{% url 'kpi:requete' %}">Nouveau rapport</a></div>
+  <div class="boutons"><a class="bouton" href="{% url 'kpi:requete' %}#composer">Nouveau rapport</a></div>
 </div>
+<div class="report-summary" aria-label="Vue d’ensemble des rapports">
+  <div><span>Fichiers générés</span><strong>{{ nb_fichiers }}</strong><small>Votre historique</small></div>
+  <div><span>Prêts à télécharger</span><strong>{{ nb_prets }}</strong><small>PDF · Excel · PowerPoint</small></div>
+  <div><span>En préparation</span><strong>{{ nb_attente }}</strong><small>Génération en cours</small></div>
+  <div><span>Rapports automatiques</span><strong>{{ nb_planifies }}</strong><small>Planifications actives</small></div>
+</div>
+<form class="list-toolbar" method="get" role="search">
+  <div><label class="sr-only" for="report-search">Rechercher un rapport</label><input type="search" id="report-search" name="recherche" value="{{ recherche }}" placeholder="Rechercher un rapport…"></div>
+  <div><label class="sr-only" for="report-format">Format du rapport</label><select name="format" id="report-format"><option value="">Tous les formats</option>{% for code, label in formats %}<option value="{{ code }}"{% if code == format_filtre %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+  <button class="bouton secondaire" type="submit">Filtrer</button>{% if recherche or format_filtre %}<a href="{% url 'rapports:liste' %}">Effacer les filtres</a>{% endif %}
+</form>
 <section class="carte" aria-labelledby="titre-enregistres">
   <h2 id="titre-enregistres">Rapports enregistrés</h2>
   {% if planifies %}
   <div class="table-defil"><table>
-    <thead><tr><th scope="col">Rapport</th><th scope="col">Période</th><th scope="col">Format</th><th scope="col">Envoi</th><th scope="col">Prochain</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+    <thead><tr><th scope="col">Rapport</th><th scope="col">Période</th><th scope="col">Format</th><th scope="col">Planification</th><th scope="col">Prochain</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
     <tbody>{% for p in planifies %}
       <tr><td class="texte">{{ p.titre }}</td><td>{{ p.get_periode_display }}</td><td>{{ p.get_format_display }}</td>
         <td>{{ p.description_frequence }}{% if p.planifie and not p.actif %} <span class="etiquette alerte">Suspendu</span>{% endif %}</td>
@@ -26,8 +37,8 @@
         </div></td></tr>
     {% endfor %}</tbody>
   </table></div>
-  {% else %}<p class="vide">Aucun rapport enregistré. Depuis un résultat, « Enregistrer ce rapport » le garde pour l'afficher en
-    un clic ou le recevoir automatiquement (chaque jour, chaque semaine, le 1er du mois).</p>{% endif %}
+  {% else %}<p class="vide">{% if recherche or format_filtre %}Aucun rapport enregistré ne correspond aux filtres.{% else %}Aucun rapport enregistré. Depuis un résultat, « Enregistrer ce rapport » le garde pour l'afficher en
+    un clic ou le générer automatiquement (chaque jour, chaque semaine, le 1er du mois).{% endif %}</p>{% endif %}
 </section>
 <section class="carte" aria-labelledby="titre-generes">
   <h2 id="titre-generes">Fichiers générés</h2>
@@ -43,6 +54,6 @@
     {% endfor %}</tbody>
   </table></div>
   {% if rafraichir %}<p class="aide">Génération en cours : la page s'actualise toute seule toutes les 5 secondes.</p>{% endif %}
-  {% else %}<p class="vide">Aucun fichier. Depuis un résultat ou un événement, « Rapport PowerPoint » ou « Rapport Excel » en génère un ici.</p>{% endif %}
+  {% else %}<p class="vide">{% if recherche or format_filtre %}Aucun fichier ne correspond aux filtres.{% else %}Aucun fichier. Depuis un résultat ou un événement, « Rapport PDF », « Rapport PowerPoint » ou « Rapport Excel » en génère un ici.{% endif %}</p>{% endif %}
 </section>
 {% endblock %}

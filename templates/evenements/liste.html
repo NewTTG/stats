@@ -14,6 +14,7 @@
   </div>
   {% endif %}
 </div>
+<form class="list-toolbar" method="get" role="search"><div><label class="sr-only" for="event-search">Rechercher un événement</label><input type="search" id="event-search" name="recherche" value="{{ recherche }}" placeholder="Rechercher un événement…"></div><button class="bouton secondaire" type="submit">Rechercher</button>{% if recherche %}<a href="{% url 'evenements:liste' %}">Effacer le filtre</a>{% endif %}</form>
 <section class="carte">
   {% if evenements %}
   <div class="table-defil"><table class="liste-evenements">
@@ -24,7 +25,7 @@
     {% endfor %}</tbody>
   </table></div>
   {% else %}
-  <p class="vide">Aucun événement daté pour le moment.{% if not perms.evenements.add_evenement %} Les événements sont
+  <p class="vide">{% if recherche %}Aucun événement daté ne correspond à votre recherche.{% else %}Aucun événement daté pour le moment.{% endif %}{% if not perms.evenements.add_evenement %} Les événements sont
     créés par l'administrateur de l'application.{% endif %}</p>
   {% endif %}
 </section>

@@ -3,8 +3,8 @@
 (function () {
   "use strict";
 
-  var MARINE = "#14284b", AMBRE = "#f0a500", ROUGE = "#c0392b";
-  var PALETTE = ["#14284b", "#f0a500", "#0f766e", "#7c3aed", "#c2410c", "#2563eb", "#be185d", "#4d7c0f",
+  var MARINE = "#256b51", AMBRE = "#c59542", ROUGE = "#c0392b";
+  var PALETTE = ["#256b51", "#9abd87", "#527da7", "#7c3aed", "#c2410c", "#2563eb", "#be185d", "#4d7c0f",
                  "#0891b2", "#92400e", "#64748b", "#a21caf"];
   var graphiques = [];
 
@@ -102,7 +102,7 @@
         var serie = { name: s.nom, type: "line", data: s.valeurs, connectNulls: false, smooth: false,
                       showSymbol: s.valeurs.length < 40, symbolSize: 5, lineStyle: { width: plusieurs ? 1.8 : 2.5 },
                       emphasis: { focus: "series" } };
-        if (!plusieurs) serie.areaStyle = { color: "rgba(20,40,75,.06)" };
+        if (!plusieurs) serie.areaStyle = { color: "rgba(37,107,81,.06)" };
         if (i === 0 && seuils.length) serie.markLine = { symbol: "none", silent: true, label: { show: false }, data: seuils };
         return serie;
       });
@@ -224,6 +224,22 @@
     var form = document.getElementById("constructeur");
     if (form) constructeur(form);
     if (window.echarts) {
+      var dashboardData = document.getElementById("dashboard-data");
+      if (dashboardData) {
+        var metrics = JSON.parse(dashboardData.textContent);
+        document.querySelectorAll(".dashboard-chart").forEach(function (div) {
+          var g = metrics[Number(div.dataset.index)], color = ["#347956", "#859cbd", "#ac9667", "#4b908c"][Number(div.dataset.index) % 4];
+          initialiser(div, {
+            animation: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+            aria: { enabled: true },
+            tooltip: { trigger: "axis", valueFormatter: function (v) { return nombre(v, g.unite); } },
+            grid: { top: 18, left: 8, right: 12, bottom: 10, containLabel: true },
+            xAxis: { type: "category", data: g.periodes, boundaryGap: false, axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: "#86968a", fontSize: 10, hideOverlap: true } },
+            yAxis: { type: "value", min: g.unite === "%" ? function (range) { return Math.max(0, Math.floor(range.min - Math.max(1, range.max - range.min) * .2)); } : 0, max: g.unite === "%" ? 100 : null, axisLabel: { color: "#86968a", fontSize: 10, formatter: function (v) { return nombre(v); } }, splitLine: { lineStyle: { color: "#edf2ed", type: "dashed" } } },
+            series: [{ type: "line", data: g.valeurs, connectNulls: false, showSymbol: false, lineStyle: { color: color, width: 2.5 }, itemStyle: { color: color }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: color + "32" }, { offset: 1, color: color + "02" }]) } }]
+          });
+        });
+      }
       document.querySelectorAll(".graphiques[data-source]").forEach(courbes);
       document.querySelectorAll(".graphique-causes[data-source]").forEach(causes);
       var attente;

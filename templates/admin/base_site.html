@@ -5,14 +5,14 @@
 
 {% block extrastyle %}{{ block.super }}
 <style>
-/* Administration aux couleurs de l'application (marine / ambre), thèmes clair et sombre.
+/* Administration aux couleurs de l'application (vert pétrole / sauge), thèmes clair et sombre.
    Même structure que les feuilles de Django : clair par défaut, sombre selon le système
    (thème « auto ») ou choisi avec le bouton de thème (data-theme). */
 html[data-theme="light"],
 :root {
-  --primary: #2c4a7e;
-  --secondary: #1b335e;
-  --accent: #f0a500;
+  --primary: #226b54;
+  --secondary: #194c3d;
+  --accent: #abd2b3;
   --primary-fg: #fff;
 
   --body-fg: #172033;
@@ -21,20 +21,20 @@ html[data-theme="light"],
   --body-medium-color: #4b5567;
   --body-loud-color: #0b1526;
 
-  --header-color: #c9d3e6;
+  --header-color: #c7e4d3;
   --header-branding-color: #fff;
-  --header-bg: #14284b;
+  --header-bg: #194c3d;
   --header-link-color: #fff;
 
   --breadcrumbs-fg: #4b5567;
-  --breadcrumbs-link-fg: #1b335e;
-  --breadcrumbs-bg: #e3e9f3;
+  --breadcrumbs-link-fg: #194c3d;
+  --breadcrumbs-bg: #e5f0e8;
 
-  --link-fg: #2c4a7e;
-  --link-hover-color: #14284b;
-  --link-selected-fg: #14284b;
+  --link-fg: #226b54;
+  --link-hover-color: #194c3d;
+  --link-selected-fg: #194c3d;
 
-  --hairline-color: #e3e9f3;
+  --hairline-color: #e5f0e8;
   --border-color: #c3ccda;
 
   --error-fg: #a3200f;
@@ -43,19 +43,19 @@ html[data-theme="light"],
   --message-error-bg: #fde7e4;
 
   --darkened-bg: #f4f6fa;
-  --selected-bg: #e3e9f3;
+  --selected-bg: #e5f0e8;
   --selected-row: #fff6e0;
 
   --button-fg: #fff;
-  --button-bg: #2c4a7e;
-  --button-hover-bg: #14284b;
-  --default-button-bg: #14284b;
-  --default-button-hover-bg: #2c4a7e;
+  --button-bg: #226b54;
+  --button-hover-bg: #194c3d;
+  --default-button-bg: #194c3d;
+  --default-button-hover-bg: #226b54;
   --close-button-bg: #5f6878;
   --close-button-hover-bg: #4b5567;
 
-  --object-tools-bg: #2c4a7e;
-  --object-tools-hover-bg: #14284b;
+  --object-tools-bg: #226b54;
+  --object-tools-hover-bg: #194c3d;
 
   --carte-ombre: 0 1px 2px rgba(20, 40, 75, .06), 0 4px 14px rgba(20, 40, 75, .06);
   --font-family-primary: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -65,7 +65,7 @@ html[data-theme="light"],
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --primary: #2c4a7e;
+    --primary: #226b54;
     --primary-fg: #f4f6fa;
 
     --body-fg: #e4e9f2;
@@ -79,7 +79,7 @@ html[data-theme="light"],
     --breadcrumbs-bg: #16223a;
 
     --link-fg: #9dbcf0;
-    --link-hover-color: #f0a500;
+    --link-hover-color: #abd2b3;
     --link-selected-fg: #c4d6f5;
 
     --hairline-color: #22304a;
@@ -96,7 +96,7 @@ html[data-theme="light"],
 
     --button-hover-bg: #3a5f9e;
     --default-button-bg: #3a5f9e;
-    --default-button-hover-bg: #2c4a7e;
+    --default-button-hover-bg: #226b54;
     --close-button-bg: #34476b;
     --close-button-hover-bg: #4a5f87;
 
@@ -110,7 +110,7 @@ html[data-theme="light"],
 }
 
 html[data-theme="dark"] {
-  --primary: #2c4a7e;
+  --primary: #226b54;
   --primary-fg: #f4f6fa;
 
   --body-fg: #e4e9f2;
@@ -124,7 +124,7 @@ html[data-theme="dark"] {
   --breadcrumbs-bg: #16223a;
 
   --link-fg: #9dbcf0;
-  --link-hover-color: #f0a500;
+  --link-hover-color: #abd2b3;
   --link-selected-fg: #c4d6f5;
 
   --hairline-color: #22304a;
@@ -141,7 +141,7 @@ html[data-theme="dark"] {
 
   --button-hover-bg: #3a5f9e;
   --default-button-bg: #3a5f9e;
-  --default-button-hover-bg: #2c4a7e;
+  --default-button-hover-bg: #226b54;
   --close-button-bg: #34476b;
   --close-button-hover-bg: #4a5f87;
 
@@ -159,11 +159,11 @@ html[data-theme="dark"] {
 #site-name a:link, #site-name a:visited { color: var(--header-branding-color); display: inline-flex; align-items: center; gap: 10px; }
 #site-name a:hover, #site-name a:focus { color: #fff; text-decoration: none; }
 .marque-admin-logo { flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px;
-  background: #f0a500; color: #14284b; font-weight: 800; font-size: .95rem; }
+  background: #abd2b3; color: #194c3d; font-weight: 800; font-size: .95rem; }
 #user-tools, #logout-form button { text-transform: none; letter-spacing: 0; font-size: .8125rem; font-weight: 400; }
 #header #user-tools a.retour-statistiques { display: inline-block; margin-inline-end: 12px; padding: 4px 10px; border: 0;
-  border-radius: 6px; background: #f0a500; color: #14284b; font-weight: 600; }
-#header #user-tools a.retour-statistiques:hover, #header #user-tools a.retour-statistiques:focus { background: #ffb81f; color: #14284b; }
+  border-radius: 6px; background: #abd2b3; color: #194c3d; font-weight: 600; }
+#header #user-tools a.retour-statistiques:hover, #header #user-tools a.retour-statistiques:focus { background: #ffb81f; color: #194c3d; }
 #header a:focus-visible, #header button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* Titres de sections : marine, section courante en ambre dans le menu latéral. */

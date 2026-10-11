@@ -29,6 +29,10 @@
   <nav class="onglets" aria-label="Niveau d'analyse">{% for code, libelle in niveaux.items %}<a href="?niveau={{ code }}" class="{% if code == niveau %}actif{% endif %}"{% if code == niveau %} aria-current="page"{% endif %}>Par {{ libelle|lower }}</a>{% endfor %}</nav>
   <div class="boutons">
     <form method="post" action="{% url 'rapports:evenement' evenement.pk %}">{% csrf_token %}
+      <input type="hidden" name="niveau" value="{{ niveau }}"><input type="hidden" name="format" value="pdf">
+      <button class="bouton secondaire" type="submit">Rapport PDF</button>
+    </form>
+    <form method="post" action="{% url 'rapports:evenement' evenement.pk %}">{% csrf_token %}
       <input type="hidden" name="niveau" value="{{ niveau }}"><input type="hidden" name="format" value="xlsx">
       <button class="bouton secondaire" type="submit">Rapport Excel</button>
     </form>
@@ -57,7 +61,7 @@
   </table></div>
   {% if bloc.res.instants %}
   <h3>Courbes horaires</h3>
-  <p class="aide">Bleu : événement · ambre : référence · zone grise : min–max des semaines de référence.</p>
+  <p class="aide">Vert : événement · ocre : référence · zone grise : min–max des semaines de référence.</p>
   {{ bloc.graphiques|json_script:bloc.id }}
   <div class="graphiques courbes" data-source="{{ bloc.id }}"></div>
   {% endif %}
@@ -112,12 +116,16 @@ document.querySelectorAll(".courbes").forEach(function (zone) {
     carte.style.margin = "0";
     var div = document.createElement("div");
     div.className = "graphique";
+    div.setAttribute("role", "img");
+    div.setAttribute("aria-label", g.titre + " : événement et référence");
     carte.appendChild(div);
     zone.appendChild(carte);
     var ecart = g.max.map(function (v, i) { return v === null || g.min[i] === null ? null : v - g.min[i]; });
     var graphique = echarts.init(div);
     graphique.setOption({
-      title: { text: g.titre, textStyle: { fontSize: 13, color: "#14284b" } },
+      animation: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      aria: { enabled: true },
+      title: { text: g.titre, textStyle: { fontSize: 13, color: "#256b51" } },
       tooltip: { trigger: "axis", formatter: function (p) {
         var lignes = [p[0].axisValue], i = p[0].dataIndex;
         lignes.push("Événement : " + (g.evenement[i] === null ? "—" : g.evenement[i]));
@@ -135,8 +143,8 @@ document.querySelectorAll(".courbes").forEach(function (zone) {
         { name: "min", type: "line", data: g.min, stack: "bande", symbol: "none", lineStyle: { opacity: 0 }, silent: true },
         { name: "bande", type: "line", data: ecart, stack: "bande", symbol: "none", lineStyle: { opacity: 0 },
           areaStyle: { color: "rgba(138,148,166,.25)" }, silent: true },
-        { name: "Référence", type: "line", data: g.reference, color: "#f0a500", lineStyle: { type: "dashed" } },
-        { name: "Événement", type: "line", data: g.evenement, color: "#14284b", lineStyle: { width: 3 } }
+        { name: "Référence", type: "line", data: g.reference, color: "#c59542", lineStyle: { type: "dashed" } },
+        { name: "Événement", type: "line", data: g.evenement, color: "#256b51", lineStyle: { width: 3 } }
       ]
     });
     window.addEventListener("resize", function () { graphique.resize(); });

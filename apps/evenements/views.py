@@ -14,9 +14,12 @@ from .models import Evenement
 @login_required
 def liste(request):
     evenements = Evenement.objects.annotate(nb_creneaux=Count("creneaux"), debut=Min("creneaux__debut"))
+    recherche = request.GET.get("recherche", "").strip()[:150]
+    if recherche:
+        evenements = evenements.filter(nom__icontains=recherche)
     dates = sorted((e for e in evenements if e.debut), key=lambda e: e.debut, reverse=True)
     sans_date = [e for e in evenements if not e.debut]
-    return render(request, "evenements/liste.html", {"evenements": dates, "sans_date": sans_date})
+    return render(request, "evenements/liste.html", {"evenements": dates, "sans_date": sans_date, "recherche": recherche})
 
 
 def _graphiques(res):
