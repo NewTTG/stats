@@ -88,11 +88,14 @@ LIBELLES_ACTIONS = {
     "recherche_kpi": "Recherche",
     "requete_kpi": "Recherche avancée",
     "export_excel": "Export Excel",
+    "export_pdf": "Export PDF",
     "analyse_evenement": "Analyse d'événement",
     "rapport_requete_pptx": "Rapport PowerPoint (requête)",
     "rapport_requete_xlsx": "Rapport Excel (requête)",
+    "rapport_requete_pdf": "Rapport PDF (requête)",
     "rapport_evenement_pptx": "Rapport PowerPoint (événement)",
     "rapport_evenement_xlsx": "Rapport Excel (événement)",
+    "rapport_evenement_pdf": "Rapport PDF (événement)",
 }
 
 

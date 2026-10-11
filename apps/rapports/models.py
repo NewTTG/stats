@@ -19,7 +19,7 @@ class RapportPlanifie(models.Model):
                 ("30j", "30 derniers jours"), ("mois_dernier", "Mois dernier"), ("mois_courant", "Ce mois-ci")]
     FREQUENCES = [("aucune", "Sur demande"), ("quotidienne", "Chaque jour"), ("hebdomadaire", "Chaque semaine"),
                   ("mensuelle", "Chaque mois (le 1er)")]
-    FORMATS = [("pptx", "PowerPoint"), ("xlsx", "Excel")]
+    FORMATS = [("pdf", "PDF"), ("pptx", "PowerPoint"), ("xlsx", "Excel")]
 
     utilisateur = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
                                     related_name="rapports_planifies")
@@ -101,7 +101,7 @@ class RapportPlanifie(models.Model):
 
 class Rapport(models.Model):
     NATURES = [("requete", "Requête KPI"), ("evenement", "Événement")]
-    FORMATS = [("pptx", "PowerPoint"), ("xlsx", "Excel")]
+    FORMATS = [("pdf", "PDF"), ("pptx", "PowerPoint"), ("xlsx", "Excel")]
     STATUTS = [("en_attente", "En attente"), ("en_cours", "En cours"), ("termine", "Terminé"), ("erreur", "Erreur")]
 
     utilisateur = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="rapports")

@@ -36,16 +36,18 @@ def _titre(req: RequeteKpi) -> str:
 @login_required
 @require_POST
 def rapport_requete(request):
-    """PowerPoint d'une requête KPI : mêmes paramètres que l'écran de requête."""
+    """Rapport (PowerPoint par défaut, ou PDF / Excel : ``format``) d'une requête KPI : mêmes
+    paramètres que l'écran de requête."""
     req = _requete(request.POST, request.user)
-    if req is None:
+    fmt = request.POST.get("format", "pptx")
+    if req is None or fmt not in dict(Rapport.FORMATS):
         messages.error(request, "Impossible de créer le rapport : paramètres de requête invalides.")
         return redirect("kpi:requete")
     titre = f"{_titre(req)} — {req.periode.debut:%d/%m/%Y}-{req.periode.fin:%d/%m/%Y}"
-    rapport = Rapport.objects.create(utilisateur=request.user, titre=titre[:200], nature="requete", format="pptx",
+    rapport = Rapport.objects.create(utilisateur=request.user, titre=titre[:200], nature="requete", format=fmt,
                                      parametres={"requete": req.model_dump(mode="json")})
     lancer(rapport)
-    messages.success(request, "Rapport PowerPoint en cours de génération.")
+    messages.success(request, f"Rapport {rapport.get_format_display()} en cours de génération.")
     return redirect("rapports:liste")
 
 
@@ -55,7 +57,7 @@ def rapport_evenement(request, pk):
     evenement = get_object_or_404(Evenement, pk=pk)
     niveau = request.POST.get("niveau", "secteur")
     fmt = request.POST.get("format", "pptx")
-    if niveau not in NIVEAUX or fmt not in ("pptx", "xlsx"):
+    if niveau not in NIVEAUX or fmt not in dict(Rapport.FORMATS):
         raise Http404
     rapport = Rapport.objects.create(
         utilisateur=request.user, titre=f"{evenement.nom} — par {niveau}"[:200], nature="evenement", format=fmt,
@@ -111,7 +113,7 @@ def enregistrer(request):
                              + (f" : {plan.description_frequence.lower()}." if plan.planifie else "."))
             return redirect("rapports:liste")
     else:
-        form = PlanificationForm(initial={"titre": _titre(req)[:150],
+        form = PlanificationForm(initial={"titre": _titre(req)[:150], "format": "pdf",
                                           "periode": _periode_probable(req, timezone.localdate())})
     return render(request, "rapports/enregistrer.html", {
         "form": form, "requete": req,

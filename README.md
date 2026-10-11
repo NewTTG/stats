@@ -6,7 +6,7 @@ de données par utilisateur et exports Excel / PowerPoint. Cahier des charges :
 
 **État : phase 2 + recherche en langage libre + rapports enregistrés et planifiés** — phase 1
 (référentiel, catalogue KPI, moteur de calcul, périmètres d'accès, export Excel) + événements
-avec détection d'anomalies, rapports PowerPoint / Excel en tâche de fond, KPI WCDMA, seuils
+avec détection d'anomalies, rapports PDF / PowerPoint / Excel en tâche de fond, KPI WCDMA, seuils
 réglables dans l'admin ; barre de recherche en langage libre (règles locales, IA facultative) ;
 rapports enregistrés, relancés à la demande ou planifiés (phase 3, sans SSO ni SharePoint) ;
 rapports types en trois choix (rapport, lieu, période) sur l'accueil ; espace
@@ -84,6 +84,26 @@ sont conservés dans le volume `media`.
 
 ### Ce que l'on peut faire aujourd'hui
 
+- **Interface** : barre latérale (Accueil, Événements, Mes rapports, « Nouveau rapport »,
+  Administration pour un compte administrateur), thème clair / sombre (bouton « Thème », choix
+  gardé dans le navigateur, thème du système par défaut), police Inter et ECharts servis
+  localement (aucune ressource externe). Sur mobile, navigation en onglets en bas d'écran.
+- **Accueil** : barre « Comment puis-je vous aider aujourd'hui ? » (recherche en langage libre),
+  exemples, **rapports types d'hier en un clic** (bilan complet, trafic, data 4G, qualité,
+  utilisateurs) et « Composer un rapport… » (tiroir : rapport, lieu, période). Puis l'**aperçu
+  du réseau** (`/apercu/?jour=hier|aujourdhui`, chargé après la page, mis en cache 5 minutes
+  par utilisateur — `APERCU_CACHE_SECONDES`) :
+  - **Hier** (par défaut) : journée complète comparée à la veille ; si elle n'est pas encore
+    chargée (démo ancienne), dernier jour disponible des 14 derniers jours ;
+  - **Aujourd'hui** : de minuit à la dernière heure chargée, comparé à hier sur les mêmes heures ;
+  - tuiles KPI (volume data 4G, utilisateurs 4G, appels voix 3G, SMS, débit DL 4G, taux d'accès
+    4G, coupures 4G et voix 3G) avec variation (en points pour un pourcentage, verte ou rouge
+    selon le sens du KPI, neutre pour un volume), statut et tendance sur 14 jours ; un clic
+    ouvre le détail heure par heure ;
+  - trafic data 4G heure par heure (jour et veille), volume data sur 14 jours, coupures heure
+    par heure, sites les plus dégradés (4G et voix 3G), lien « Bilan complet de la journée ».
+  Mêmes calculs et mêmes droits que les recherches (périmètre, KPI autorisés).
+
 - **Rapports types** (page d'accueil, http://localhost:8000) : les demandes habituelles sans
   phrase à écrire, en trois choix — **quel rapport** (carte), **où** (vide = tout le réseau ;
   commune(s), province, site, événement, avec suggestions), **quand** (hier, 7 derniers jours,
@@ -119,7 +139,11 @@ sont conservés dans le volume `media`.
   cellules sans données, avertissements), par technologie un onglet *Synthèse*
   (ensemble du périmètre puis chaque entité, sur toute la période) et un onglet
   *Données*, onglet *Définitions* des KPI. Chaque export est tracé dans le journal d'audit.
-- **Rapport PowerPoint d'une requête** (bouton sur l'écran de résultat) : titre,
+- **Rapport PDF d'une requête** (menu « Exporter » de l'écran de résultat, téléchargé tout de
+  suite) : en-tête et paramètres, synthèse en cartes par thème (valeur, statut, seuils),
+  répartition par cause, classements, une courbe par KPI avec ses seuils, annexe des cellules
+  sans données. Mise en page A4 (reportlab, polices standard du PDF : rien à installer).
+- **Rapport PowerPoint d'une requête** (menu « Exporter ») : titre,
   synthèse, un graphique commenté par KPI, annexe des cellules sans données.
 - **Événements** (/evenements) : pour chaque événement, comparaison des créneaux avec
   les mêmes jours et heures des N semaines précédentes (4 par défaut) :
@@ -128,12 +152,12 @@ sont conservés dans le volume `media`.
   - anomalies triées par gravité : seuil dépassé, écart significatif à la référence,
     cellule sans données sur un créneau, saturation (PRB DL haute + débit DL bas) ;
   - classement des secteurs (ou sites) les plus dégradés ;
-  - rapports PowerPoint et Excel, par secteur ou par site.
+  - rapports PDF, PowerPoint et Excel, par secteur ou par site.
 - **Rapports enregistrés** : depuis un résultat, « Enregistrer ce rapport » garde la requête
   (lieu, KPI, granularités) avec une **période relative** (hier, 7 / 30 derniers jours, semaine
   dernière, mois dernier, ce mois-ci), recalculée à chaque lancement. Lancement à la demande
   ou automatique : chaque jour, chaque semaine (jour au choix) ou le 1er du mois, à l'heure
-  choisie (heure de Nouméa), en PowerPoint ou Excel, avec les droits de l'auteur.
+  choisie (heure de Nouméa), en PDF (par défaut), PowerPoint ou Excel, avec les droits de l'auteur.
 - **Mes rapports** (/rapports) : rapports enregistrés (afficher à l'écran sur leur période
   relative, générer le fichier, suspendre, supprimer ; les 5 premiers aussi sur l'accueil),
   historique et téléchargement des fichiers générés.

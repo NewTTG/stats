@@ -1,0 +1,78 @@
+{% load l10n %}{% comment %}Fragment « Aperçu du réseau » de l'accueil, chargé par kpi.js (/apercu/?jour=…).{% endcomment %}
+{% if erreur %}
+<div class="carte vide-etat">{% include "kpi/_icone.html" with nom="alerte" taille=28 %}<p>{{ erreur }}</p></div>
+{% elif vide %}
+<div class="carte vide-etat">{% include "kpi/_icone.html" with nom="horloge" taille=28 %}
+  <p>{{ vide }}</p>
+  {% if choix == "aujourdhui" %}<button class="bouton secondaire petit" type="button" data-jour="hier">Voir la journée d'hier</button>{% endif %}
+</div>
+{% else %}
+{% with a=apercu %}
+<div class="apercu-contenu" data-sous-titre="{{ a.perimetre }} · {% if a.choix == 'aujourdhui' %}aujourd'hui, de 0 h à {{ a.heure|add:1 }} h{% elif a.decale %}dernier jour disponible : {{ a.date_longue }}{% else %}{{ a.date_longue }}{% endif %}">
+  <div class="tuiles">
+    {% for t in a.tuiles %}
+    <a class="tuile {{ t.statut }}" href="{{ t.lien }}" title="{{ t.titre }} — voir le détail heure par heure">
+      <div class="tuile-tete">
+        <span class="tuile-icone {{ t.techno }}">{% include "kpi/_icone.html" with nom=t.icone taille=17 %}</span>
+        <span class="tuile-libelle">{{ t.libelle }}</span>
+        <span class="badge-techno petit {{ t.techno }}">{{ t.court }}</span>
+      </div>
+      <div class="tuile-valeur"><span class="nombre">{{ t.texte }}</span> <small>{{ t.unite }}</small>{% if t.approx %} <small title="Valeur approximative">≈</small>{% endif %}</div>
+      <div class="tuile-pied">
+        {% if t.variation %}<span class="variation {{ t.variation.sens }}">{% if t.variation.fleche %}<span aria-hidden="true">{{ t.variation.fleche }}</span>{% endif %}{{ t.variation.texte }}</span> <span>{{ a.libelle_ref }}</span>{% else %}<span>Pas de comparaison</span>{% endif %}
+        {% if t.statut == "alerte" %}<span class="statut alerte">Alerte</span>{% elif t.statut == "critique" %}<span class="statut critique">Critique</span>{% elif t.statut == "ok" %}<span class="statut ok">OK</span>{% endif %}
+      </div>
+      {% if t.etincelle %}<svg class="etincelle {{ t.techno }}" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true"><path class="aire" d="{{ t.etincelle.aire }}"/><path class="ligne" d="{{ t.etincelle.ligne }}"/></svg>{% endif %}
+    </a>
+    {% endfor %}
+  </div>
+
+  <div class="grille-apercu">
+    {% if a.graphiques.trafic %}
+    <section class="carte large">
+      <div class="carte-tete">
+        <div><h3>Trafic data 4G heure par heure</h3><p class="aide">Volume descendant ({{ a.graphiques.trafic.unite }}), {{ a.graphiques.jour }} comparé au {{ a.graphiques.veille }}</p></div>
+        <div class="legende"><span><i></i>{{ a.graphiques.jour }}</span><span><i class="secondaire"></i>{{ a.graphiques.veille }}</span></div>
+      </div>
+      <div class="graphique" data-apercu="trafic" role="img" aria-label="Trafic data 4G par heure"></div>
+    </section>
+    {% endif %}
+    {% for c in a.classements|slice:":1" %}
+    <section class="carte etroite">
+      <div class="carte-tete"><div><h3>{{ c.titre }}</h3><p class="aide">Les plus dégradés sur {{ c.total }} site{{ c.total|pluralize }}</p></div></div>
+      <ol class="classement-rapide">
+        {% for l in c.lignes %}<li><span class="nom" title="{{ l.entite }}">{{ l.entite }}</span><span class="val">{{ l.texte }} {{ l.unite }}</span><span class="jauge" aria-hidden="true"><span class="{{ l.statut }}" style="width: {{ l.largeur|unlocalize }}%"></span></span></li>{% endfor %}
+      </ol>
+      <p class="lien-suite"><a href="{{ c.lien }}">Classement complet →</a></p>
+    </section>
+    {% endfor %}
+    {% if a.graphiques.tendance %}
+    <section class="carte etroite">
+      <div class="carte-tete"><div><h3>Volume data 4G</h3><p class="aide">{{ a.graphiques.tendance.jours|length }} derniers jours ({{ a.graphiques.tendance.unite }})</p></div></div>
+      <div class="graphique bas" data-apercu="tendance" role="img" aria-label="Volume data 4G par jour"></div>
+    </section>
+    {% endif %}
+    {% if a.graphiques.qualite %}
+    <section class="carte etroite">
+      <div class="carte-tete"><div><h3>Coupures heure par heure</h3><p class="aide">Taux de coupure (%), {{ a.graphiques.jour }}</p></div></div>
+      <div class="graphique bas" data-apercu="qualite" role="img" aria-label="Taux de coupure par heure"></div>
+    </section>
+    {% endif %}
+    {% for c in a.classements|slice:"1:" %}
+    <section class="carte etroite">
+      <div class="carte-tete"><div><h3>{{ c.titre }}</h3><p class="aide">Les plus dégradés sur {{ c.total }} site{{ c.total|pluralize }}</p></div></div>
+      <ol class="classement-rapide">
+        {% for l in c.lignes %}<li><span class="nom" title="{{ l.entite }}">{{ l.entite }}</span><span class="val">{{ l.texte }} {{ l.unite }}</span><span class="jauge" aria-hidden="true"><span class="{{ l.statut }}" style="width: {{ l.largeur|unlocalize }}%"></span></span></li>{% endfor %}
+      </ol>
+      <p class="lien-suite"><a href="{{ c.lien }}">Classement complet →</a></p>
+    </section>
+    {% endfor %}
+  </div>
+  <p class="aide" style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center;">
+    <span>Cliquez sur une tuile pour le détail heure par heure.</span>
+    <a class="bouton secondaire petit" href="{{ a.lien_bilan }}">{% include "kpi/_icone.html" with nom="bilan" taille=16 %}Bilan complet de la journée</a>
+  </p>
+  {{ a.graphiques|json_script:"donnees-apercu" }}
+</div>
+{% endwith %}
+{% endif %}

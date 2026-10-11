@@ -7,7 +7,9 @@
   les paramètres explicites (rapport choisi, réponses aux questions, puces modifiées)
   priment sur le texte ; sans état : l'URL suffit à rejouer (et partager) une recherche ;
 - paramètres GET de l'ancien formulaire structuré : toujours acceptés ;
-- exports Excel (``export=xlsx``) et rapport PowerPoint depuis tout résultat.
+- exports Excel (``export=xlsx``), PDF (``export=pdf``) et rapport PowerPoint depuis tout résultat ;
+- aperçu du réseau de l'accueil (``/apercu/?jour=hier|aujourdhui``) : fragment HTML chargé par
+  le navigateur, pour que la page s'affiche sans attendre les calculs.
 """
 
 import json
@@ -25,6 +27,7 @@ from pydantic import ValidationError
 
 from apps.comptes.acces import kpis_autorises, voit_tout_le_reseau
 from apps.comptes.models import JournalAudit
+from apps.comptes.visiteurs import est_visiteur
 from apps.rapports.models import RapportPlanifie
 
 from .catalogue import catalogue
@@ -39,9 +42,13 @@ from .recherche.vocabulaire import LIBELLES_TECHNO, kpis_intention, vocabulaire
 from .requete import RequeteKpi
 from .service import RequeteRefusee, executer
 from .source import BaseKpiNonConfiguree, est_demo, infos_demo, moteur_kpi
+from .tableau_de_bord import CHOIX as CHOIX_APERCU
+from .tableau_de_bord import AucuneDonnee, date_longue
+from .tableau_de_bord import apercu as calculer_apercu
 
 journal = logging.getLogger(__name__)
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ACTIONS_EXPORT = {"xlsx": "export_excel", "pdf": "export_pdf"}
 FORMAT_PERIODE = {"heure": "%d/%m/%Y %Hh", "jour": "%d/%m/%Y", "semaine": "sem. du %d/%m/%Y", "mois": "%m/%Y"}
 # Au-delà, une courbe par entité devient illisible : on garde les premières.
 SERIES_MAX = 12
@@ -260,6 +267,19 @@ def _rapports_enregistres(user, nombre=5) -> list[dict]:
             for p in RapportPlanifie.objects.filter(utilisateur=user)[:nombre]]
 
 
+def _rapports_rapides(rapports: list[dict]) -> list[dict]:
+    """Rapports types affichés en un clic depuis l'accueil (tout le réseau autorisé, hier)."""
+    return [{**r, "lien": "?" + urlencode({"q": "", "intention": r["code"], "periode": "hier"})} for r in rapports]
+
+
+def _salutation(user, visiteur: bool) -> str:
+    heure = timezone.localtime().hour
+    bonjour = "Bonsoir" if heure >= 18 or heure < 4 else "Bonjour"
+    if visiteur or not user.is_authenticated:
+        return bonjour
+    return f"{bonjour}, {user.first_name or user.get_username()}"
+
+
 def _periode_courte(interp) -> str:
     """« 7 derniers jours » (période relative) ou « 02/10 → 08/10/2026 »."""
     p = interp.demande.periode if interp.demande else None
@@ -356,7 +376,8 @@ def _message_validation(e: ValidationError) -> str:
 @login_required
 def requete(request):
     get = request.GET.copy()
-    export = get.pop("export", [None])[0] == "xlsx"
+    format_export = get.pop("export", [None])[0]
+    export = format_export in ("xlsx", "pdf")
     visibles = kpis_autorises(request.user, set(catalogue()))
     aujourdhui = timezone.localdate()
     q = get.get("q", "").strip()[:300]
@@ -402,6 +423,9 @@ def requete(request):
         ctx["q"] = get.get("reprendre", "").strip()[:300]  # « Modifier » une recherche de l'historique
         contexte = Contexte.pour(request.user)
         ctx["rapports_types"] = _rapports_types(contexte)
+        ctx["rapports_rapides"] = _rapports_rapides(ctx["rapports_types"])
+        ctx["salutation"] = _salutation(request.user, est_visiteur(request.user))
+        ctx["date_du_jour"] = date_longue(aujourdhui)
         ctx["lieux"] = _lieux_proposes(contexte)
         ctx["periodes"] = [(c, PRESETS[c]) for c in PERIODES_ACCUEIL]
         ctx["periode_defaut"] = PERIODE_DEFAUT
@@ -413,11 +437,11 @@ def requete(request):
 
     if req is not None:
         if ctx["mode"] == "recherche":
-            action = "export_excel" if export else "recherche_kpi"
+            action = ACTIONS_EXPORT[format_export] if export else "recherche_kpi"
             trace = {"q": q, "ia": ia, "source": interp.source, "parametres": explicites,
                      "libelle": _libelle_historique(interp), "requete": req.model_dump(mode="json")}
         else:
-            action = "export_excel" if export else "requete_kpi"
+            action = ACTIONS_EXPORT[format_export] if export else "requete_kpi"
             trace = req.model_dump(mode="json")
         JournalAudit.objects.create(utilisateur=request.user, action=action, requete=trace)
         try:
@@ -428,8 +452,15 @@ def requete(request):
             ctx["erreur"] = str(e) if request.user.is_staff else MESSAGE_BASE_INDISPONIBLE
         else:
             if export:
-                reponse = HttpResponse(construire_excel(resultat), content_type=XLSX)
-                nom = f"kpi_{req.periode.debut:%Y%m%d}_{req.periode.fin:%Y%m%d}.xlsx"
+                if format_export == "pdf":
+                    from apps.rapports.pdf import pdf_requete  # import tardif : apps.rapports importe ces vues
+
+                    titre = ctx.get("titre") or "Statistiques KPI réseau"
+                    reponse = HttpResponse(pdf_requete(resultat, titre=titre, sous_titre=ctx.get("sous_titre", "")),
+                                           content_type="application/pdf")
+                else:
+                    reponse = HttpResponse(construire_excel(resultat), content_type=XLSX)
+                nom = f"kpi_{req.periode.debut:%Y%m%d}_{req.periode.fin:%Y%m%d}.{format_export}"
                 reponse["Content-Disposition"] = f'attachment; filename="{nom}"'
                 return reponse
             ctx["resultat"] = resultat
@@ -445,6 +476,7 @@ def requete(request):
             # Résultat vide (aucune donnée) : pas de boutons Excel / PowerPoint.
             ctx["donnees_presentes"] = any(b["lignes_total"] for b in ctx["blocs"])
             ctx["lien_export"] = "?" + urlencode([*get.lists(), ("export", ["xlsx"])], doseq=True)
+            ctx["lien_export_pdf"] = "?" + urlencode([*get.lists(), ("export", ["pdf"])], doseq=True)
             ctx["requete_params"] = [(k, v if isinstance(v, list) else [v])
                                      for k, v in champs_depuis_requete(req).items()]  # rapport PowerPoint (POST)
             if est_demo() and voit_tout_le_reseau(request.user):  # incidents : noms de sites
@@ -460,3 +492,19 @@ def suggestions(request):
     lieux = contexte.lieux.suggestions(q, limite=15)
     exemples = [e for e in _exemples(request.user, timezone.localdate(), contexte) if not q or q.lower() in e.lower()]
     return JsonResponse({"lieux": lieux, "exemples": exemples})
+
+
+@login_required
+def apercu(request):
+    """Fragment « Aperçu du réseau » de l'accueil : tuiles KPI, profils horaires, classements."""
+    choix = request.GET.get("jour", "hier")
+    if choix not in CHOIX_APERCU:
+        choix = "hier"
+    ctx = {"choix": choix}
+    try:
+        ctx["apercu"] = calculer_apercu(request.user, timezone.localdate(), choix, timezone.localtime().hour)
+    except (AucuneDonnee, RequeteRefusee) as e:
+        ctx["vide"] = str(e)
+    except BaseKpiNonConfiguree as e:  # détail technique (configuration) pour l'administrateur seul
+        ctx["erreur"] = str(e) if request.user.is_staff else MESSAGE_BASE_INDISPONIBLE
+    return render(request, "kpi/_apercu.html", ctx)

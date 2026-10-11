@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block titre %}Événements — Stats réseau{% endblock %}
+{% block barre_haut %}<p class="fil-ariane">{% include "kpi/_icone.html" with nom="evenements" taille=16 %} <strong>Événements</strong></p>{% endblock %}
 {% block contenu %}
 <div class="entete-page">
   <div>
@@ -10,24 +11,32 @@
   {% if perms.evenements.add_evenement %}
   <div class="boutons">
     <a class="bouton secondaire" href="{% url 'admin:evenements_evenement_changelist' %}">Gérer les événements</a>
-    <a class="bouton" href="{% url 'admin:evenements_evenement_add' %}">Nouvel événement</a>
+    <a class="bouton" href="{% url 'admin:evenements_evenement_add' %}">{% include "kpi/_icone.html" with nom="plus" taille=16 trait=2.2 %}Nouvel événement</a>
   </div>
   {% endif %}
 </div>
-<section class="carte">
-  {% if evenements %}
-  <div class="table-defil"><table class="liste-evenements">
-    <thead><tr><th scope="col">Événement</th><th scope="col">Type</th><th scope="col">Premier créneau</th><th scope="col">Créneaux</th></tr></thead>
-    <tbody>{% for e in evenements %}
-      <tr><td><a href="{% url 'evenements:detail' e.pk %}">{{ e.nom }}</a></td><td>{{ e.type|default:"—" }}</td>
-        <td>{{ e.debut|date:"d/m/Y H:i" }}</td><td class="nombre">{{ e.nb_creneaux }}</td></tr>
-    {% endfor %}</tbody>
-  </table></div>
-  {% else %}
-  <p class="vide">Aucun événement daté pour le moment.{% if not perms.evenements.add_evenement %} Les événements sont
+{% if evenements %}
+<div class="cartes-evenements">
+  {% for e in evenements %}
+  <a class="carte-evenement" href="{% url 'evenements:detail' e.pk %}">
+    <div class="date-bloc">
+      <span class="calendrier" aria-hidden="true"><span class="mois">{{ e.debut|date:"M" }}</span><span class="jour">{{ e.debut|date:"j" }}</span></span>
+      <div><strong>{{ e.nom }}</strong>
+        <div class="meta"><span>{{ e.debut|date:"d/m/Y H:i" }}</span></div></div>
+    </div>
+    <div class="meta">
+      {% if e.type %}<span class="pastille">{{ e.type }}</span>{% endif %}
+      <span class="pastille">{{ e.nb_creneaux }} créneau{{ e.nb_creneaux|pluralize:"x" }}</span>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<section class="carte vide-etat">{% include "kpi/_icone.html" with nom="evenements" taille=32 %}
+  <p>Aucun événement daté pour le moment.{% if not perms.evenements.add_evenement %} Les événements sont
     créés par l'administrateur de l'application.{% endif %}</p>
-  {% endif %}
 </section>
+{% endif %}
 {% if sans_date and perms.evenements.change_evenement %}
 <details class="repliable">
   <summary>{{ sans_date|length }} événement{{ sans_date|length|pluralize }} sans créneau, à compléter dans l'administration</summary>

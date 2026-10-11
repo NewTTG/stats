@@ -1,48 +1,53 @@
 {% extends "base.html" %}
 {% block titre %}Mes rapports — Stats réseau{% endblock %}
 {% block entete %}{% if rafraichir %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
+{% block barre_haut %}<p class="fil-ariane">{% include "kpi/_icone.html" with nom="rapports" taille=16 %} <strong>Mes rapports</strong></p>{% endblock %}
 {% block contenu %}
 <div class="entete-page">
   <div>
     <h1>Mes rapports</h1>
-    <p class="sous-titre">Rapports enregistrés (à afficher, lancer ou recevoir automatiquement) et fichiers PowerPoint / Excel générés.</p>
+    <p class="sous-titre">Rapports enregistrés (à afficher, lancer ou recevoir automatiquement) et fichiers PDF, PowerPoint ou Excel générés.</p>
   </div>
-  <div class="boutons"><a class="bouton" href="{% url 'kpi:requete' %}">Nouveau rapport</a></div>
+  <div class="boutons"><a class="bouton" href="{% url 'kpi:requete' %}#composer">{% include "kpi/_icone.html" with nom="plus" taille=16 trait=2.2 %}Nouveau rapport</a></div>
 </div>
 <section class="carte" aria-labelledby="titre-enregistres">
-  <h2 id="titre-enregistres">Rapports enregistrés</h2>
+  <div class="carte-tete"><div><h2 id="titre-enregistres">Rapports enregistrés</h2>
+    <p class="aide">Période recalculée à chaque lancement ; envoi automatique selon la fréquence choisie.</p></div></div>
   {% if planifies %}
-  <div class="table-defil"><table>
+  <div class="table-defil"><table class="liste-fichiers">
     <thead><tr><th scope="col">Rapport</th><th scope="col">Période</th><th scope="col">Format</th><th scope="col">Envoi</th><th scope="col">Prochain</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
     <tbody>{% for p in planifies %}
-      <tr><td class="texte">{{ p.titre }}</td><td>{{ p.get_periode_display }}</td><td>{{ p.get_format_display }}</td>
-        <td>{{ p.description_frequence }}{% if p.planifie and not p.actif %} <span class="etiquette alerte">Suspendu</span>{% endif %}</td>
+      <tr><td class="texte">{{ p.titre }}</td><td>{{ p.get_periode_display }}</td>
+        <td><span class="format {{ p.format }}" title="{{ p.get_format_display }}">{% if p.format == "pdf" %}PDF{% elif p.format == "pptx" %}PPT{% else %}XLS{% endif %}</span> <span class="sr-only">{{ p.get_format_display }}</span></td>
+        <td>{% if p.planifie %}<span class="pastille{% if p.actif %} direct{% endif %}">{{ p.description_frequence }}</span>{% else %}{{ p.description_frequence }}{% endif %}{% if p.planifie and not p.actif %} <span class="etiquette alerte">Suspendu</span>{% endif %}</td>
         <td>{% if p.prochain_lancement %}{{ p.prochain_lancement|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
         <td><div class="actions-ligne">
-          {% with lien=p.lien_ecran %}{% if lien %}<a class="bouton secondaire petit" href="{{ lien }}" title="Afficher à l'écran sur la période {{ p.get_periode_display|lower }}">Afficher</a>{% endif %}{% endwith %}
-          <form method="post" action="{% url 'rapports:planifie_lancer' p.pk %}">{% csrf_token %}<button class="bouton petit" type="submit" title="Générer le fichier {{ p.get_format_display }} maintenant">Générer</button></form>
+          {% with lien=p.lien_ecran %}{% if lien %}<a class="bouton secondaire petit" href="{{ lien }}" title="Afficher à l'écran sur la période {{ p.get_periode_display|lower }}">{% include "kpi/_icone.html" with nom="oeil" taille=14 %}Afficher</a>{% endif %}{% endwith %}
+          <form method="post" action="{% url 'rapports:planifie_lancer' p.pk %}">{% csrf_token %}<button class="bouton petit" type="submit" title="Générer le fichier {{ p.get_format_display }} maintenant">{% include "kpi/_icone.html" with nom="lecture" taille=14 %}Générer</button></form>
           {% if p.planifie %}<form method="post" action="{% url 'rapports:planifie_basculer' p.pk %}">{% csrf_token %}<button class="bouton secondaire petit" type="submit">{% if p.actif %}Suspendre{% else %}Réactiver{% endif %}</button></form>{% endif %}
-          <form method="post" action="{% url 'rapports:planifie_supprimer' p.pk %}" onsubmit="return confirm('Supprimer ce rapport enregistré ?');">{% csrf_token %}<button class="bouton secondaire petit" type="submit">Supprimer</button></form>
+          <form method="post" action="{% url 'rapports:planifie_supprimer' p.pk %}" onsubmit="return confirm('Supprimer ce rapport enregistré ?');">{% csrf_token %}<button class="bouton fantome petit" type="submit" title="Supprimer">{% include "kpi/_icone.html" with nom="corbeille" taille=14 %}<span class="sr-only">Supprimer</span></button></form>
         </div></td></tr>
     {% endfor %}</tbody>
   </table></div>
-  {% else %}<p class="vide">Aucun rapport enregistré. Depuis un résultat, « Enregistrer ce rapport » le garde pour l'afficher en
-    un clic ou le recevoir automatiquement (chaque jour, chaque semaine, le 1er du mois).</p>{% endif %}
+  {% else %}<div class="vide-etat">{% include "kpi/_icone.html" with nom="signet" taille=28 %}<p class="vide">Aucun rapport enregistré. Depuis un résultat, « Enregistrer ce rapport » le garde pour l'afficher en
+    un clic ou le recevoir automatiquement (chaque jour, chaque semaine, le 1er du mois).</p></div>{% endif %}
 </section>
 <section class="carte" aria-labelledby="titre-generes">
-  <h2 id="titre-generes">Fichiers générés</h2>
+  <div class="carte-tete"><div><h2 id="titre-generes">Fichiers générés</h2>
+    <p class="aide">Les 50 derniers fichiers demandés.</p></div></div>
   {% if rapports %}
-  <div class="table-defil"><table>
-    <thead><tr><th scope="col">Demandé le</th><th scope="col">Rapport</th><th scope="col">Format</th><th scope="col">État</th><th scope="col"><span class="sr-only">Téléchargement</span></th></tr></thead>
+  <div class="table-defil"><table class="liste-fichiers">
+    <thead><tr><th scope="col">Rapport</th><th scope="col">Demandé le</th><th scope="col">État</th><th scope="col"><span class="sr-only">Téléchargement</span></th></tr></thead>
     <tbody>{% for r in rapports %}
-      <tr><td>{{ r.cree_le|date:"d/m/Y H:i" }}</td><td class="texte">{{ r.titre }}</td><td>{{ r.get_format_display }}</td>
+      <tr><td class="texte"><span class="cellule-titre"><span class="format {{ r.format }}" title="{{ r.get_format_display }}">{% if r.format == "pdf" %}PDF{% elif r.format == "pptx" %}PPT{% else %}XLS{% endif %}</span><span>{{ r.titre }}</span></span></td>
+        <td>{{ r.cree_le|date:"d/m/Y H:i" }}</td>
         <td>{% if r.statut == "termine" %}<span class="etiquette ok">Prêt</span>
             {% elif r.statut == "erreur" %}<span class="etiquette critique" title="{{ r.message }}">Erreur</span> <span class="aide">{{ r.message }}</span>
             {% else %}<span class="etiquette alerte">{{ r.get_statut_display }}…</span>{% endif %}</td>
-        <td>{% if r.statut == "termine" %}<a class="bouton secondaire petit" href="{% url 'rapports:telecharger' r.pk %}">Télécharger</a>{% endif %}</td></tr>
+        <td>{% if r.statut == "termine" %}<a class="bouton secondaire petit" href="{% url 'rapports:telecharger' r.pk %}">{% include "kpi/_icone.html" with nom="telecharger" taille=14 %}Télécharger</a>{% endif %}</td></tr>
     {% endfor %}</tbody>
   </table></div>
-  {% if rafraichir %}<p class="aide">Génération en cours : la page s'actualise toute seule toutes les 5 secondes.</p>{% endif %}
-  {% else %}<p class="vide">Aucun fichier. Depuis un résultat ou un événement, « Rapport PowerPoint » ou « Rapport Excel » en génère un ici.</p>{% endif %}
+  {% if rafraichir %}<p class="aide marge-haut">Génération en cours : la page s'actualise toute seule toutes les 5 secondes.</p>{% endif %}
+  {% else %}<div class="vide-etat">{% include "kpi/_icone.html" with nom="fichier" taille=28 %}<p class="vide">Aucun fichier. Depuis un résultat ou un événement, « Exporter » ou « Rapport PDF » en génère un ici.</p></div>{% endif %}
 </section>
 {% endblock %}

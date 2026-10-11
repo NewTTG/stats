@@ -2,14 +2,15 @@
 {% block titre %}{% if acces_anonyme %}Accès administrateur{% else %}Connexion{% endif %} — Stats KPI réseau{% endblock %}
 {% block contenu %}
 <div class="connexion">
-  {% if acces_anonyme %}<p><a href="{% url 'kpi:requete' %}">← Retour aux statistiques</a></p>{% endif %}
+  {% if acces_anonyme %}<p class="fil"><a href="{% url 'kpi:requete' %}">← Retour aux statistiques</a></p>{% endif %}
   <div class="carte">
+    <span class="marque-logo" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 19v-3M10 19v-7M15 19V9M20 19V5"/></svg></span>
     {% if acces_anonyme %}
-    <h1 style="font-size: 1.5rem;">Accès administrateur</h1>
+    <h1>Accès administrateur</h1>
     <p class="aide">Les statistiques s'utilisent sans compte. Cette page est réservée aux administrateurs :
       événements, seuils KPI, comptes et périmètres, référentiel réseau.</p>
     {% else %}
-    <h1 style="font-size: 1.5rem;">Connexion</h1>
+    <h1>Connexion</h1>
     <p class="aide">Statistiques de trafic et de qualité radio 4G / 3G.</p>
     {% endif %}
     {% if compte_sans_administration %}<p class="avertissement" role="alert">Le compte « {{ user.get_username }} » n'a pas accès à l'administration : connectez-vous avec un compte administrateur.</p>{% endif %}
@@ -19,7 +20,7 @@
       <p><label for="id_username">Utilisateur</label>{{ form.username }}</p>
       <p><label for="id_password">Mot de passe</label>{{ form.password }}</p>
       <input type="hidden" name="next" value="{{ next }}">
-      <button class="bouton" type="submit">Se connecter</button>
+      <button class="bouton grand" type="submit">Se connecter</button>
     </form>
   </div>
 </div>

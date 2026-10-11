@@ -1,18 +1,20 @@
 {% extends "admin/base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
 {% block extrastyle %}{{ block.super }}
 <style>
-/* Administration aux couleurs de l'application (marine / ambre), thèmes clair et sombre.
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url("{% static 'vendor/inter/inter-latin-wght-normal.woff2' %}") format("woff2"); }
+/* Administration aux couleurs de l'application (nouvelle charte : bleu / ambre), thèmes clair et sombre.
    Même structure que les feuilles de Django : clair par défaut, sombre selon le système
    (thème « auto ») ou choisi avec le bouton de thème (data-theme). */
 html[data-theme="light"],
 :root {
-  --primary: #2c4a7e;
-  --secondary: #1b335e;
-  --accent: #f0a500;
+  --primary: #3b5bdb;
+  --secondary: #2f4ac0;
+  --accent: #f59e0b;
   --primary-fg: #fff;
 
   --body-fg: #172033;
@@ -23,18 +25,18 @@ html[data-theme="light"],
 
   --header-color: #c9d3e6;
   --header-branding-color: #fff;
-  --header-bg: #14284b;
+  --header-bg: #0f172a;
   --header-link-color: #fff;
 
   --breadcrumbs-fg: #4b5567;
-  --breadcrumbs-link-fg: #1b335e;
-  --breadcrumbs-bg: #e3e9f3;
+  --breadcrumbs-link-fg: #2f4ac0;
+  --breadcrumbs-bg: #eef2ff;
 
-  --link-fg: #2c4a7e;
-  --link-hover-color: #14284b;
-  --link-selected-fg: #14284b;
+  --link-fg: #3b5bdb;
+  --link-hover-color: #0f172a;
+  --link-selected-fg: #0f172a;
 
-  --hairline-color: #e3e9f3;
+  --hairline-color: #eef2ff;
   --border-color: #c3ccda;
 
   --error-fg: #a3200f;
@@ -42,44 +44,44 @@ html[data-theme="light"],
   --message-warning-bg: #fff1cc;
   --message-error-bg: #fde7e4;
 
-  --darkened-bg: #f4f6fa;
-  --selected-bg: #e3e9f3;
+  --darkened-bg: #f4f6fb;
+  --selected-bg: #eef2ff;
   --selected-row: #fff6e0;
 
   --button-fg: #fff;
-  --button-bg: #2c4a7e;
-  --button-hover-bg: #14284b;
-  --default-button-bg: #14284b;
-  --default-button-hover-bg: #2c4a7e;
+  --button-bg: #3b5bdb;
+  --button-hover-bg: #0f172a;
+  --default-button-bg: #0f172a;
+  --default-button-hover-bg: #3b5bdb;
   --close-button-bg: #5f6878;
   --close-button-hover-bg: #4b5567;
 
-  --object-tools-bg: #2c4a7e;
-  --object-tools-hover-bg: #14284b;
+  --object-tools-bg: #3b5bdb;
+  --object-tools-hover-bg: #0f172a;
 
   --carte-ombre: 0 1px 2px rgba(20, 40, 75, .06), 0 4px 14px rgba(20, 40, 75, .06);
-  --font-family-primary: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-family-primary: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --primary: #2c4a7e;
-    --primary-fg: #f4f6fa;
+    --primary: #3b5bdb;
+    --primary-fg: #f4f6fb;
 
     --body-fg: #e4e9f2;
-    --body-bg: #0f1829;
+    --body-bg: #0b1020;
     --body-quiet-color: #a7b3c8;
     --body-medium-color: #cbd4e3;
     --body-loud-color: #fff;
 
     --breadcrumbs-fg: #a7b3c8;
     --breadcrumbs-link-fg: #d6e2f7;
-    --breadcrumbs-bg: #16223a;
+    --breadcrumbs-bg: #121a2c;
 
-    --link-fg: #9dbcf0;
-    --link-hover-color: #f0a500;
+    --link-fg: #a9bcff;
+    --link-hover-color: #f59e0b;
     --link-selected-fg: #c4d6f5;
 
     --hairline-color: #22304a;
@@ -90,13 +92,13 @@ html[data-theme="light"],
     --message-warning-bg: #5a3d00;
     --message-error-bg: #5c1a12;
 
-    --darkened-bg: #16223a;
+    --darkened-bg: #121a2c;
     --selected-bg: #1d2c4a;
     --selected-row: #3a2f10;
 
-    --button-hover-bg: #3a5f9e;
-    --default-button-bg: #3a5f9e;
-    --default-button-hover-bg: #2c4a7e;
+    --button-hover-bg: #4c6ef5;
+    --default-button-bg: #4c6ef5;
+    --default-button-hover-bg: #3b5bdb;
     --close-button-bg: #34476b;
     --close-button-hover-bg: #4a5f87;
 
@@ -110,21 +112,21 @@ html[data-theme="light"],
 }
 
 html[data-theme="dark"] {
-  --primary: #2c4a7e;
-  --primary-fg: #f4f6fa;
+  --primary: #3b5bdb;
+  --primary-fg: #f4f6fb;
 
   --body-fg: #e4e9f2;
-  --body-bg: #0f1829;
+  --body-bg: #0b1020;
   --body-quiet-color: #a7b3c8;
   --body-medium-color: #cbd4e3;
   --body-loud-color: #fff;
 
   --breadcrumbs-fg: #a7b3c8;
   --breadcrumbs-link-fg: #d6e2f7;
-  --breadcrumbs-bg: #16223a;
+  --breadcrumbs-bg: #121a2c;
 
-  --link-fg: #9dbcf0;
-  --link-hover-color: #f0a500;
+  --link-fg: #a9bcff;
+  --link-hover-color: #f59e0b;
   --link-selected-fg: #c4d6f5;
 
   --hairline-color: #22304a;
@@ -135,13 +137,13 @@ html[data-theme="dark"] {
   --message-warning-bg: #5a3d00;
   --message-error-bg: #5c1a12;
 
-  --darkened-bg: #16223a;
+  --darkened-bg: #121a2c;
   --selected-bg: #1d2c4a;
   --selected-row: #3a2f10;
 
-  --button-hover-bg: #3a5f9e;
-  --default-button-bg: #3a5f9e;
-  --default-button-hover-bg: #2c4a7e;
+  --button-hover-bg: #4c6ef5;
+  --default-button-bg: #4c6ef5;
+  --default-button-hover-bg: #3b5bdb;
   --close-button-bg: #34476b;
   --close-button-hover-bg: #4a5f87;
 
@@ -158,12 +160,12 @@ html[data-theme="dark"] {
 #site-name { font-size: 1.125rem; font-weight: 600; letter-spacing: .01em; }
 #site-name a:link, #site-name a:visited { color: var(--header-branding-color); display: inline-flex; align-items: center; gap: 10px; }
 #site-name a:hover, #site-name a:focus { color: #fff; text-decoration: none; }
-.marque-admin-logo { flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px;
-  background: #f0a500; color: #14284b; font-weight: 800; font-size: .95rem; }
+.marque-admin-logo { flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 9px;
+  background: linear-gradient(135deg, #3b5bdb 0%, #6d5bf0 100%); color: #fff; }
 #user-tools, #logout-form button { text-transform: none; letter-spacing: 0; font-size: .8125rem; font-weight: 400; }
 #header #user-tools a.retour-statistiques { display: inline-block; margin-inline-end: 12px; padding: 4px 10px; border: 0;
-  border-radius: 6px; background: #f0a500; color: #14284b; font-weight: 600; }
-#header #user-tools a.retour-statistiques:hover, #header #user-tools a.retour-statistiques:focus { background: #ffb81f; color: #14284b; }
+  border-radius: 6px; background: #f59e0b; color: #0f172a; font-weight: 600; }
+#header #user-tools a.retour-statistiques:hover, #header #user-tools a.retour-statistiques:focus { background: #fbbf24; color: #0f172a; }
 #header a:focus-visible, #header button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* Titres de sections : marine, section courante en ambre dans le menu latéral. */
@@ -174,7 +176,7 @@ html[data-theme="dark"] {
 {% endblock %}
 
 {% block branding %}
-<div id="site-name"><a href="{% url 'admin:index' %}"><span class="marque-admin-logo" aria-hidden="true">K</span>{{ site_header|default:_('Django administration') }}</a></div>
+<div id="site-name"><a href="{% url 'admin:index' %}"><span class="marque-admin-logo" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 19v-3M10 19v-7M15 19V9M20 19V5"/></svg></span>{{ site_header|default:_('Django administration') }}</a></div>
 {% if user.is_anonymous %}
   {% include "admin/color_theme_toggle.html" %}
 {% endif %}

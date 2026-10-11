@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block titre %}Enregistrer un rapport — Stats réseau{% endblock %}
+{% block barre_haut %}<p class="fil-ariane"><a href="{% url 'rapports:liste' %}">Mes rapports</a> <span aria-hidden="true">/</span> <strong>Enregistrer</strong></p>{% endblock %}
 {% block contenu %}
 <div class="entete-page">
   <div>
@@ -8,21 +9,41 @@
       recalculée à chaque fois (ex. « semaine dernière »).</p>
   </div>
 </div>
-<section class="carte">
-  <p class="aide">{{ requete.techno|join:" / " }} · {{ requete.perimetre.valeurs|join:", "|default:"tout le réseau autorisé" }}
-    · {{ requete.kpis|length }} indicateur{{ requete.kpis|length|pluralize }} · par {{ requete.granularite_temps }}{% if requete.granularite_espace != "global" %}, par {{ requete.granularite_espace }}{% endif %}.</p>
+<section class="carte" style="max-width: 820px;">
+  <div class="carte-tete">
+    <div class="cellule-titre">
+      <span class="tuile-icone">{% include "kpi/_icone.html" with nom="rapports" taille=18 %}</span>
+      <p class="aide" style="margin: 0;">{{ requete.techno|join:" / " }} · {{ requete.perimetre.valeurs|join:", "|default:"tout le réseau autorisé" }}
+        · {{ requete.kpis|length }} indicateur{{ requete.kpis|length|pluralize }} · par {{ requete.granularite_temps }}{% if requete.granularite_espace != "global" %}, par {{ requete.granularite_espace }}{% endif %}.</p>
+    </div>
+  </div>
   <form method="post" action="{% url 'rapports:enregistrer' %}">{% csrf_token %}
     {% for cle, valeurs in requete_params %}{% for v in valeurs %}<input type="hidden" name="{{ cle }}" value="{{ v }}">{% endfor %}{% endfor %}
     {% if form.non_field_errors %}<div class="erreur">{{ form.non_field_errors }}</div>{% endif %}
     <div class="grille">
-      {% for champ in form %}
-      <div>{{ champ.label_tag }}{{ champ }}{% if champ.help_text %}<div class="aide">{{ champ.help_text }}</div>{% endif %}{{ champ.errors }}</div>
-      {% endfor %}
+      <div style="grid-column: 1 / -1;">{{ form.titre.label_tag }}{{ form.titre }}{{ form.titre.errors }}</div>
+      <div>{{ form.periode.label_tag }}{{ form.periode }}<div class="aide">{{ form.periode.help_text }}</div>{{ form.periode.errors }}</div>
+      <fieldset style="grid-column: 1 / -1; border: 0; padding: 0; margin: 0; min-width: 0;">
+        <legend style="font-weight: 550; font-size: .86rem; color: var(--texte-2); margin-bottom: .4rem; padding: 0;">Format</legend>
+        <div class="choix-rapports">
+          {% for valeur, libelle in form.fields.format.choices %}
+          <label class="choix-rapport">
+            <input type="radio" name="format" value="{{ valeur }}"{% if form.format.value == valeur %} checked{% endif %}>
+            <span class="icone"><span class="format {{ valeur }} menu-pastille" style="width: 30px; height: 30px; border-radius: 9px;">{% if valeur == "pdf" %}PDF{% elif valeur == "pptx" %}PPT{% else %}XLS{% endif %}</span></span>
+            <span class="texte"><strong>{{ libelle }}</strong><span>{% if valeur == "pdf" %}Rapport mis en page, prêt à partager{% elif valeur == "pptx" %}Diapositives à la charte{% else %}Synthèse et données détaillées{% endif %}</span></span>
+          </label>
+          {% endfor %}
+        </div>
+        {{ form.format.errors }}
+      </fieldset>
+      <div>{{ form.frequence.label_tag }}{{ form.frequence }}{{ form.frequence.errors }}</div>
+      <div>{{ form.jour_semaine.label_tag }}{{ form.jour_semaine }}<div class="aide">{{ form.jour_semaine.help_text }}</div>{{ form.jour_semaine.errors }}</div>
+      <div>{{ form.heure.label_tag }}{{ form.heure }}{{ form.heure.errors }}</div>
     </div>
     <p class="aide marge-haut">Un rapport planifié est généré automatiquement, avec vos droits d'accès, et apparaît dans
       « Mes rapports ».{% if user.is_staff %} Nécessite le worker (<code>python manage.py qcluster</code>).{% endif %}</p>
     <div class="actions-formulaire"><a class="bouton secondaire" href="{% url 'rapports:liste' %}">Annuler</a>
-      <button class="bouton" type="submit">Enregistrer</button></div>
+      <button class="bouton" type="submit">{% include "kpi/_icone.html" with nom="signet" taille=16 %}Enregistrer</button></div>
   </form>
 </section>
 {% endblock %}
