@@ -29,7 +29,7 @@ DEBUG = env("DJANGO_DEBUG", "0") == "1"
 ALLOWED_HOSTS = [h for h in env("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h]
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
+    "config.apps.AdminStatsConfig",  # django.contrib.admin avec le site du projet (config/admin.py)
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     "apps.kpi",
     "apps.evenements",
     "apps.rapports",
-    "django_q",
+    "config.apps.TachesDeFondConfig",  # django_q, nommé « Tâches de fond » dans l'administration
 ]
 
 MIDDLEWARE = [
@@ -124,6 +124,8 @@ ACCES_ANONYME = env("ACCES_ANONYME", "1") == "1"
 SESSION_COOKIE_AGE = 365 * 24 * 3600
 
 LOGIN_URL = "kpi:requete" if ACCES_ANONYME else "login"
+# Après connexion sans « next » : la recherche ; avec l'accès sans compte, un administrateur
+# arrive sur /admin/ (la page de connexion est alors l'entrée de l'administration, cf. ConnexionView).
 LOGIN_REDIRECT_URL = "kpi:requete"
 LOGOUT_REDIRECT_URL = "kpi:requete" if ACCES_ANONYME else "login"
 

@@ -3,16 +3,15 @@ from django.contrib.auth import views as auth_views
 from django.http import HttpResponse
 from django.urls import include, path
 
-admin.site.site_header = "Stats KPI réseau"
-admin.site.site_title = "Stats KPI réseau"
+from apps.comptes.views import ConnexionView
 
 urlpatterns = [
     path("", include("apps.kpi.urls")),
     path("evenements/", include("apps.evenements.urls")),
     path("rapports/", include("apps.rapports.urls")),
-    path("connexion/", auth_views.LoginView.as_view(), name="login"),
+    path("connexion/", ConnexionView.as_view(), name="login"),
     path("deconnexion/", auth_views.LogoutView.as_view(), name="logout"),
-    path("admin/", admin.site.urls),
+    path("admin/", admin.site.urls),  # site du projet : config/admin.py (AdminStats)
     # Pas d'icône : réponse vide plutôt qu'une 404 dans la console (pages d'administration).
     path("favicon.ico", lambda request: HttpResponse(status=204)),
 ]

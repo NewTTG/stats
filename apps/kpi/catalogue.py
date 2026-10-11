@@ -34,6 +34,9 @@ class DefinitionKpi(BaseModel):
     # Écart absolu minimal (unité du KPI) pour qu'un écart à la référence soit significatif
     # (analyse d'événement) : évite « +90 % » sur une cause passée de 0,01 à 0,02 %.
     ecart_min: float | None = None
+    # somme : ratio de sommes (somme simple sans dénominateur) ; pic : somme des cellules à
+    # chaque horodatage, puis maximum sur le temps (ex. utilisateurs connectés simultanément).
+    agregation: Literal["somme", "pic"] = "somme"
     facteur: float = 1.0
     sens: Literal["haut_est_mieux", "bas_est_mieux"]
     seuils: Seuils = Seuils()
@@ -53,11 +56,21 @@ class DefinitionKpi(BaseModel):
                 raise ValueError(f"{self.code} : produit_de demande au moins deux KPI")
         elif self.numerateur is None:
             raise ValueError(f"{self.code} : numerateur ou produit_de requis")
+        if self.pic and (self.denominateur is not None or self.produit_de is not None
+                         or self.decomposition_de is not None):
+            raise ValueError(f"{self.code} : agregation pic demande un numerateur seul "
+                             "(ni denominateur, ni produit_de, ni decomposition_de)")
         return self
 
     @property
+    def pic(self) -> bool:
+        """Pic simultané : somme des cellules à chaque horodatage, maximum sur le temps."""
+        return self.agregation == "pic"
+
+    @property
     def additif(self) -> bool:
-        """KPI sommé tel quel (volume, nombre d'appels...), sans dénominateur."""
+        """KPI de volume sans dénominateur (volume, nombre d'appels, pic d'utilisateurs...) :
+        somme simple, ou pic (``agregation``) ; jamais un ratio."""
         return self.denominateur is None and self.produit_de is None
 
     @property
@@ -65,6 +78,8 @@ class DefinitionKpi(BaseModel):
         """Formule lisible (exports, documentation)."""
         if self.produit_de:
             return " × ".join(self.produit_de)
+        if self.pic:
+            return f"max_t Σ {self.numerateur}"
         if self.denominateur is None:
             return f"Σ {self.numerateur}"
         return f"Σ ({self.numerateur}) / Σ ({self.denominateur})"

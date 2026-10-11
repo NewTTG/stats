@@ -1,10 +1,18 @@
 {% extends "base.html" %}
-{% block titre %}Connexion — Stats KPI réseau{% endblock %}
+{% block titre %}{% if acces_anonyme %}Accès administrateur{% else %}Connexion{% endif %} — Stats KPI réseau{% endblock %}
 {% block contenu %}
 <div class="connexion">
+  {% if acces_anonyme %}<p><a href="{% url 'kpi:requete' %}">← Retour aux statistiques</a></p>{% endif %}
   <div class="carte">
+    {% if acces_anonyme %}
+    <h1 style="font-size: 1.5rem;">Accès administrateur</h1>
+    <p class="aide">Les statistiques s'utilisent sans compte. Cette page est réservée aux administrateurs :
+      événements, seuils KPI, comptes et périmètres, référentiel réseau.</p>
+    {% else %}
     <h1 style="font-size: 1.5rem;">Connexion</h1>
     <p class="aide">Statistiques de trafic et de qualité radio 4G / 3G.</p>
+    {% endif %}
+    {% if compte_sans_administration %}<p class="avertissement" role="alert">Le compte « {{ user.get_username }} » n'a pas accès à l'administration : connectez-vous avec un compte administrateur.</p>{% endif %}
     {% if form.errors %}<p class="erreur" role="alert">Identifiant ou mot de passe incorrect.</p>{% endif %}
     <form method="post">
       {% csrf_token %}

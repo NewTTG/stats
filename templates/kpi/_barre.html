@@ -1,5 +1,5 @@
 <form class="recherche {{ classe }}" method="get" action="{% url 'kpi:requete' %}" role="search">
-  <label class="sr-only" for="q{{ suffixe }}">Votre demande</label>
+  <label class="sr-only" for="q{{ suffixe }}">Votre question</label>
   <div class="champ-recherche">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
     <input id="q{{ suffixe }}" name="q" type="search" value="{{ q }}" autocomplete="off" spellcheck="false"
@@ -11,6 +11,6 @@
     {% if ia_disponible %}
     <label class="case-ia"><input type="checkbox" name="ia" value="1"{% if ia %} checked{% endif %}> ✨ Recherche IA</label>
     {% endif %}
-    <span class="aide" id="aide-q{{ suffixe }}">KPI, lieu (commune, site, trigramme, événement) et période, en langage courant.</span>
+    <span class="aide" id="aide-q{{ suffixe }}">« bilan », « trafic », « qualité » ou « utilisateurs » suffisent pour un rapport type : « bilan Nouméa hier ».</span>
   </div>
 </form>

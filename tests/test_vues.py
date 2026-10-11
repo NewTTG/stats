@@ -30,7 +30,9 @@ def test_formulaire_vierge(client_admin):
     r = client_admin.get("/")
     html = r.content.decode()
     assert r.status_code == 200 and 'name="q"' in html  # barre de recherche
-    assert "Recherche avancée" in html and 'name="perimetre_type"' in html  # formulaire structuré conservé
+    # Rapports types (intention), lieu (q), période, indicateurs « sur mesure »
+    assert 'id="constructeur"' in html and 'name="intention" value="bilan" checked' in html
+    assert 'name="periode" value="7j" checked' in html and 'name="kpis" value="lte_erab_drop"' in html
 
 
 def test_resultat_et_audit(client_admin, referentiel, base_kpi, monkeypatch):  # noqa: F811

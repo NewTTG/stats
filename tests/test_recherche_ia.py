@@ -172,7 +172,7 @@ def test_vue_recherche_ia(admin, base_recherche, groq):  # noqa: F811
 
     groq.erreur = urllib.error.HTTPError("https://api.groq.com", 503, "Indisponible", {}, None)
     html = admin.get("/", {"q": "drop 3G à Nouméa la semaine dernière", "ia": "1"}).content.decode()
-    assert NOTE_REPLI in html and "Règles locales" in html and "Synthèse sur la période" in html
+    assert NOTE_REPLI in html and "Interprété par l'IA" not in html and "Synthèse sur la période" in html
 
 
 def test_ia_non_demandee_pas_d_appel(admin, base_recherche, groq):  # noqa: F811

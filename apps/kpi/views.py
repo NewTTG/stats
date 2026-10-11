@@ -1,10 +1,12 @@
-"""Écran de recherche KPI.
+"""Écran des statistiques.
 
+- accueil : rapports types (bilan complet, trafic, data 4G…) à composer en trois choix
+  (rapport, lieu, période), qui produisent la même URL qu'une recherche (``intention``,
+  ``q`` pour le lieu, ``periode``) ;
 - barre de recherche en langage libre (``?q=…``, ``&ia=1`` pour l'interprétation IA) ;
-  les paramètres explicites (réponses aux questions, puces modifiées) priment sur le
-  texte ; sans état : l'URL suffit à rejouer (et partager) une recherche ;
-- formulaire structuré (« Recherche avancée ») : ses paramètres GET historiques
-  continuent de fonctionner ;
+  les paramètres explicites (rapport choisi, réponses aux questions, puces modifiées)
+  priment sur le texte ; sans état : l'URL suffit à rejouer (et partager) une recherche ;
+- paramètres GET de l'ancien formulaire structuré : toujours acceptés ;
 - exports Excel (``export=xlsx``) et rapport PowerPoint depuis tout résultat.
 """
 
@@ -23,16 +25,17 @@ from pydantic import ValidationError
 
 from apps.comptes.acces import kpis_autorises, voit_tout_le_reseau
 from apps.comptes.models import JournalAudit
+from apps.rapports.models import RapportPlanifie
 
 from .catalogue import catalogue
 from .export_excel import construire as construire_excel
-from .forms import FENETRES, GRAN_ESPACE, GRAN_TEMPS, PERIMETRES, RequeteForm, champs_depuis_params, champs_depuis_requete
+from .forms import FENETRES, GRAN_ESPACE, GRAN_TEMPS, PERIMETRES, RequeteForm, champs_depuis_requete
 from .recherche import Contexte, affichage, avec_parametres, interpreter
 from .recherche.construction import PARAMETRES, construire, parametres_explicites
 from .recherche.dates import PRESETS, libelle_fenetre
 from .recherche.ia import disponible as ia_disponible
 from .recherche.interpretation import Demande
-from .recherche.vocabulaire import LIBELLES_TECHNO, vocabulaire
+from .recherche.vocabulaire import LIBELLES_TECHNO, kpis_intention, vocabulaire
 from .requete import RequeteKpi
 from .service import RequeteRefusee, executer
 from .source import BaseKpiNonConfiguree, est_demo, infos_demo, moteur_kpi
@@ -54,8 +57,13 @@ REMPLACES = {
     "granularite_espace": ("granularite_espace",),
     "fenetre_horaire": ("fenetre_horaire",),
 }
-LIBELLES_CHAMP = {"techno": "Techno", "kpis": "KPI", "perimetre": "Lieu", "periode": "Période",
-                  "granularite_temps": "Pas", "granularite_espace": "Niveau", "fenetre_horaire": "Heures"}
+LIBELLES_CHAMP = {"techno": "Techno", "kpis": "Indicateurs", "perimetre": "Lieu", "periode": "Période",
+                  "granularite_temps": "Détail", "granularite_espace": "Regroupement", "fenetre_horaire": "Heures"}
+# Périodes proposées sur l'accueil (la première est cochée par défaut).
+PERIODES_ACCUEIL = ("hier", "7j", "semaine_derniere", "mois_courant", "mois_dernier", "30j")
+PERIODE_DEFAUT = "7j"
+MESSAGE_BASE_INDISPONIBLE = ("Les statistiques sont momentanément indisponibles : la base de données KPI n'est pas "
+                             "accessible. Prévenez l'administrateur de l'application.")
 LIBELLES_CATEGORIE = {"debit": "Débit", "trafic": "Trafic", "accessibilite": "Accessibilité",
                       "retainability": "Coupures", "congestion": "Congestion", "mobilite": "Mobilité",
                       "disponibilite": "Disponibilité"}
@@ -202,6 +210,8 @@ def _edition(get, interp, contexte: Contexte) -> dict:
         "edition": {
             "technos": [(t, LIBELLES_TECHNO[t], t in params.get("techno", [])) for t in ("LTE", "WCDMA")],
             "kpis": _kpis_par_techno(contexte.catalogue, set(params.get("kpis", [])), params.get("techno", [])),
+            "rapports": [(r["code"], r["titre"]) for r in _rapports_types(contexte)],
+            "intentions": interp.demande.intentions if interp.demande and not interp.demande.kpis else [],
             "perimetre_types": PERIMETRES,
             "perimetre": params.get("perimetre") or {"type": "global", "valeurs": []},
             "perimetre_valeurs": ", ".join((params.get("perimetre") or {}).get("valeurs", [])),
@@ -216,6 +226,66 @@ def _edition(get, interp, contexte: Contexte) -> dict:
     }
 
 
+def _rapports_types(contexte: Contexte) -> list[dict]:
+    """Cartes « rapport type » de l'accueil (au moins un KPI visible), dans l'ordre du vocabulaire."""
+    sortie = []
+    for i in vocabulaire().rapports:
+        codes = kpis_intention(i, i.technos_defaut, contexte.catalogue)
+        if codes:
+            sortie.append({"code": i.code, "titre": i.rapport.titre, "description": i.rapport.description,
+                           "icone": i.rapport.icone,
+                           "contenu": " · ".join(contexte.catalogue[c].libelle for c in codes)})
+    return sortie
+
+
+def _lieux_proposes(contexte: Contexte) -> list[dict]:
+    """Suggestions du champ « Lieu » de l'accueil : régions (réseau complet), communes, événements.
+
+    Les valeurs sont du texte compris par la recherche (« Nouméa », « Province Nord »…) ;
+    les sites sont proposés au fil de la saisie (``/suggestions/``).
+    """
+    lieux = [] if contexte.lieux.restreint else [{"valeur": r["libelle"], "type": "Région"}
+                                                 for r in vocabulaire().regions]
+    for s in contexte.lieux.suggestions("", limite=300):
+        if s["type"] == "commune":
+            lieux.append({"valeur": s["libelle"], "type": "Commune"})
+        elif s["type"] == "evenement":
+            lieux.append({"valeur": s["valeur"], "type": "Événement"})
+    return lieux
+
+
+def _rapports_enregistres(user, nombre=5) -> list[dict]:
+    return [{"titre": p.titre, "lien": p.lien_ecran(),
+             "detail": f"{p.get_periode_display()} · {p.description_frequence}"}
+            for p in RapportPlanifie.objects.filter(utilisateur=user)[:nombre]]
+
+
+def _periode_courte(interp) -> str:
+    """« 7 derniers jours » (période relative) ou « 02/10 → 08/10/2026 »."""
+    p = interp.demande.periode if interp.demande else None
+    if p and p.libelle and not p.libelle.startswith(("Du ", "Le ")):
+        return p.libelle
+    puce = interp.puce("periode")
+    return puce.libelle if puce else ""
+
+
+def _entete_resultat(interp) -> dict:
+    """Titre (indicateurs — lieu) et sous-titre (période, détail) de la page de résultat."""
+    kpis, lieu, periode, temps = (interp.puce(c) for c in ("kpis", "perimetre", "periode", "granularite_temps"))
+    titre = kpis.libelle if kpis else "Précisez votre demande"
+    if kpis and lieu:
+        titre += f" — {lieu.libelle}"
+    sous_titre = " · ".join(x for x in (periode.libelle if periode else "", temps.libelle if temps else "") if x)
+    return {"titre": titre, "sous_titre": sous_titre}
+
+
+def _libelle_historique(interp) -> str:
+    """Libellé d'une recherche dans « Mes dernières recherches » : indicateurs · lieu · période."""
+    kpis, lieu = interp.puce("kpis"), interp.puce("perimetre")
+    return " · ".join(x for x in (kpis.libelle if kpis else "", lieu.libelle if lieu else "", _periode_courte(interp))
+                      if x)
+
+
 def _requete_tracee(r: dict) -> RequeteKpi | None:
     req = r.get("requete", r)
     try:
@@ -227,19 +297,21 @@ def _requete_tracee(r: dict) -> RequeteKpi | None:
 def _entree_recente(action: str, r) -> tuple[str, str, dict] | None:
     """(texte affiché, clé de dédoublonnage, paramètres du lien) d'une entrée d'audit, ou None."""
     r = r if isinstance(r, dict) else {}
-    q = r.get("q") if isinstance(r.get("q"), str) else ""
-    if action == "recherche_kpi" and q.strip():
-        q = q.strip()[:300]
-        parametres = r.get("parametres") if isinstance(r.get("parametres"), dict) else {}
-        parametres = {k: v for k, v in parametres.items()
-                      if k in PARAMETRES and (isinstance(v, str) or (isinstance(v, list) and all(isinstance(x, str) for x in v)))}
+    q = r.get("q").strip()[:300] if isinstance(r.get("q"), str) else ""
+    libelle = r.get("libelle").strip()[:300] if isinstance(r.get("libelle"), str) else ""
+    parametres = r.get("parametres") if isinstance(r.get("parametres"), dict) else {}
+    parametres = {k: v for k, v in parametres.items()
+                  if k in PARAMETRES and (isinstance(v, str) or (isinstance(v, list) and all(isinstance(x, str) for x in v)))}
+    # Rapport type ou indicateurs choisis (accueil, puces) : libellé des puces ; sinon le texte saisi.
+    texte = libelle if libelle and (not q or "intention" in parametres or "kpis" in parametres) else q
+    if action == "recherche_kpi" and texte:
         requete = _requete_tracee(r) if r.get("ia") else None
         # Recherche IA : on rejoue la requête résolue (pas de nouvel appel au modèle).
         params = {"q": q, **(champs_depuis_requete(requete) if requete else parametres)}
         # Dédoublonné par texte : la plus récente des recherches au même texte est gardée
         # (deux entrées identiques à l'écran rejoueraient des paramètres différents).
-        cle = json.dumps(["q", " ".join(q.lower().split())], ensure_ascii=False)
-        return q, cle, params
+        cle = json.dumps(["q", " ".join(texte.lower().split())], ensure_ascii=False)
+        return texte, cle, params
     requete = _requete_tracee(r)
     if requete is None:
         return None
@@ -268,7 +340,7 @@ def _recherches_recentes(user, nombre=10) -> list[dict]:
         q = params.get("q")
         sortie.append({"texte": texte, "lien": "?" + urlencode(params, doseq=True), "date": e.date,
                        # Recherche en texte libre : reprise dans la barre, à modifier avant de relancer.
-                       "modifier": "?" + urlencode({"reprendre": q}) if q else None,
+                       "modifier": "?" + urlencode({"reprendre": q}) if q and q == texte else None,
                        "ia": bool((e.requete or {}).get("ia")) if isinstance(e.requete, dict) else False})
         if len(sortie) >= nombre:
             break
@@ -304,42 +376,56 @@ def requete(request):
         ctx["exemples"] = _exemples(request.user, aujourdhui, contexte)  # texte indicatif de la barre (m10)
         if get.get("ia") == "1":  # liens : requête résolue, sans nouvel appel IA
             get = _parametres_resolus(q, interp.params)
-        ctx["form"] = RequeteForm(initial=champs_depuis_params(interp.params), kpis_visibles=visibles)
         ctx.update(_edition(get, interp, contexte))
+        ctx.update(_entete_resultat(interp))
         if interp.complete:
             try:
                 req = RequeteKpi(**interp.params)
             except ValidationError as e:
                 ctx["erreur"] = _message_validation(e)
     elif any(k in get for k in CHAMPS_FORMULAIRE):
+        # Paramètres de l'ancien formulaire structuré (liens enregistrés, historique) : toujours acceptés.
         ctx["mode"] = "avance"
-        ctx["avance_ouvert"] = True
-        form = ctx["form"] = RequeteForm(get, kpis_visibles=visibles)
+        ctx["titre"] = "Indicateurs sélectionnés"
+        form = RequeteForm(get, kpis_visibles=visibles)
         if form.is_valid():
             try:
                 req = RequeteKpi(**form.vers_requete())
             except ValidationError as e:
                 ctx["erreur"] = _message_validation(e)
+        else:
+            ctx["erreur"] = "Paramètres de recherche invalides — " + " ; ".join(
+                f"{form.fields[c].label} : {' '.join(e.rstrip('.') for e in erreurs)}" if c in form.fields
+                else " ".join(e.rstrip(".") for e in erreurs) for c, erreurs in form.errors.items()) + "."
     else:
         ctx["mode"] = "accueil"
         ctx["q"] = get.get("reprendre", "").strip()[:300]  # « Modifier » une recherche de l'historique
-        ctx["form"] = RequeteForm(kpis_visibles=visibles)
+        contexte = Contexte.pour(request.user)
+        ctx["rapports_types"] = _rapports_types(contexte)
+        ctx["lieux"] = _lieux_proposes(contexte)
+        ctx["periodes"] = [(c, PRESETS[c]) for c in PERIODES_ACCUEIL]
+        ctx["periode_defaut"] = PERIODE_DEFAUT
+        ctx["kpis_sur_mesure"] = _kpis_par_techno(contexte.catalogue, set())
+        ctx["gran_temps"], ctx["gran_espace"], ctx["fenetres"] = GRAN_TEMPS, GRAN_ESPACE, FENETRES
         ctx["recentes"] = _recherches_recentes(request.user)
-        ctx["exemples"] = _exemples(request.user, aujourdhui)
+        ctx["enregistres"] = _rapports_enregistres(request.user)
+        ctx["exemples"] = _exemples(request.user, aujourdhui, contexte)
 
     if req is not None:
         if ctx["mode"] == "recherche":
             action = "export_excel" if export else "recherche_kpi"
             trace = {"q": q, "ia": ia, "source": interp.source, "parametres": explicites,
-                     "requete": req.model_dump(mode="json")}
+                     "libelle": _libelle_historique(interp), "requete": req.model_dump(mode="json")}
         else:
             action = "export_excel" if export else "requete_kpi"
             trace = req.model_dump(mode="json")
         JournalAudit.objects.create(utilisateur=request.user, action=action, requete=trace)
         try:
             resultat = executer(req, request.user, moteur_kpi())
-        except (RequeteRefusee, BaseKpiNonConfiguree) as e:
+        except RequeteRefusee as e:
             ctx["erreur"] = str(e)
+        except BaseKpiNonConfiguree as e:  # détail technique (configuration) pour l'administrateur seul
+            ctx["erreur"] = str(e) if request.user.is_staff else MESSAGE_BASE_INDISPONIBLE
         else:
             if export:
                 reponse = HttpResponse(construire_excel(resultat), content_type=XLSX)
@@ -348,10 +434,13 @@ def requete(request):
                 return reponse
             ctx["resultat"] = resultat
             ctx["requete"] = req
-            puce = interp.puce("perimetre") if interp else None
-            ctx["resume_lieu"] = puce.libelle if puce else (", ".join(req.perimetre.valeurs) or "tout le réseau autorisé")
+            if not interp:  # ancien formulaire : lieu et période dans l'en-tête
+                lieu = ", ".join(req.perimetre.valeurs) or "tout le réseau autorisé"
+                ctx["titre"] = f"Indicateurs sélectionnés — {lieu}"
+                ctx["sous_titre"] = f"Du {req.periode.debut:%d/%m/%Y} au {req.periode.fin:%d/%m/%Y}"
             nombre = interp.demande.classement_nombre if interp and interp.demande else None
             ctx["blocs"] = affichage.blocs(resultat, nombre)
+            ctx["synthese"] = affichage.synthese(ctx["blocs"])
             ctx["avertissements"] = affichage.avertissements(resultat)
             # Résultat vide (aucune donnée) : pas de boutons Excel / PowerPoint.
             ctx["donnees_presentes"] = any(b["lignes_total"] for b in ctx["blocs"])

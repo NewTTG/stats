@@ -16,6 +16,10 @@ LIGNES_MAX = 2000
 # Cause négligeable : moins de 0,1 % des coupures (même seuil dans le texte affiché).
 PART_NEGLIGEABLE = 0.1
 NOMS_TECHNO = {"LTE": "4G · LTE", "WCDMA": "3G · WCDMA"}
+# Synthèse en haut de page : cartes de toutes les technos regroupées par thème.
+THEMES = [("Trafic", ("trafic",)), ("Débit et charge", ("debit", "congestion")), ("Accès", ("accessibilite",)),
+          ("Coupures", ("retainability",)), ("Disponibilité", ("disponibilite",)), ("Mobilité", ("mobilite",))]
+_SUFFIXE_TECHNO = re.compile(r"\s*\((?:3G|4G)\)$")
 ESPACE_FINE = " "  # séparateur de milliers (espace fine insécable)
 
 
@@ -95,6 +99,20 @@ def cartes(res: ResultatTechno, conv=None) -> list[dict]:
                        "statut": statut or ("ok" if v is not None and k.seuils.alerte is not None else ""),
                        "seuils": " · ".join(seuils), "approx": k.qualite == "approx"})
     return sortie
+
+
+def synthese(blocs_: list[dict]) -> list[dict]:
+    """Cartes de toutes les technos regroupées par thème (trafic, débit et charge, accès,
+    coupures…), dans l'ordre des KPI de chaque techno : l'essentiel du résultat d'un coup d'œil.
+    Les technos sans aucune donnée n'y figurent pas (leur bloc le signale)."""
+    themes = []
+    for titre, categories in THEMES:
+        cartes_ = [{**c, "techno": b["court"], "techno_code": b["res"].techno,
+                    "libelle": _SUFFIXE_TECHNO.sub("", c["kpi"].libelle)}
+                   for b in blocs_ if b["lignes"] for c in b["cartes"] if c["kpi"].categorie in categories]
+        if cartes_:
+            themes.append({"titre": titre, "cartes": cartes_})
+    return themes
 
 
 def _qualite(k) -> bool:

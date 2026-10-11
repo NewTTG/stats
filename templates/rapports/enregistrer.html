@@ -1,11 +1,16 @@
 {% extends "base.html" %}
-{% block titre %}Enregistrer un rapport — Stats KPI réseau{% endblock %}
+{% block titre %}Enregistrer un rapport — Stats réseau{% endblock %}
 {% block contenu %}
-<div class="entete-page"><h1>Enregistrer un rapport</h1></div>
+<div class="entete-page">
+  <div>
+    <h1>Enregistrer ce rapport</h1>
+    <p class="sous-titre">Pour l'afficher en un clic depuis l'accueil, ou le recevoir automatiquement. La période est
+      recalculée à chaque fois (ex. « semaine dernière »).</p>
+  </div>
+</div>
 <section class="carte">
-  <p class="aide">Requête : {{ requete.techno|join:" / " }} · {{ requete.perimetre.valeurs|join:", "|default:"tout le réseau autorisé" }}
-    · {{ requete.kpis|length }} KPI · par {{ requete.granularite_temps }}{% if requete.granularite_espace != "global" %}, par {{ requete.granularite_espace }}{% endif %}.
-    La période est recalculée à chaque lancement.</p>
+  <p class="aide">{{ requete.techno|join:" / " }} · {{ requete.perimetre.valeurs|join:", "|default:"tout le réseau autorisé" }}
+    · {{ requete.kpis|length }} indicateur{{ requete.kpis|length|pluralize }} · par {{ requete.granularite_temps }}{% if requete.granularite_espace != "global" %}, par {{ requete.granularite_espace }}{% endif %}.</p>
   <form method="post" action="{% url 'rapports:enregistrer' %}">{% csrf_token %}
     {% for cle, valeurs in requete_params %}{% for v in valeurs %}<input type="hidden" name="{{ cle }}" value="{{ v }}">{% endfor %}{% endfor %}
     {% if form.non_field_errors %}<div class="erreur">{{ form.non_field_errors }}</div>{% endif %}
@@ -14,10 +19,10 @@
       <div>{{ champ.label_tag }}{{ champ }}{% if champ.help_text %}<div class="aide">{{ champ.help_text }}</div>{% endif %}{{ champ.errors }}</div>
       {% endfor %}
     </div>
-    <p class="aide" style="margin-top: 1rem;">Les rapports planifiés sont générés par le worker (<code>qcluster</code>)
-      avec vos droits d'accès, et apparaissent dans « Mes rapports ».</p>
-    <p style="margin-top: 1rem;"><button class="bouton" type="submit">Enregistrer</button>
-      <a class="bouton secondaire" href="{% url 'rapports:liste' %}">Annuler</a></p>
+    <p class="aide marge-haut">Un rapport planifié est généré automatiquement, avec vos droits d'accès, et apparaît dans
+      « Mes rapports ».{% if user.is_staff %} Nécessite le worker (<code>python manage.py qcluster</code>).{% endif %}</p>
+    <div class="actions-formulaire"><a class="bouton secondaire" href="{% url 'rapports:liste' %}">Annuler</a>
+      <button class="bouton" type="submit">Enregistrer</button></div>
   </form>
 </section>
 {% endblock %}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block titre %}{% if q %}{{ q }} — {% endif %}Stats KPI réseau{% endblock %}
+{% block titre %}{% if titre %}{{ titre }} — {% elif q %}{{ q }} — {% endif %}Stats réseau{% endblock %}
 
 {% block bandeau_demo %}
 {% if demo_infos.incidents %}
@@ -13,11 +13,17 @@
 
 {% block contenu %}
 {% if mode == "accueil" %}
-<section class="accueil">
-  <h1>Que voulez-vous savoir sur le réseau&nbsp;?</h1>
-  <p class="sous-titre">Décrivez votre besoin : un indicateur, un lieu, une période.</p>
-  {% include "kpi/_barre.html" with classe="grande" suffixe="" autofocus=True %}
-  <div class="exemples" aria-label="Exemples de recherches">
+<section class="accueil" aria-labelledby="titre-accueil">
+  <h1 id="titre-accueil">Statistiques du réseau</h1>
+  <p class="sous-titre">Choisissez un rapport, un lieu et une période.</p>
+</section>
+
+{% include "kpi/_constructeur.html" %}
+
+<section class="question-libre" aria-labelledby="titre-question">
+  <h2 id="titre-question">Ou posez directement votre question <span>Que voulez-vous savoir sur le réseau&nbsp;? Indicateur, lieu et période en langage courant.</span></h2>
+  {% include "kpi/_barre.html" with classe="grande" suffixe="" %}
+  <div class="exemples" aria-label="Exemples de questions">
     <span class="exemples-titre">Par exemple</span>
     {% for e in exemples %}<a class="exemple" href="?q={{ e|urlencode }}">{{ e }}</a>{% endfor %}
   </div>
@@ -37,26 +43,52 @@
     <p class="aide">Vos recherches apparaîtront ici.</p>
     {% endif %}
   </section>
-  <section class="carte" aria-labelledby="titre-raccourcis">
-    <h2 id="titre-raccourcis">Raccourcis</h2>
-    <div class="raccourcis">
-      <a class="raccourci" href="{% url 'evenements:liste' %}">
-        <span class="icone" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg></span>
-        <span><strong>Événements</strong><span>Foires, concerts : comparaison aux semaines de référence</span></span>
-      </a>
-      <a class="raccourci" href="{% url 'rapports:liste' %}">
-        <span class="icone" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M9 14h6M9 18h4"/></svg></span>
-        <span><strong>Mes rapports</strong><span>PowerPoint et Excel générés</span></span>
-      </a>
-      <a class="raccourci" href="#avance" onclick="document.getElementById('avance').open = true">
-        <span class="icone" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg></span>
-        <span><strong>Recherche avancée</strong><span>Formulaire détaillé : techno, périmètre, KPI…</span></span>
-      </a>
-    </div>
+  <section class="carte" aria-labelledby="titre-enregistres">
+    <h2 id="titre-enregistres">Mes rapports enregistrés</h2>
+    {% if enregistres %}
+    <ul class="liste-recente">
+      {% for p in enregistres %}
+      <li>{% if p.lien %}<a href="{{ p.lien }}" title="Afficher à l'écran"><span>{{ p.titre }}</span><span class="detail">{{ p.detail }}</span></a>
+          {% else %}<span class="ligne">{{ p.titre }}</span>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    <p class="lien-suite"><a href="{% url 'rapports:liste' %}">Gérer mes rapports →</a></p>
+    {% else %}
+    <p class="aide">Depuis un résultat, « Enregistrer ce rapport » le garde pour l'afficher en un clic ou le
+      recevoir automatiquement (chaque jour, chaque semaine, chaque mois).</p>
+    {% endif %}
   </section>
 </div>
+
 {% else %}
 {% include "kpi/_barre.html" with classe="compacte" suffixe="-haut" %}
+
+<header class="entete-resultat">
+  <div>
+    <h1>{{ titre|default:"Résultat" }}</h1>
+    {% if sous_titre %}<p class="sous-titre">{{ sous_titre }}</p>{% endif %}
+  </div>
+  {% if blocs and donnees_presentes %}{# résultat vide : rien à exporter #}
+  <div class="boutons" aria-label="Exporter ou enregistrer">
+    <a class="bouton secondaire" href="{{ lien_export }}">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></svg>
+      Exporter Excel</a>
+    <form method="post" action="{% url 'rapports:requete' %}">{% csrf_token %}
+      {% for cle, valeurs in requete_params %}{% for v in valeurs %}<input type="hidden" name="{{ cle }}" value="{{ v }}">{% endfor %}{% endfor %}
+      <button class="bouton secondaire" type="submit">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        Rapport PowerPoint</button>
+    </form>
+    <form method="get" action="{% url 'rapports:enregistrer' %}">
+      {% for cle, valeurs in requete_params %}{% for v in valeurs %}<input type="hidden" name="{{ cle }}" value="{{ v }}">{% endfor %}{% endfor %}
+      <button class="bouton" type="submit">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        Enregistrer ce rapport</button>
+    </form>
+  </div>
+  {% endif %}
+</header>
+
 {% if interp %}
   {% include "kpi/_puces.html" %}
   {% if questions %}{% include "kpi/_questions.html" %}{% endif %}
@@ -64,8 +96,6 @@
 {% if erreur %}<div class="erreur" role="alert">{{ erreur }}</div>{% endif %}
 {% if resultat %}{% include "kpi/_resultat.html" %}{% endif %}
 {% endif %}
-
-{% include "kpi/_avance.html" %}
 {% endblock %}
 
 {% block scripts %}

@@ -8,9 +8,12 @@ mêmes noms de colonnes (limitées à celles du catalogue + clés), sur les N de
   18-21 h) × bruit ; succès tirés selon une loi binomiale (succès ≤ tentatives) ;
 - taux (`_p`) : coupures tirées par cause (Σ causes = total en LTE, ≤ total en WCDMA),
   bornés à [0, 100] ; débits et PRB modulés par la charge ;
+- pics (`Max_max_nb`, ex. connexions RRC simultanées) : pic de la journée × forme du
+  profil horaire (1 à l'heure la plus chargée) × bruit ;
 - incidents déterministes (graine) : site coupé quelques heures, pic de coupures,
   congestion PRB en soirée ;
-- journalier = agrégat de l'horaire (sommes, moyennes pondérées pour les ratios).
+- journalier = agrégat de l'horaire (sommes, moyennes pondérées pour les ratios,
+  maximum des heures pour les pics).
 """
 
 import json
@@ -85,6 +88,8 @@ DEBITS = {"UserThpDl_kbps": "PayloadDl_mB", "UserThpUl_kbps": "PayloadUl_mB", "U
 # Compteurs entiers (nombres d'événements) ; les volumes (_mB, _mb) et Erlangs restent décimaux.
 ENTIERS = re.compile(r"^(pm|Req|Nbr)|_nb$")
 VOIX = re.compile(r"^(NbrSpeechCalls|ReqCs|ReqSms|SpeechTraffic|CsfbRelVol)")
+# Pics (maximum sur la période de la ligne) : jamais sommés, journalier = maximum des heures.
+PICS = re.compile(r"Max_max_nb$")
 
 # Profils horaires (somme = 1) : creux la nuit, pic vers 12 h, pic du soir 18-21 h.
 _SEMAINE = np.array([1.6, 1.0, .7, .6, .7, 1.2, 2.4, 3.8, 4.8, 5.0, 5.2, 5.6,
@@ -135,6 +140,8 @@ def _nature(colonne: str, base: pd.Series, techno: Techno) -> str:
         return "charge"
     if colonne.endswith("_kbps"):
         return "debit"
+    if PICS.search(colonne):
+        return "pic"
     if colonne.endswith("_p"):
         return "succes" if base.mean() > 50 else "taux"
     return "compteur"
@@ -155,10 +162,13 @@ def lire_bases(dossier: Path, colonnes: list[str], cellules_max: int | None = No
         jour = pd.read_csv(dossier / t.csv_jour, sep=";", usecols=usecols, dtype=types).drop_duplicates(t.cle)
         heure = pd.read_csv(dossier / t.csv_heure, sep=";", usecols=usecols, dtype=types).drop_duplicates(t.cle)
         compteurs = [c for c in mesures if _nature(c, jour[c], t) == "compteur"]
+        pics = [c for c in mesures if _nature(c, jour[c], t) == "pic"]
 
-        # Extrait horaire (0 h) ramené à une journée : division par le poids de minuit.
+        # Extrait horaire (0 h) ramené à une journée : division par le poids de minuit
+        # (compteurs), par la forme du profil à minuit (pics : 1 à l'heure la plus chargée).
         heure_j = heure.copy()
         heure_j[compteurs] = heure_j[compteurs] / PROFIL_SEMAINE[0]
+        heure_j[pics] = heure_j[pics] / (PROFIL_SEMAINE[0] / PROFIL_SEMAINE.max())
         jour, heure_j = jour.set_index(t.cle), heure_j.set_index(t.cle)
         cellules = sorted(set(jour.index) | set(heure_j.index))
         if cellules_max:
@@ -209,7 +219,7 @@ class Generateur:
         self.n = len(self.cellules)
         self.colonnes = [c for c in colonnes if c in base.columns]
         self.nature = {c: _nature(c, base[c], techno) for c in self.colonnes}
-        self.entiers = {c for c in self.colonnes if self.nature[c] == "compteur" and ENTIERS.search(c)}
+        self.entiers = {c for c in self.colonnes if self.nature[c] in ("compteur", "pic") and ENTIERS.search(c)}
         self.base = {c: base[c].astype(float).fillna(0).to_numpy() for c in self.colonnes}
         self.sites = base[techno.site].astype(str).to_numpy()
         self.zones = base[techno.zone].to_numpy()
@@ -287,6 +297,13 @@ class Generateur:
             moyenne = (self.base[c][:, None] * profil[None, :] * facteur_cellule
                        * _facteur_week_end(jour, bool(VOIX.match(c))) * self._bruit(.15) * dispo_f)
             v[c] = rng.poisson(moyenne).astype(float) if c in self.entiers else moyenne
+        # Pics (entiers) : pic de la journée × forme du profil (1 à l'heure la plus chargée) × bruit.
+        for c in self.colonnes:
+            if self.nature[c] != "pic":
+                continue
+            moyenne = (self.base[c][:, None] * (profil / profil.max())[None, :] * facteur_cellule
+                       * _facteur_week_end(jour, False) * self._bruit(.15) * dispo_f)
+            v[c] = rng.poisson(moyenne).astype(float)
         # Succès : fraction binomiale des tentatives (succès <= tentatives).
         for enfant in CHAINES:
             parent = CHAINES[enfant]
@@ -364,12 +381,14 @@ class Generateur:
         return v
 
     def agreger_jour(self, v: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
-        """Journalier = agrégat de l'horaire : sommes, moyennes pondérées des ratios."""
+        """Journalier = agrégat de l'horaire : sommes, moyennes pondérées des ratios, maximum des pics."""
         j = {}
         for c in self.colonnes:
             nat = self.nature[c]
             if nat == "compteur":
                 j[c] = v[c].sum(axis=1)
+            elif nat == "pic":
+                j[c] = v[c].max(axis=1)
             elif nat == "debit":
                 volume = v.get(DEBITS.get(c, ""), v.get(self.t.volume))
                 with np.errstate(divide="ignore", invalid="ignore"):

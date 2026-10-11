@@ -1,41 +1,48 @@
 {% extends "base.html" %}
-{% block titre %}Mes rapports — Stats KPI réseau{% endblock %}
+{% block titre %}Mes rapports — Stats réseau{% endblock %}
 {% block entete %}{% if rafraichir %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
 {% block contenu %}
-<div class="entete-page"><h1>Mes rapports</h1></div>
-<section class="carte">
-  <h2>Rapports enregistrés</h2>
+<div class="entete-page">
+  <div>
+    <h1>Mes rapports</h1>
+    <p class="sous-titre">Rapports enregistrés (à afficher, lancer ou recevoir automatiquement) et fichiers PowerPoint / Excel générés.</p>
+  </div>
+  <div class="boutons"><a class="bouton" href="{% url 'kpi:requete' %}">Nouveau rapport</a></div>
+</div>
+<section class="carte" aria-labelledby="titre-enregistres">
+  <h2 id="titre-enregistres">Rapports enregistrés</h2>
   {% if planifies %}
   <div class="table-defil"><table>
-    <thead><tr><th scope="col">Rapport</th><th scope="col">Période</th><th scope="col">Format</th><th scope="col">Lancement</th><th scope="col">Prochain</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+    <thead><tr><th scope="col">Rapport</th><th scope="col">Période</th><th scope="col">Format</th><th scope="col">Envoi</th><th scope="col">Prochain</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
     <tbody>{% for p in planifies %}
-      <tr><td style="white-space: normal;">{{ p.titre }}</td><td>{{ p.get_periode_display }}</td><td>{{ p.get_format_display }}</td>
+      <tr><td class="texte">{{ p.titre }}</td><td>{{ p.get_periode_display }}</td><td>{{ p.get_format_display }}</td>
         <td>{{ p.description_frequence }}{% if p.planifie and not p.actif %} <span class="etiquette alerte">Suspendu</span>{% endif %}</td>
         <td>{% if p.prochain_lancement %}{{ p.prochain_lancement|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
-        <td><div class="actions" style="margin: 0; flex-wrap: nowrap;">
-          <form method="post" action="{% url 'rapports:planifie_lancer' p.pk %}">{% csrf_token %}<button class="bouton petit" type="submit" style="margin-top:0">Lancer</button></form>
-          {% if p.planifie %}<form method="post" action="{% url 'rapports:planifie_basculer' p.pk %}">{% csrf_token %}<button class="bouton secondaire petit" type="submit" style="margin-top:0">{% if p.actif %}Suspendre{% else %}Réactiver{% endif %}</button></form>{% endif %}
-          <form method="post" action="{% url 'rapports:planifie_supprimer' p.pk %}" onsubmit="return confirm('Supprimer ce rapport enregistré ?');">{% csrf_token %}<button class="bouton secondaire petit" type="submit" style="margin-top:0">Supprimer</button></form>
+        <td><div class="actions-ligne">
+          {% with lien=p.lien_ecran %}{% if lien %}<a class="bouton secondaire petit" href="{{ lien }}" title="Afficher à l'écran sur la période {{ p.get_periode_display|lower }}">Afficher</a>{% endif %}{% endwith %}
+          <form method="post" action="{% url 'rapports:planifie_lancer' p.pk %}">{% csrf_token %}<button class="bouton petit" type="submit" title="Générer le fichier {{ p.get_format_display }} maintenant">Générer</button></form>
+          {% if p.planifie %}<form method="post" action="{% url 'rapports:planifie_basculer' p.pk %}">{% csrf_token %}<button class="bouton secondaire petit" type="submit">{% if p.actif %}Suspendre{% else %}Réactiver{% endif %}</button></form>{% endif %}
+          <form method="post" action="{% url 'rapports:planifie_supprimer' p.pk %}" onsubmit="return confirm('Supprimer ce rapport enregistré ?');">{% csrf_token %}<button class="bouton secondaire petit" type="submit">Supprimer</button></form>
         </div></td></tr>
     {% endfor %}</tbody>
   </table></div>
-  {% else %}<p>Aucun rapport enregistré. Depuis un résultat de recherche, « Enregistrer / planifier » le garde pour le relancer
-    (ou le recevoir chaque jour, chaque semaine, le 1er du mois).</p>{% endif %}
+  {% else %}<p class="vide">Aucun rapport enregistré. Depuis un résultat, « Enregistrer ce rapport » le garde pour l'afficher en
+    un clic ou le recevoir automatiquement (chaque jour, chaque semaine, le 1er du mois).</p>{% endif %}
 </section>
-<section class="carte">
-  <h2>Rapports générés</h2>
+<section class="carte" aria-labelledby="titre-generes">
+  <h2 id="titre-generes">Fichiers générés</h2>
   {% if rapports %}
   <div class="table-defil"><table>
     <thead><tr><th scope="col">Demandé le</th><th scope="col">Rapport</th><th scope="col">Format</th><th scope="col">État</th><th scope="col"><span class="sr-only">Téléchargement</span></th></tr></thead>
     <tbody>{% for r in rapports %}
-      <tr><td>{{ r.cree_le|date:"d/m/Y H:i" }}</td><td style="white-space: normal;">{{ r.titre }}</td><td>{{ r.get_format_display }}</td>
-        <td>{% if r.statut == "termine" %}<span class="etiquette ok">Terminé</span>
+      <tr><td>{{ r.cree_le|date:"d/m/Y H:i" }}</td><td class="texte">{{ r.titre }}</td><td>{{ r.get_format_display }}</td>
+        <td>{% if r.statut == "termine" %}<span class="etiquette ok">Prêt</span>
             {% elif r.statut == "erreur" %}<span class="etiquette critique" title="{{ r.message }}">Erreur</span> <span class="aide">{{ r.message }}</span>
             {% else %}<span class="etiquette alerte">{{ r.get_statut_display }}…</span>{% endif %}</td>
         <td>{% if r.statut == "termine" %}<a class="bouton secondaire petit" href="{% url 'rapports:telecharger' r.pk %}">Télécharger</a>{% endif %}</td></tr>
     {% endfor %}</tbody>
   </table></div>
-  {% if rafraichir %}<p class="aide" style="margin-top: .75rem;">Page actualisée automatiquement toutes les 5 secondes pendant la génération.</p>{% endif %}
-  {% else %}<p>Aucun rapport. Lancez-en un depuis un résultat de recherche ou un événement.</p>{% endif %}
+  {% if rafraichir %}<p class="aide">Génération en cours : la page s'actualise toute seule toutes les 5 secondes.</p>{% endif %}
+  {% else %}<p class="vide">Aucun fichier. Depuis un résultat ou un événement, « Rapport PowerPoint » ou « Rapport Excel » en génère un ici.</p>{% endif %}
 </section>
 {% endblock %}
