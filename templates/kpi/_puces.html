@@ -1,6 +1,13 @@
 {% load l10n %}
-<section class="compris" aria-label="Votre demande (cliquer sur un élément pour le modifier)">
-  <span class="compris-titre">Votre demande</span>
+<details class="filtres-resultat">
+  <summary class="bouton secondaire">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h16M7 12h10m-7 7h4"/></svg>
+    Filtres <span class="compteur-filtres">{{ puces|length }}</span>
+    <svg class="chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+  </summary>
+  <div class="filtres-panneau">
+    <p class="filtres-titre">Votre demande</p>
+    <div class="compris" aria-label="Votre demande (cliquer sur un élément pour le modifier)">
   {% for p in puces %}
   <details class="puce{% if p.puce.defaut %} defaut{% endif %}">
     <summary{% if p.puce.titre %} title="{{ p.puce.titre }}"{% endif %}>
@@ -80,12 +87,14 @@
     </div>
   </details>
   {% endfor %}
-  {% if interp.source == "ia" %}<span class="source ia" title="Méthode d'interprétation">✨ Interprété par l'IA</span>{% endif %}
-</section>
+      {% if interp.source == "ia" %}<span class="source ia" title="Méthode d'interprétation">✨ Interprété par l'IA</span>{% endif %}
+    </div>
+    {% if interp.non_compris %}
+    <p class="non-compris">Mots non compris, ignorés : {% for m in interp.non_compris %}<span class="mot">{{ m }}</span>{% endfor %}</p>
+    {% endif %}
+    {% for n in interp.notes %}<p class="note">{{ n }}</p>{% endfor %}
+  </div>
+</details>
 <datalist id="lieux-suggestions">
   {% for s in edition.suggestions %}<option value="{{ s.valeur }}">{{ s.libelle }}</option>{% endfor %}
 </datalist>
-{% if interp.non_compris %}
-<p class="non-compris">Mots non compris, ignorés : {% for m in interp.non_compris %}<span class="mot">{{ m }}</span>{% endfor %}</p>
-{% endif %}
-{% for n in interp.notes %}<p class="note">{{ n }}</p>{% endfor %}

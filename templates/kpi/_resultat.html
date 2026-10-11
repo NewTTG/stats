@@ -17,8 +17,8 @@
           {% if c.statut == "ok" %}<span class="statut ok">OK</span>{% elif c.statut == "alerte" %}<span class="statut alerte">Alerte</span>{% elif c.statut == "critique" %}<span class="statut critique">Critique</span>{% endif %}
           {% if c.approx or c.kpi.note %}
           <span class="infobulle">
-            <button class="approx" type="button" aria-label="{% if c.approx %}Valeur approximative. {% endif %}{{ c.kpi.note|default:'' }}">{% if c.approx %}≈{% else %}i{% endif %}</button>
-            <span class="texte-bulle" role="tooltip">{% if c.approx %}<strong>Valeur approximative.</strong> {% endif %}{{ c.kpi.note|default:"" }}</span>
+            <button class="approx" type="button" aria-label="{% if c.approx %}Valeur estimée à partir des compteurs disponibles.{% else %}{{ c.kpi.note }}{% endif %}">{% if c.approx %}≈{% else %}i{% endif %}</button>
+            <span class="texte-bulle" role="tooltip">{% if c.approx %}Estimation calculée à partir des compteurs disponibles.{% else %}{{ c.kpi.note }}{% endif %}</span>
           </span>
           {% endif %}
           {% if c.seuils %}<span>{{ c.seuils }}</span>{% endif %}
@@ -41,8 +41,14 @@
 {% for bloc in blocs %}
 <section class="bloc-techno" id="bloc-{{ bloc.res.techno }}" aria-labelledby="titre-{{ bloc.res.techno }}">
   <header class="bloc-entete">
-    <h2 id="titre-{{ bloc.res.techno }}"><span class="badge-techno {{ bloc.res.techno }}">{{ bloc.court }}</span> Détail {{ bloc.nom }}</h2>
-    <p>{{ bloc.res.cellules_demandees }} cellule{{ bloc.res.cellules_demandees|pluralize }}{% if bloc.res.cellules_sans_donnees %} · {{ bloc.res.cellules_sans_donnees|length }} sans données{% endif %}</p>
+    <div class="bloc-identite">
+      <span class="badge-techno {{ bloc.res.techno }}">{{ bloc.court }}</span>
+      <div><h2 id="titre-{{ bloc.res.techno }}">Réseau {{ bloc.court }}</h2><p>{{ bloc.res.techno }}</p></div>
+    </div>
+    <div class="bloc-meta">
+      <span>{{ bloc.res.cellules_demandees }} cellule{{ bloc.res.cellules_demandees|pluralize }}</span>
+      {% if bloc.res.cellules_sans_donnees %}<span class="donnees-manquantes">{{ bloc.res.cellules_sans_donnees|length }} sans données</span>{% endif %}
+    </div>
   </header>
 
   {% if bloc.lignes %}
@@ -97,33 +103,27 @@
   {% endif %}
 
   {% if bloc.graphiques.periodes|length > 1 and bloc.graphiques.kpis %}
-  <h3 class="titre-section">Évolution</h3>
-  {% if bloc.graphiques.tronque %}<p class="aide">Courbes des {{ bloc.graphiques.nombre }} entités les plus dégradées (ou les plus chargées) par KPI — le tableau détaillé est complet.</p>{% endif %}
-  {{ bloc.graphiques|json_script:bloc.id_graphiques }}
-  <div class="graphiques" data-source="{{ bloc.id_graphiques }}"></div>
-  <noscript><p class="aide">Les graphiques nécessitent JavaScript ; les valeurs sont dans le tableau détaillé.</p></noscript>
-  {% endif %}
-
-  <details class="repliable">
-    <summary>Tableau détaillé ({% if bloc.lignes_tronquees %}{{ bloc.lignes_texte }} premières lignes sur {{ bloc.lignes_total_texte }}{% else %}{{ bloc.lignes_total_texte }} ligne{{ bloc.lignes_total|pluralize }}{% endif %})</summary>
-    <div class="contenu">
-      {% if bloc.lignes_tronquees %}<p class="aide">Affichage limité aux {{ bloc.lignes_texte }} premières lignes sur {{ bloc.lignes_total_texte }} : {% if bloc.export_complet %}l'export Excel contient tout le tableau.{% else %}l'export Excel contient les {{ bloc.export_max_texte }} premières lignes (plafond de l'export).{% endif %}</p>{% endif %}
-      <div class="table-defil">
-        <table>
-          <thead><tr><th scope="col">Période<span class="sur-mobile"> · entité</span></th><th scope="col" class="hors-mobile">Entité</th>
-            {% for k in bloc.res.kpis %}<th scope="col">{{ k.libelle }} ({{ k.unite }}){% if k.qualite == "approx" %} <span title="{{ k.note|default:'Valeur approximative' }}">≈</span>{% endif %}</th>{% endfor %}
-          </tr></thead>
-          <tbody>
-            {% for l in bloc.lignes %}
-            <tr><td>{{ l.periode }}<span class="sur-mobile entite-ligne">{{ l.entite|coupure }}</span></td><td class="hors-mobile">{{ l.entite|coupure }}</td>
-              {% for v in l.valeurs %}<td class="nombre {{ v.statut }}">{% if v.valeur is None %}—{% else %}{{ v.valeur|floatformat:"2g" }}{% endif %}</td>{% endfor %}
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+  <section class="visualisation" data-visualisation>
+    <div class="visualisation-entete">
+      <div><h3>Évolution</h3>{% if bloc.graphiques.tronque %}<p class="aide">{{ bloc.graphiques.nombre }} entités affichées · toutes les données restent disponibles dans le tableau.</p>{% endif %}</div>
+      <div class="selecteur-vue" role="group" aria-label="Affichage des données">
+        <button type="button" aria-pressed="true" data-vue="graphique"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19V9m5 10V5m5 14v-7m5 7V3"/></svg> Graphique</button>
+        <button type="button" aria-pressed="false" data-vue="tableau">Tableau détaillé ({% if bloc.lignes_tronquees %}{{ bloc.lignes_texte }} premières lignes sur {{ bloc.lignes_total_texte }}{% else %}{{ bloc.lignes_total_texte }} ligne{{ bloc.lignes_total|pluralize }}{% endif %})</button>
       </div>
     </div>
+    <div data-vue-panneau="graphique">
+      {{ bloc.graphiques|json_script:bloc.id_graphiques }}
+      <div class="graphiques" data-source="{{ bloc.id_graphiques }}"></div>
+    </div>
+    <div class="vue-tableau" data-vue-panneau="tableau">{% include "kpi/_tableau_resultat.html" %}</div>
+    <noscript><p class="aide">Les graphiques nécessitent JavaScript ; le tableau reste disponible ci-dessus.</p></noscript>
+  </section>
+  {% else %}
+  <details class="repliable">
+    <summary>Tableau détaillé ({% if bloc.lignes_tronquees %}{{ bloc.lignes_texte }} premières lignes sur {{ bloc.lignes_total_texte }}{% else %}{{ bloc.lignes_total_texte }} ligne{{ bloc.lignes_total|pluralize }}{% endif %})</summary>
+    <div class="contenu">{% include "kpi/_tableau_resultat.html" %}</div>
   </details>
+  {% endif %}
   {% else %}
   {% if not bloc.aucune_donnee_signalee %}<p class="avertissement">Aucune donnée sur cette période pour ce périmètre.</p>{% endif %}
   {% endif %}
@@ -136,7 +136,3 @@
   {% endif %}
 </section>
 {% endfor %}
-{% if blocs and donnees_presentes %}
-<p class="note-calcul">Taux calculés en ratio de sommes (Σ numérateurs / Σ dénominateurs) sur tout le lieu et toute la
-  période, jamais en moyenne de taux. ≈ : valeur approximative (survoler le symbole pour le détail).</p>
-{% endif %}

@@ -77,6 +77,17 @@ def test_recherche_complete_affiche_le_resultat(admin, base_recherche):
     assert trace["source"] == "regles" and trace["requete"]["kpis"] == ["wcdma_cs_drop", "wcdma_ps_drop"]
 
 
+def test_resultat_regroupe_les_controles_et_la_visualisation(admin, base_recherche):
+    html = _html(admin.get("/", {"q": "drop 3G à Nouméa la semaine dernière"}))
+    # Recherche dans l'en-tête, puis un seul accès aux filtres et aux actions du rapport.
+    assert html.index('class="recherche entete-recherche"') < html.index('<main id="contenu">')
+    assert html.count('class="filtres-resultat"') == 1 and html.count('class="menu-actions"') == 1
+    assert "Exporter Excel" in html and "Rapport PDF" in html and "Enregistrer ce rapport" in html
+    # Le tableau et le graphique partagent le même composant ; les explications redondantes ont disparu.
+    assert 'data-visualisation' in html and 'data-vue="graphique"' in html and 'data-vue="tableau"' in html
+    assert "note-calcul" not in html and "network-note" not in html
+
+
 def test_recherche_incomplete_pose_une_question_puis_option(admin, base_recherche):
     html = _html(admin.get("/", {"q": "taux d'accès 4G Païta"}))
     assert "Sur quelle période ?" in html and "Synthèse sur la période" not in html

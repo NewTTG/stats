@@ -145,6 +145,23 @@
     });
   }
 
+  /* Un seul espace pour lire une évolution : le contrôle remplace le graphique par le
+     tableau, sans dupliquer deux blocs ouverts dans la page. */
+  function basculeVisualisation(zone) {
+    var boutons = zone.querySelectorAll("[data-vue]");
+    var panneaux = zone.querySelectorAll("[data-vue-panneau]");
+    function afficher(vue) {
+      boutons.forEach(function (bouton) {
+        var actif = bouton.dataset.vue === vue;
+        bouton.setAttribute("aria-pressed", actif ? "true" : "false");
+      });
+      panneaux.forEach(function (panneau) { panneau.hidden = panneau.dataset.vuePanneau !== vue; });
+      if (vue === "graphique") setTimeout(function () { graphiques.forEach(function (g) { g.resize(); }); }, 0);
+    }
+    boutons.forEach(function (bouton) { bouton.addEventListener("click", function () { afficher(bouton.dataset.vue); }); });
+    afficher(window.echarts ? "graphique" : "tableau");
+  }
+
   /* Accueil : rapport type + lieu + période. Sans JavaScript, le formulaire fonctionne tel quel ;
      ici : dates précises affichées à la demande, « Sur mesure » ouvert quand on le choisit,
      lieux (sites) suggérés au fil de la saisie, et URL sans paramètres vides. */
@@ -248,6 +265,7 @@
         attente = setTimeout(function () { graphiques.forEach(function (g) { g.resize(); }); }, 120);
       });
     }
+    document.querySelectorAll("[data-visualisation]").forEach(basculeVisualisation);
 
     // Puces : une seule ouverte à la fois ; Échap ou clic à l'extérieur pour fermer.
     var puces = document.querySelectorAll("details.puce");
@@ -265,6 +283,22 @@
     });
     document.addEventListener("click", function (e) {
       puces.forEach(function (d) { if (d.open && !d.contains(e.target)) d.open = false; });
+    });
+
+    // Menus principaux : même comportement familier que les puces de filtre.
+    var menus = document.querySelectorAll("details.menu-actions, details.filtres-resultat");
+    menus.forEach(function (menu) {
+      menu.addEventListener("toggle", function () {
+        if (!menu.open) return;
+        menus.forEach(function (autre) { if (autre !== menu) autre.open = false; });
+      });
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape") return;
+      menus.forEach(function (menu) { if (menu.open) { menu.open = false; menu.querySelector("summary").focus(); } });
+    });
+    document.addEventListener("click", function (e) {
+      menus.forEach(function (menu) { if (menu.open && !menu.contains(e.target)) menu.open = false; });
     });
   }
 

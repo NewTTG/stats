@@ -2,6 +2,10 @@
 {% load static %}
 {% block titre %}{% if titre %}{{ titre }} — {% elif q %}{{ q }} — {% endif %}Stats réseau{% endblock %}
 
+{% block recherche_entete %}
+{% if mode != "accueil" %}{% include "kpi/_barre.html" with classe="entete-recherche" suffixe="-haut" entete=True %}{% endif %}
+{% endblock %}
+
 {% block bandeau_demo %}
 {% if demo_infos.incidents %}
 <details>
@@ -62,36 +66,36 @@
 </div>
 
 {% else %}
-{% include "kpi/_barre.html" with classe="compacte" suffixe="-haut" %}
-
 <header class="entete-resultat">
   <div>
     <h1>{{ titre|default:"Résultat" }}</h1>
     {% if sous_titre %}<p class="sous-titre">{{ sous_titre }}</p>{% endif %}
   </div>
   {% if blocs and donnees_presentes %}{# résultat vide : rien à exporter #}
-  <div class="boutons" aria-label="Exporter ou enregistrer">
-    <a class="bouton secondaire" href="{{ lien_export }}">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></svg>
-      Exporter Excel</a>
-    <form method="post" action="{% url 'rapports:requete' %}">{% csrf_token %}
-      {% for cle, valeurs in requete_params %}{% for v in valeurs %}<input type="hidden" name="{{ cle }}" value="{{ v }}">{% endfor %}{% endfor %}
-      <button class="bouton secondaire" type="submit">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-        Rapport PowerPoint</button>
-    </form>
-    <form method="post" action="{% url 'rapports:requete' %}">{% csrf_token %}
-      {% for cle, valeurs in requete_params %}{% for v in valeurs %}<input type="hidden" name="{{ cle }}" value="{{ v }}">{% endfor %}{% endfor %}
-      <input type="hidden" name="format" value="pdf">
-      <button class="bouton secondaire" type="submit">Rapport PDF</button>
-    </form>
-    <form method="get" action="{% url 'rapports:enregistrer' %}">
-      {% for cle, valeurs in requete_params %}{% for v in valeurs %}<input type="hidden" name="{{ cle }}" value="{{ v }}">{% endfor %}{% endfor %}
-      <button class="bouton" type="submit">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-        Enregistrer ce rapport</button>
-    </form>
-  </div>
+  <details class="menu-actions">
+    <summary class="bouton" aria-label="Ouvrir les actions du rapport">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+      Actions
+      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+    </summary>
+    <div class="menu-actions-panneau">
+      <a href="{{ lien_export }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></svg><span><strong>Exporter Excel</strong><small>Données et tableaux</small></span></a>
+      <form method="post" action="{% url 'rapports:requete' %}">{% csrf_token %}
+        {% for cle, valeurs in requete_params %}{% for v in valeurs %}<input type="hidden" name="{{ cle }}" value="{{ v }}">{% endfor %}{% endfor %}
+        <button type="submit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span><strong>Rapport PowerPoint</strong><small>Présentation modifiable</small></span></button>
+      </form>
+      <form method="post" action="{% url 'rapports:requete' %}">{% csrf_token %}
+        {% for cle, valeurs in requete_params %}{% for v in valeurs %}<input type="hidden" name="{{ cle }}" value="{{ v }}">{% endfor %}{% endfor %}
+        <input type="hidden" name="format" value="pdf">
+        <button type="submit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg><span><strong>Rapport PDF</strong><small>Document prêt à partager</small></span></button>
+      </form>
+      <div class="separateur" role="separator"></div>
+      <form method="get" action="{% url 'rapports:enregistrer' %}">
+        {% for cle, valeurs in requete_params %}{% for v in valeurs %}<input type="hidden" name="{{ cle }}" value="{{ v }}">{% endfor %}{% endfor %}
+        <button type="submit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg><span><strong>Enregistrer ce rapport</strong><small>Le retrouver dans Mes rapports</small></span></button>
+      </form>
+    </div>
+  </details>
   {% endif %}
 </header>
 
