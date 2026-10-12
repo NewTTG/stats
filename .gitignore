@@ -9,3 +9,4 @@ staticfiles/
 # Données de travail locales. Le référentiel xlsx et les 4 extraits CSV à la racine
 # sont conservés volontairement dans le dépôt comme référence.
 data/
+work/

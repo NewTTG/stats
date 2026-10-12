@@ -71,7 +71,7 @@ def test_pptx_modele_helia(evenement, base_horaire, analyste, settings):  # noqa
     assert len(octets) < 4_000_000  # dispositions inutilisées (et leurs images) retirées
     # Titre écrit dans l'espace réservé du modèle, autres espaces réservés retirés.
     assert list(prs.slides[1].placeholders)[0].text_frame.text == "Périmètre analysé"
-    assert list(prs.slides[2].placeholders)[0].text_frame.text.startswith("LTE — synthèse")
+    assert list(prs.slides[2].placeholders)[0].text_frame.text.startswith("LTE : synthèse")
     assert len(prs.slides[1].placeholders) == 1
     assert prs.slides[0].shapes.title.text == "Foire"
     # Couleurs du thème : magenta pour l'événement, gris foncé pour la référence.

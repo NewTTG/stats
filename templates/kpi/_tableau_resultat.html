@@ -8,7 +8,7 @@
     <tbody>
       {% for l in bloc.lignes %}
       <tr><td>{{ l.periode }}<span class="sur-mobile entite-ligne">{{ l.entite|coupure }}</span></td><td class="hors-mobile">{{ l.entite|coupure }}</td>
-        {% for v in l.valeurs %}<td class="nombre {{ v.statut }}">{% if v.valeur is None %}—{% else %}{{ v.valeur|floatformat:"2g" }}{% endif %}</td>{% endfor %}
+        {% for v in l.valeurs %}<td class="nombre {{ v.statut }}">{% if v.valeur is None %}N/D{% else %}{{ v.valeur|floatformat:"2g" }}{% endif %}</td>{% endfor %}
       </tr>
       {% endfor %}
     </tbody>

@@ -9,7 +9,7 @@
   var graphiques = [];
 
   function nombre(v, unite) {
-    if (v === null || v === undefined || isNaN(v)) return "—";
+    if (v === null || v === undefined || isNaN(v)) return "N/D";
     var a = Math.abs(v), d = a >= 100 ? 0 : a >= 10 ? 1 : a >= 0.1 || a === 0 ? 2 : 3;
     return v.toLocaleString("fr-FR", { maximumFractionDigits: d, minimumFractionDigits: 0 }) + (unite ? " " + unite : "");
   }

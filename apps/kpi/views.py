@@ -21,7 +21,9 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
+from django.views.decorators.http import require_safe
 from pydantic import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
 
 from apps.comptes.acces import kpis_autorises, voit_tout_le_reseau
 from apps.comptes.models import JournalAudit
@@ -38,7 +40,7 @@ from .recherche.interpretation import Demande
 from .recherche.vocabulaire import LIBELLES_TECHNO, kpis_intention, vocabulaire
 from .requete import RequeteKpi
 from .service import RequeteRefusee, executer
-from .source import BaseKpiNonConfiguree, est_demo, infos_demo, moteur_kpi
+from .source import BaseKpiNonConfiguree, MESSAGE_BASE_INDISPONIBLE, est_demo, infos_demo, moteur_kpi
 
 journal = logging.getLogger(__name__)
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -62,8 +64,6 @@ LIBELLES_CHAMP = {"techno": "Techno", "kpis": "Indicateurs", "perimetre": "Lieu"
 # Périodes proposées sur l'accueil (la première est cochée par défaut).
 PERIODES_ACCUEIL = ("hier", "7j", "semaine_derniere", "mois_courant", "mois_dernier", "30j")
 PERIODE_DEFAUT = "7j"
-MESSAGE_BASE_INDISPONIBLE = ("Les statistiques sont momentanément indisponibles : la base de données KPI n'est pas "
-                             "accessible. Prévenez l'administrateur de l'application.")
 LIBELLES_CATEGORIE = {"debit": "Débit", "trafic": "Trafic", "accessibilite": "Accessibilité",
                       "retainability": "Coupures", "congestion": "Congestion", "mobilite": "Mobilité",
                       "disponibilite": "Disponibilité"}
@@ -270,11 +270,11 @@ def _periode_courte(interp) -> str:
 
 
 def _entete_resultat(interp) -> dict:
-    """Titre (indicateurs — lieu) et sous-titre (période, détail) de la page de résultat."""
+    """Titre (indicateurs : lieu) et sous-titre (période, détail) de la page de résultat."""
     kpis, lieu, periode, temps = (interp.puce(c) for c in ("kpis", "perimetre", "periode", "granularite_temps"))
     titre = kpis.libelle if kpis else "Précisez votre demande"
     if kpis and lieu:
-        titre += f" — {lieu.libelle}"
+        titre += f" : {lieu.libelle}"
     sous_titre = " · ".join(x for x in (periode.libelle if periode else "", temps.libelle if temps else "") if x)
     return {"titre": titre, "sous_titre": sous_titre}
 
@@ -354,7 +354,9 @@ def _message_validation(e: ValidationError) -> str:
 # ------------------------------------------------------------------ vues
 
 @login_required
+@require_safe
 def requete(request):
+    statut = 200
     get = request.GET.copy()
     export = get.pop("export", [None])[0] == "xlsx"
     visibles = kpis_autorises(request.user, set(catalogue()))
@@ -394,7 +396,7 @@ def requete(request):
             except ValidationError as e:
                 ctx["erreur"] = _message_validation(e)
         else:
-            ctx["erreur"] = "Paramètres de recherche invalides — " + " ; ".join(
+            ctx["erreur"] = "Paramètres de recherche invalides : " + " ; ".join(
                 f"{form.fields[c].label} : {' '.join(e.rstrip('.') for e in erreurs)}" if c in form.fields
                 else " ".join(e.rstrip(".") for e in erreurs) for c, erreurs in form.errors.items()) + "."
     else:
@@ -428,6 +430,10 @@ def requete(request):
             ctx["erreur"] = str(e)
         except BaseKpiNonConfiguree as e:  # détail technique (configuration) pour l'administrateur seul
             ctx["erreur"] = str(e) if request.user.is_staff else MESSAGE_BASE_INDISPONIBLE
+        except SQLAlchemyError:
+            journal.exception("Recherche : source KPI indisponible")
+            ctx["erreur"] = MESSAGE_BASE_INDISPONIBLE
+            statut = 503
         else:
             if export:
                 reponse = HttpResponse(construire_excel(resultat), content_type=XLSX)
@@ -438,7 +444,7 @@ def requete(request):
             ctx["requete"] = req
             if not interp:  # ancien formulaire : lieu et période dans l'en-tête
                 lieu = ", ".join(req.perimetre.valeurs) or "tout le réseau autorisé"
-                ctx["titre"] = f"Indicateurs sélectionnés — {lieu}"
+                ctx["titre"] = f"Indicateurs sélectionnés : {lieu}"
                 ctx["sous_titre"] = f"Du {req.periode.debut:%d/%m/%Y} au {req.periode.fin:%d/%m/%Y}"
             nombre = interp.demande.classement_nombre if interp and interp.demande else None
             ctx["blocs"] = affichage.blocs(resultat, nombre)
@@ -451,10 +457,11 @@ def requete(request):
                                      for k, v in champs_depuis_requete(req).items()]  # rapport PowerPoint (POST)
             if est_demo() and voit_tout_le_reseau(request.user):  # incidents : noms de sites
                 ctx["demo_infos"] = infos_demo()
-    return render(request, "kpi/recherche.html", ctx)
+    return render(request, "kpi/recherche.html", ctx, status=statut)
 
 
 @login_required
+@require_safe
 def suggestions(request):
     """Autocomplétion légère : lieux accessibles (communes, sites, événements) et exemples."""
     q = request.GET.get("q", "")[:100]

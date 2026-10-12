@@ -132,7 +132,7 @@ class JournalAuditAdmin(admin.ModelAdmin):
     @admin.display(description="détail")
     def detail(self, obj):
         requete = obj.requete if isinstance(obj.requete, dict) else {}
-        if requete.get("q"):
+        if isinstance(requete.get("q"), str) and requete["q"]:
             texte = requete["q"]
             return f"« {texte[:80]}… »" if len(texte) > 80 else f"« {texte} »"
         if obj.action == "analyse_evenement" and requete.get("evenement"):

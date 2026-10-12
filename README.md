@@ -1,10 +1,10 @@
-# Stats — analyse KPI réseau (LTE / WCDMA)
+# Stats : analyse KPI réseau (LTE / WCDMA)
 
 Application web interne de statistiques de trafic et de qualité radio, avec périmètre
 de données par utilisateur et exports Excel / PowerPoint. Cahier des charges :
 [`brief_app_kpi_reseau.md`](brief_app_kpi_reseau.md).
 
-**État : phase 2 + recherche en langage libre + rapports enregistrés et planifiés** — phase 1
+**État : phase 2 + recherche en langage libre + rapports enregistrés et planifiés** : phase 1
 (référentiel, catalogue KPI, moteur de calcul, périmètres d'accès, export Excel) + événements
 avec détection d'anomalies, rapports PowerPoint / Excel en tâche de fond, KPI WCDMA, seuils
 réglables dans l'admin ; barre de recherche en langage libre (règles locales, IA facultative) ;
@@ -37,13 +37,13 @@ python manage.py createsuperuser
 
 # 4. Chargement du référentiel + cellules : avec la base KPI (toutes les cellules de l'historique)…
 python manage.py import_referentiel OPT_Network_Database_V2.xlsx --cellules-kpi
-#    … ou, sans accès à la base KPI, cellules lues dans les extraits CSV — sur une seule ligne
+#    … ou, sans accès à la base KPI, cellules lues dans les extraits CSV : sur une seule ligne
 python manage.py import_referentiel OPT_Network_Database_V2.xlsx --cellules lte_cell_hour.csv lte_cell_day.csv wcdma_cell_hour.csv wcdma_cell_day.csv
 
 # 4 bis. Avec la base KPI : date de passage de 3 à 4 secteurs des sites concernés (DTS009, MDO355…)
 python manage.py detecter_bascules --enregistrer
 
-# 5. (une fois) Événements initiaux depuis l'onglet Cluster — créneaux à renseigner ensuite dans l'admin
+# 5. (une fois) Événements initiaux depuis l'onglet Cluster : créneaux à renseigner ensuite dans l'admin
 python manage.py import_clusters OPT_Network_Database_V2.xlsx
 
 # 5 bis. Sans accès à la base KPI : données de démonstration (≈ 20 s, ≈ 650 Mo dans data/)
@@ -66,6 +66,71 @@ Le fichier `.env` est lu automatiquement. Renseigner `APP_DB_HOST` (et les autre
 `APP_DB_*`) pour utiliser PostgreSQL plutôt que SQLite.
 
 Tests : `pytest` (aucun appel réseau : l'API IA est simulée).
+
+### Performances et cache des recherches
+
+Les résultats calculés sont conservés dans un **cache partagé sur disque local** :
+une recherche déjà effectuée peut être réutilisée par un autre utilisateur ayant le
+même périmètre effectif et les mêmes KPI autorisés. Les écrans de recherche, exports
+Excel et rapports PowerPoint de ces recherches utilisent ce cache. Les analyses
+comparatives d'événements gardent pour l'instant leur propre parcours sans cache.
+
+- **Fraîcheur : 5 minutes**, comptées dès le début du calcul, sans prolongation lors
+  des consultations. Après expiration, les données sont relues ; une correction dans
+  PostgreSQL peut donc prendre jusqu'à 5 minutes pour apparaître. Une régénération ou
+  modification de la base SQLite de démonstration invalide immédiatement ses résultats.
+- **Budget : 512 Mio sur disque**, 32 Mio au plus par résultat et technologie. Les
+  entrées expirées puis les moins récemment consultées sont supprimées. Les résultats
+  trop volumineux restent consultables mais ne sont pas stockés. Ce budget concerne le
+  cache, pas la mémoire nécessaire au premier calcul ; les fichiers de verrouillage et
+  les journaux SQLite temporaires peuvent ajouter un peu d'espace disque.
+- **Droits relus à chaque demande**, avant tout accès au cache : les cellules et KPI
+  réellement autorisés font partie de la clé. Le référentiel utilisé pour regrouper les
+  cellules, les dates de bascule des secteurs et les définitions/seuils des KPI entrent
+  aussi dans la clé. Une modification dans l'administration est donc prise en compte
+  sans attendre l'expiration. Le catalogue YAML est chargé au démarrage du processus :
+  redémarrer les processus après une modification de ses formules.
+- **Requêtes simultanées identiques** : un verrou entre processus évite le même calcul
+  en parallèle. Attente limitée à 65 secondes ; au-delà, calcul indépendant. Les verrous
+  sont libérés par le système si un processus s'arrête. Un cache inaccessible, corrompu
+  ou plein ne bloque pas la consultation : l'application recalcule depuis la source et
+  écrit un avertissement dans les journaux. Les erreurs de calcul ne sont pas cachées.
+- **Calcul initial allégé** : les numérateurs/dénominateurs sont évalués une seule fois
+  pour le détail et les deux synthèses ; ratios de sommes, pics simultanés et KPI
+  composites conservent les mêmes règles de calcul.
+
+Réglages `.env` (redémarrer les processus après modification) :
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `KPI_CACHE_ENABLED` | `1` | `0` désactive le cache |
+| `KPI_CACHE_TTL` | `300` | Durée de validité en secondes ; `0` désactive le cache |
+| `KPI_CACHE_MAX_MB` | `512` | Budget global en Mio |
+| `KPI_CACHE_ITEM_MAX_MB` | `32` | Taille maximale d'un résultat et technologie en Mio |
+| `KPI_CACHE_DIR` | `data/cache_kpi` | Répertoire privé partagé par les processus |
+| `KPI_CACHE_WAIT_SECONDS` | `65` | Attente maximale d'un calcul déjà en cours |
+
+Après mise à jour : `pip install -r requirements.txt`, puis redémarrer l'application
+et le worker. Avec Docker, reconstruire les images : `docker compose up -d --build`.
+Le volume `cache_kpi` est partagé entre l'application et le worker ; tous les workers
+Gunicorn partagent donc les mêmes résultats. En dehors de Docker, donner le même
+`KPI_CACHE_DIR` aux processus de la même installation. Utiliser un **disque local**,
+pas NFS/SMB. Pour plusieurs serveurs, chaque serveur possède son cache local ; un cache
+distribué demanderait une autre configuration. Ne pas partager ce répertoire entre
+installations indépendantes ni l'exposer comme dossier web : il contient des données
+KPI et doit être accessible en écriture uniquement aux processus de l'application.
+
+```bash
+python manage.py cache_kpi          # nombre de résultats, volume, lectures trouvées/absentes
+python manage.py cache_kpi --vider  # purge et remise à zéro des compteurs
+```
+
+Les compteurs correspondent aux accès internes au cache (une demande absente peut
+faire deux lectures à cause du verrou), pas au nombre de pages vues. La purge retire
+les résultats présents ; un calcul déjà en cours peut encore remplir le cache après
+la purge. Pour une purge complète lors d'une maintenance de la source, arrêter d'abord
+les processus de calcul, purger, puis les redémarrer. Les changements de format du
+cache doivent incrémenter `VERSION` dans `apps/kpi/cache.py`.
 
 ### Avec Docker (serveur)
 
@@ -105,7 +170,7 @@ et redémarrer l’application et le worker. En déploiement, exécuter aussi
 ### Ce que l'on peut faire aujourd'hui
 
 - **Rapports types** (page d'accueil, http://localhost:8000) : les demandes habituelles sans
-  phrase à écrire, en trois choix — **quel rapport** (carte), **où** (vide = tout le réseau ;
+  phrase à écrire, en trois choix : **quel rapport** (carte), **où** (vide = tout le réseau ;
   commune(s), province, site, événement, avec suggestions), **quand** (hier, 7 derniers jours,
   semaine dernière, ce mois-ci, mois dernier, 30 derniers jours ou dates précises) ; options
   repliées : détail temporel, regroupement (par commune, site…), heures.
@@ -240,7 +305,7 @@ quelque chose, elle pose une question avec des réponses en un clic.
   jamais pris pour un lieu. « comparaison », « comparer », « vs » ou plusieurs communes
   citées → résultat par commune.
 - **Lieux** : communes (accents et tirets tolérés), régions / provinces, codes et noms de
-  site, trigrammes, secteurs, cellules, événements — limités au périmètre de l'utilisateur
+  site, trigrammes, secteurs, cellules, événements : limités au périmètre de l'utilisateur
   (un lecteur restreint ne se voit proposer aucun lieu hors de son périmètre). Provinces
   lues avant le vocabulaire : « Province Sud » = toutes ses communes, Grand Nouméa compris ;
   « Province Nord », « Province des Îles » ; « sud » seul garde le sens « Sud (hors Grand

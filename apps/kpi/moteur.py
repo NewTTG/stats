@@ -72,7 +72,8 @@ def _pics(df: pd.DataFrame, comp: pd.DataFrame, pics: list[DefinitionKpi], par: 
     return par_instant.max().to_frame().T
 
 
-def agreger(df: pd.DataFrame, kpis: list[DefinitionKpi], par: list[str]) -> pd.DataFrame:
+def agreger(df: pd.DataFrame, kpis: list[DefinitionKpi], par: list[str],
+            *, comp: pd.DataFrame | None = None) -> pd.DataFrame:
     """Agrège ``df`` selon les colonnes ``par`` (liste vide => agrégat global).
 
     Renvoie, pour chaque KPI : la valeur, et les sommes num/den (utiles pour les tests
@@ -80,7 +81,9 @@ def agreger(df: pd.DataFrame, kpis: list[DefinitionKpi], par: list[str]) -> pd.D
     de ses composants : jamais la moyenne de produits calculés ligne à ligne.
     KPI « pic » : num = pic (voir ``_pics``), den = 1 s'il est défini.
     """
-    comp = composantes(df, kpis)
+    # Réutilisable pour plusieurs regroupements des mêmes lignes et KPI.
+    if comp is None:
+        comp = composantes(df, kpis)
     if par:
         sommes = pd.concat([df[par], comp], axis=1).groupby(par, dropna=False).sum(min_count=1)
     else:

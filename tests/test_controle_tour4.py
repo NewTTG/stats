@@ -53,17 +53,17 @@ def test_vue_classement_les_plus_charges_decroissant(base_recherche, client):  #
     client.force_login(User.objects.create_superuser("admin4"))
     html = client.get("/", {"q": "top 10 des sites les plus chargés en trafic data à Nouméa la semaine dernière"}
                       ).content.decode()
-    assert "Classement par site" in html and "Les plus dégradés — Volume" not in html
-    valeurs = _classement(html, "Les plus chargés — Volume DL")
+    assert "Classement par site" in html and "Les plus dégradés : Volume" not in html
+    valeurs = _classement(html, "Les plus chargés : Volume DL")
     assert 2 <= len(valeurs) <= 10 and valeurs == sorted(valeurs, reverse=True)
     html = client.get("/", {"q": "top 2 des sites les plus chargés en trafic data à Nouméa la semaine dernière"}
                       ).content.decode()
-    valeurs = _classement(html, "Les plus chargés — Volume DL")
+    valeurs = _classement(html, "Les plus chargés : Volume DL")
     assert len(valeurs) == 2 and valeurs[0] >= valeurs[1]
     # Qualité : toujours « les plus dégradés » ; durée moyenne d'appel : jamais classée.
     html = client.get("/", {"q": "drop 4G et durée moyenne des appels par site à Nouméa la semaine dernière"}
                       ).content.decode()
-    assert "Les plus dégradés — Taux de coupure E-RAB" in html and "— Durée" not in html
+    assert "Les plus dégradés : Taux de coupure E-RAB" in html and ": Durée" not in html
 
 
 # ------------------------------------------------------------------ MAJEUR 2 : pas d'oracle sur les noms de sites

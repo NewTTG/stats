@@ -4,12 +4,13 @@ from django.contrib.auth.decorators import login_required
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_safe, require_http_methods
 from pydantic import ValidationError
 
 from apps.comptes.acces import kpis_autorises
 from apps.evenements.analyse import NIVEAUX
 from apps.evenements.models import Evenement
+from apps.evenements.acces import evenements_visibles
 from apps.kpi.catalogue import catalogue
 from apps.kpi.forms import RequeteForm, champs_depuis_requete
 from apps.kpi.recherche.dates import preset
@@ -30,7 +31,7 @@ def _requete(donnees, user) -> RequeteKpi | None:
 
 
 def _titre(req: RequeteKpi) -> str:
-    return f"KPI {'/'.join(req.techno)} — {', '.join(req.perimetre.valeurs) or 'réseau'}"
+    return f"KPI {'/'.join(req.techno)} : {', '.join(req.perimetre.valeurs) or 'réseau'}"
 
 
 @login_required
@@ -44,31 +45,36 @@ def rapport_requete(request):
     if req is None:
         messages.error(request, "Impossible de créer le rapport : paramètres de requête invalides.")
         return redirect("kpi:requete")
-    titre = f"{_titre(req)} — {req.periode.debut:%d/%m/%Y}-{req.periode.fin:%d/%m/%Y}"
+    titre = f"{_titre(req)} : {req.periode.debut:%d/%m/%Y}-{req.periode.fin:%d/%m/%Y}"
     rapport = Rapport.objects.create(utilisateur=request.user, titre=titre[:200], nature="requete", format=fmt,
                                      parametres={"requete": req.model_dump(mode="json")})
-    lancer(rapport)
-    messages.success(request, f"Rapport {rapport.get_format_display()} en cours de génération.")
+    if lancer(rapport):
+        messages.success(request, f"Rapport {rapport.get_format_display()} en cours de génération.")
+    else:
+        messages.error(request, rapport.message)
     return redirect("rapports:liste")
 
 
 @login_required
 @require_POST
 def rapport_evenement(request, pk):
-    evenement = get_object_or_404(Evenement, pk=pk)
+    evenement = get_object_or_404(evenements_visibles(request.user, Evenement.objects.filter(pk=pk)))
     niveau = request.POST.get("niveau", "secteur")
     fmt = request.POST.get("format", "pptx")
     if niveau not in NIVEAUX or fmt not in dict(Rapport.FORMATS):
         raise Http404
     rapport = Rapport.objects.create(
-        utilisateur=request.user, titre=f"{evenement.nom} — par {niveau}"[:200], nature="evenement", format=fmt,
+        utilisateur=request.user, titre=f"{evenement.nom} : par {niveau}"[:200], nature="evenement", format=fmt,
         parametres={"evenement": evenement.pk, "niveau": niveau})
-    lancer(rapport)
-    messages.success(request, f"Rapport {rapport.get_format_display()} en cours de génération.")
+    if lancer(rapport):
+        messages.success(request, f"Rapport {rapport.get_format_display()} en cours de génération.")
+    else:
+        messages.error(request, rapport.message)
     return redirect("rapports:liste")
 
 
 @login_required
+@require_safe
 def liste(request):
     tous = Rapport.objects.filter(utilisateur=request.user)
     plans = RapportPlanifie.objects.filter(utilisateur=request.user)
@@ -112,6 +118,7 @@ def _periode_probable(req: RequeteKpi, jour) -> str:
 
 
 @login_required
+@require_http_methods(["GET", "HEAD", "POST"])
 def enregistrer(request):
     """Enregistre la requête affichée comme rapport, relancé à la demande ou planifié."""
     donnees = request.POST if request.method == "POST" else request.GET
@@ -147,8 +154,15 @@ def _plan(request, pk) -> RapportPlanifie:
 @require_POST
 def planifie_lancer(request, pk):
     plan = _plan(request, pk)
-    rapport = lancer_planifie(plan)
-    messages.success(request, f"Rapport {rapport.get_format_display()} « {plan.titre} » en cours de génération.")
+    try:
+        rapport = lancer_planifie(plan)
+    except (ValueError, TypeError, KeyError):
+        messages.error(request, "Ce rapport enregistré est invalide. Enregistrez-le à nouveau depuis une recherche.")
+        return redirect("rapports:liste")
+    if rapport.statut == "erreur":
+        messages.error(request, rapport.message)
+    else:
+        messages.success(request, f"Rapport {rapport.get_format_display()} « {plan.titre} » en cours de génération.")
     return redirect("rapports:liste")
 
 
@@ -173,6 +187,7 @@ def planifie_supprimer(request, pk):
 
 
 @login_required
+@require_safe
 def telecharger(request, pk):
     rapport = get_object_or_404(Rapport, pk=pk, utilisateur=request.user, statut="termine")
     try:

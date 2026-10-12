@@ -109,6 +109,14 @@ KPI_DB = {
 # générée par « python manage.py charger_demo_kpi ».
 KPI_DEMO_SQLITE = Path(env("KPI_DEMO_SQLITE") or BASE_DIR / "data" / "kpi_demo.sqlite3")
 
+# Cache partagé entre les processus web et rapports (disque local, jamais NFS).
+KPI_CACHE_ENABLED = env("KPI_CACHE_ENABLED", "1") == "1"
+KPI_CACHE_DIR = Path(env("KPI_CACHE_DIR") or BASE_DIR / "data" / "cache_kpi")
+KPI_CACHE_TTL = int(env("KPI_CACHE_TTL", "300"))
+KPI_CACHE_MAX_BYTES = int(env("KPI_CACHE_MAX_MB", "512")) * 1024 * 1024
+KPI_CACHE_ITEM_MAX_BYTES = int(env("KPI_CACHE_ITEM_MAX_MB", "32")) * 1024 * 1024
+KPI_CACHE_WAIT_SECONDS = float(env("KPI_CACHE_WAIT_SECONDS", "65"))
+
 # Recherche en langage libre : interprétation par règles locales (config/recherche.yaml).
 # Option « Recherche IA » (Groq, API compatible OpenAI) visible seulement si la clé est définie.
 # Le modèle ne reçoit que le texte de la demande et ne produit que le JSON de requête.

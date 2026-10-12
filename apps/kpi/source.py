@@ -8,10 +8,12 @@ synthétiques) générée par ``python manage.py charger_demo_kpi``.
 """
 
 import json
+import hashlib
 import re
 from datetime import date, timedelta
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import unquote
 
 import pandas as pd
 import sqlalchemy as sa
@@ -26,6 +28,34 @@ TABLES = {
 }
 
 _IDENTIFIANT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+MESSAGE_BASE_INDISPONIBLE = ("Les statistiques sont momentanément indisponibles : la base de données KPI n'est pas "
+                             "accessible. Prévenez l'administrateur de l'application.")
+
+
+def identite_source(engine: sa.Engine):
+    """Identité sans secret et version de la source pour les clés du cache.
+
+    SQLite en mémoire : pas de cache persistant. Fichier SQLite : détecte aussi
+    remplacement/régénération et écritures WAL. PostgreSQL : fraîcheur bornée par TTL.
+    """
+    url = engine.url
+    version = None
+    if url.get_backend_name() == "sqlite":
+        nom = url.database
+        if not nom or nom == ":memory:" or url.query.get("mode") == "memory":
+            return None
+        chemin = Path(unquote(nom[5:]) if nom.startswith("file:") else nom).resolve()
+        try:
+            def signature(p):
+                stat = p.stat()
+                return (stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+            wal = Path(str(chemin) + "-wal")
+            version = [str(chemin), signature(chemin), signature(wal) if wal.exists() else None]
+        except OSError:
+            return None
+    # Le mot de passe participe au hash sans apparaître dans la clé ou les journaux.
+    identite = [url.render_as_string(hide_password=False), settings.KPI_DB.get("schema"), version]
+    return hashlib.sha256(json.dumps(identite, default=str).encode()).hexdigest()
 
 
 class BaseKpiNonConfiguree(RuntimeError):

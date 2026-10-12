@@ -86,7 +86,7 @@ def test_accueil_rapports_types_lieu_periode(admin, base_recherche):  # noqa: F8
 
 def test_rapport_type_depuis_l_accueil(admin, base_recherche):  # noqa: F811
     html = _html(admin.get("/", {"q": "Nouméa", "intention": "bilan", "periode": "semaine_derniere"}))
-    assert "<h1>Bilan complet — Nouméa</h1>" in html
+    assert "<h1>Bilan complet : Nouméa</h1>" in html
     assert "Semaine dernière · 28/09 → 04/10/2026 · par jour" in html
     # Synthèse : cartes des deux technos regroupées par thème, techno en pastille.
     for theme in ("<h3>Trafic</h3>", "<h3>Débit et charge</h3>", "<h3>Accès</h3>", "<h3>Coupures</h3>"):
@@ -102,14 +102,14 @@ def test_rapport_type_depuis_l_accueil(admin, base_recherche):  # noqa: F811
 
 def test_rapport_type_sur_tout_le_reseau(admin, base_recherche):  # noqa: F811
     html = _html(admin.get("/", {"q": "", "intention": "rapport_trafic", "periode": "hier"}))
-    assert "<h1>Trafic voix, SMS et data — Tout le réseau autorisé</h1>" in html
+    assert "<h1>Trafic voix, SMS et data : Tout le réseau autorisé</h1>" in html
     assert "<h3>Trafic</h3>" in html and "<h3>Accès</h3>" not in html
 
 
 def test_sur_mesure_et_dates_precises(admin, base_recherche):  # noqa: F811
     html = _html(admin.get("/", {"q": "Païta", "kpis": ["lte_dl_user_thp", "lte_prb_dl_util"],
                                  "periode": "dates", "debut": "2026-10-01", "fin": "2026-10-03"}))
-    assert "<h1>Débit DL utilisateur moyen, Utilisation PRB DL — Païta</h1>" in html
+    assert "<h1>Débit DL utilisateur moyen, Utilisation PRB DL : Païta</h1>" in html
     assert "01/10 → 03/10/2026" in html and "<h3>Débit et charge</h3>" in html
 
 

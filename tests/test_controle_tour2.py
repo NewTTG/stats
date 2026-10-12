@@ -58,15 +58,15 @@ def test_cartes_courbes_et_classement_dans_la_meme_unite(admin, base_recherche):
     donnees = re.search(r'id="graphiques-LTE"[^>]*>(.*?)</script>', html, re.S)[1]
     assert f'"unite": "{carte[2]}"' in donnees
     # Un volume ne se « dégrade » pas (m13) : il est classé « les plus chargés » (tour 5, MAJEUR 1).
-    assert "Les plus dégradés — Volume" not in html and "Les plus chargés — Volume DL" in html
-    classement = re.search(r"Les plus chargés — Volume DL</h3>(.*?)</table>", html, re.S)[1]
+    assert "Les plus dégradés : Volume" not in html and "Les plus chargés : Volume DL" in html
+    classement = re.search(r"Les plus chargés : Volume DL</h3>(.*?)</table>", html, re.S)[1]
     assert carte[2] in classement  # même unité que la carte
 
 
 def test_classement_qualite_seulement(admin, base_recherche):  # noqa: F811
     html = _html(admin.get("/", {"q": "drop 4G et volume data par site à Nouméa la semaine dernière"}))
-    assert "Les plus dégradés — Taux de coupure E-RAB" in html
-    assert "Les plus dégradés — Appels" not in html and "Durée moyenne" not in re.sub(
+    assert "Les plus dégradés : Taux de coupure E-RAB" in html
+    assert "Les plus dégradés : Appels" not in html and "Durée moyenne" not in re.sub(
         r"<script.*?</script>", "", html, flags=re.S).split("Classement par site")[-1].split("Évolution")[0]
 
 

@@ -268,7 +268,7 @@ def test_affichage_et_exports(admin, base_recherche):  # noqa: F811
               "kpis": [CODE, "lte_payload_dl"]}
     r = admin.get("/", params)
     html = r.content.decode()
-    assert r.status_code == 200 and "Les plus chargés — Utilisateurs connectés (pic RRC)" in html
+    assert r.status_code == 200 and "Les plus chargés : Utilisateurs connectés (pic RRC)" in html
 
     req = RequeteKpi(techno=["LTE"], perimetre={"type": "global"},
                      periode={"debut": date(2026, 10, 1), "fin": date(2026, 10, 7)},

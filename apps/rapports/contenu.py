@@ -43,10 +43,10 @@ def _annexe(deck: Deck, par_techno):
         if res.cellules_sans_donnees:
             liste = res.cellules_sans_donnees[:MAX_CELLULES_ANNEXE]
             suite = f" … (+{len(res.cellules_sans_donnees) - len(liste)})" if len(liste) < len(res.cellules_sans_donnees) else ""
-            lignes.append(f"{res.techno} — {len(res.cellules_sans_donnees)} cellule(s) sans aucune donnée :")
+            lignes.append(f"{res.techno} : {len(res.cellules_sans_donnees)} cellule(s) sans aucune donnée :")
             lignes.append(", ".join(liste) + suite)
             lignes.append("")
-    deck.texte("Annexe — cellules sans données", lignes or ["Toutes les cellules du périmètre ont des données."])
+    deck.texte("Annexe : cellules sans données", lignes or ["Toutes les cellules du périmètre ont des données."])
 
 
 # ------------------------------------------------------------------ requête KPI
@@ -62,7 +62,7 @@ def pptx_requete(resultat: Resultat) -> bytes:
             statut = k.statut(None if v != v else v)  # NaN != NaN
             lignes.append([k.libelle + (" ≈" if k.qualite == "approx" else ""), nombre(v), k.unite, _statut(statut)])
             statuts.append(["", statut, "", statut])
-        deck.tableau(f"{res.techno} — synthèse sur la période ({res.cellules_demandees} cellules)",
+        deck.tableau(f"{res.techno} : synthèse sur la période ({res.cellules_demandees} cellules)",
                      ["KPI", "Valeur", "Unité", "Statut"], lignes, statuts, largeurs=[5, 2, 1.2, 1.5])
         graphes = donnees_graphiques(res, gran)
         # Demande « causes » : une diapo Pareto par KPI parent, pas une diapo par cause.
@@ -75,7 +75,7 @@ def pptx_requete(resultat: Resultat) -> bytes:
             commentaire = f"{k.libelle} : {nombre(v)} {k.unite} sur l'ensemble de la période et du périmètre."
             if graphes["tronque"]:
                 commentaire += " Graphique limité aux 12 premières entités."
-            deck.graphique(f"{res.techno} — {g['titre']}", graphes["periodes"],
+            deck.graphique(f"{res.techno} : {g['titre']}", graphes["periodes"],
                            [{"nom": s["nom"], "valeurs": s["valeurs"]} for s in g["series"]], commentaire)
             if k.code in pareto:
                 c = pareto[k.code]
@@ -86,7 +86,7 @@ def pptx_requete(resultat: Resultat) -> bytes:
                                     f"({nombre(principale['part'], 1)} % des coupures).")
                 if c["negligeables"]:
                     commentaire += f" Négligeables : {', '.join(c['negligeables'])}."
-                deck.barres(f"{res.techno} — {k.libelle} : répartition par cause",
+                deck.barres(f"{res.techno} : {k.libelle} (répartition par cause)",
                             [b["libelle"] for b in c["barres"]], [round(b["part"], 2) for b in c["barres"]],
                             commentaire)
     if resultat.avertissements:
@@ -122,7 +122,7 @@ def pptx_evenement(analyse: Analyse) -> bytes:
     deck.titre(e.nom, [
         *([e.type] if e.type else []),
         f"{nb} créneau{'x' if nb > 1 else ''} {periode}",
-        f"Référence : {analyse.semaines} semaines précédentes — analyse par {niveau.lower()}",
+        f"Référence : {analyse.semaines} semaines précédentes. Analyse par {niveau.lower()}.",
     ])
     deck.texte("Périmètre analysé", [
         "Créneaux :",
@@ -140,10 +140,10 @@ def pptx_evenement(analyse: Analyse) -> bytes:
             lignes.append([k.libelle + (" ≈" if k.qualite == "approx" else ""), nombre(s.valeur), nombre(s.reference),
                            k.unite, pourcentage(s.ecart_pct), _statut(s.statut)])
             statuts.append(["", s.statut, "", "", s.statut, s.statut])
-        deck.tableau(f"{res.techno} — synthèse événement / référence", ["KPI", "Événement", "Référence", "Unité",
+        deck.tableau(f"{res.techno} : synthèse événement / référence", ["KPI", "Événement", "Référence", "Unité",
                      "Écart", "Statut"], lignes, statuts, largeurs=[5, 1.6, 1.6, 1, 1.3, 1.3])
         for courbe, ligne in zip(res.courbes, res.synthese):
-            deck.graphique(f"{res.techno} — {courbe.kpi.libelle} ({courbe.kpi.unite})", res.instants, [
+            deck.graphique(f"{res.techno} : {courbe.kpi.libelle} ({courbe.kpi.unite})", res.instants, [
                 {"nom": "Événement", "valeurs": courbe.evenement, "role": "principale"},
                 {"nom": "Référence", "valeurs": courbe.reference, "role": "secondaire"},
                 {"nom": "Réf. min", "valeurs": courbe.ref_min, "role": "gris", "pointille": True},
@@ -167,7 +167,7 @@ def xlsx_evenement(analyse: Analyse) -> bytes:
     ws.title = "Synthèse"
     ws["A1"] = analyse.evenement.nom
     ws["A1"].font = Font(bold=True, size=14, color="14284B")
-    ws["A2"] = (f"Référence : {analyse.semaines} semaines précédentes — analyse par {analyse.niveau} — créneaux : "
+    ws["A2"] = (f"Référence : {analyse.semaines} semaines précédentes. Analyse par {analyse.niveau}. Créneaux : "
                 + " ; ".join(f"{d:%d/%m/%Y %H:%M} → {f:%d/%m/%Y %H:%M}" for d, f in analyse.creneaux))
     _entete(ws, 4, ["Techno", "KPI", "Unité", "Événement", "Référence", "Écart %", "Statut"])
     ligne = 4
@@ -204,7 +204,7 @@ def xlsx_evenement(analyse: Analyse) -> bytes:
         ws = wb.create_sheet(f"Courbes {res.techno}")
         titres = ["Heure"]
         for c in res.courbes:
-            titres += [f"{c.kpi.libelle} — {x}" for x in ("événement", "référence", "réf. min", "réf. max")]
+            titres += [f"{c.kpi.libelle} : {x}" for x in ("événement", "référence", "réf. min", "réf. max")]
         _entete(ws, 1, titres)
         for i, instant in enumerate(res.instants):
             valeurs = [instant]

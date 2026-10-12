@@ -1,9 +1,9 @@
-# Phase 0 — Description des données sources
+# Phase 0 : Description des données sources
 
 > Établi à partir des extraits CSV, du référentiel xlsx et de l'exploration de la base
 > KPI (`docs/schema_bdd.md`, généré par `scripts/explorer_schema.py`).
 
-## 0. Base KPI PostgreSQL — synthèse
+## 0. Base KPI PostgreSQL : synthèse
 
 PostgreSQL 17.5, schéma `public`, accès lecture seule.
 
@@ -68,7 +68,7 @@ Les colonnes `Max_max` (ex. `RrcConnMax_max_nb`) s'agrègent en **max**, pas en 
 | Onglet | Lignes | Rôle | Colonnes clés |
 |---|---|---|---|
 | `Site_File` | 588 | un site physique | `codeSite`, `Trigramme`, `commune` (33), `region` (NORD, SUD, GRD NEA 1, NEA, ILES), `siteNameWcdma`, `siteNameLte`, `RBS_Name_3G`, `ERBS`, `lonWgs84`/`latWgs84`, `nbSect`, `bandType` |
-| `Cell_File` | 1 391 | un secteur (`cells` = `codeSite` + n° secteur) — **non utilisé** : numérotation peu fiable (sites déportés en 4-6, secteurs manquants) | `cells`, `codeSite`, `commune`, `province`, `azimut`, `NbCarrierLte`, `nbCarrierWcdma`, `Trigramme` |
+| `Cell_File` | 1 391 | un secteur (`cells` = `codeSite` + n° secteur) : **non utilisé** : numérotation peu fiable (sites déportés en 4-6, secteurs manquants) | `cells`, `codeSite`, `commune`, `province`, `azimut`, `NbCarrierLte`, `nbCarrierWcdma`, `Trigramme` |
 | `Cluster` | 342 | cellules par **événement** (24 clusters : carnaval, foires…) | `Cluster`, `RBS`, `Trigramme`, `Cellule`, `Type` (Concert / Day) |
 
 Coordonnées GPS disponibles → carte possible pour la sélection de cellules.
@@ -77,7 +77,7 @@ Coordonnées GPS disponibles → carte possible pour la sélection de cellules.
 
 ### LTE
 `EutranCell_Id` = `<Trigramme>e<S>` (porteuse 1) ou `<Trigramme>e<P><S>` (porteuse P + 1),
-S = secteur — **confirmé**. Ex. site DZU (3 porteuses) : `DZUe1..3` (porteuse 1),
+S = secteur : **confirmé**. Ex. site DZU (3 porteuses) : `DZUe1..3` (porteuse 1),
 `DZUe11..13` (porteuse 2), `DZUe21..23` (porteuse 3). Sur un site à 3 secteurs,
 e4 = e1, e5 = e2, e6 = e3 (et e7-e9 de même) : couche supplémentaire (RAVe4) ou site
 déporté, qui porte toujours son propre trigramme (ACRe4/e5/e6 = secteurs 1 à 3 d'ACR).
@@ -86,7 +86,7 @@ Sur un site à 4 secteurs, e4 = secteur 4.
 `ERBS_Id` correspond à la colonne `ERBS` dans 97,9 % des cas.
 
 ### WCDMA
-`CellWcdma` = `<codeSite><lettre>` — **confirmé** : secteur 1 = A/D/G/J, secteur 2 = B/E/H/K,
+`CellWcdma` = `<codeSite><lettre>` : **confirmé** : secteur 1 = A/D/G/J, secteur 2 = B/E/H/K,
 secteur 3 = C/F/I/L (porteuses 1 à 4). Site à 4 secteurs (ex. DTS009) :
 A/B/C/D = secteurs 1-4 porteuse 1, J/K/L/M = secteurs 1-4 porteuse 2. Un site compte
 4 secteurs si Site_File le déclare (`nbSect` = 4), s'il porte une cellule M ou si une
