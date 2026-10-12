@@ -56,7 +56,7 @@ def colonnes_utilisees(kpis: list[DefinitionKpi]) -> list[str]:
     return sorted(noms)
 
 
-def cellules_du_perimetre(requete: RequeteKpi, techno: str) -> list[str] | None:
+def cellules_du_perimetre(requete: RequeteKpi, techno: str, user=None) -> list[str] | None:
     """Cellules désignées par le périmètre demandé (None = tout le réseau)."""
     p = requete.perimetre
     valeurs = [v.strip() for v in p.valeurs if v.strip()]
@@ -71,9 +71,11 @@ def cellules_du_perimetre(requete: RequeteKpi, techno: str) -> list[str] | None:
     if p.type == "secteur":  # secteur à la date : cf. bascule de 3 à 4 secteurs
         return cellules_des_secteurs(techno, valeurs, requete.periode.debut, requete.periode.fin)
     if p.type == "evenement":
+        from apps.evenements.acces import evenements_visibles
         from apps.evenements.models import Evenement
 
-        evenements = list(Evenement.objects.filter(nom__in=valeurs))
+        selection = Evenement.objects.filter(nom__in=valeurs)
+        evenements = list(evenements_visibles(user, selection) if user is not None else selection)
         inconnus = set(valeurs) - {e.nom for e in evenements}
         if inconnus:
             raise RequeteRefusee(f"Événement(s) inconnu(s) : {', '.join(sorted(inconnus))}")
@@ -175,7 +177,7 @@ def executer(requete: RequeteKpi, user, engine) -> Resultat:
         kpis = [cat[c] for c in requete.kpis if c in autorises and cat[c].techno == techno]
         if not kpis:
             continue
-        cellules = _intersecter(cellules_du_perimetre(requete, techno), cellules_autorisees(user, techno))
+        cellules = _intersecter(cellules_du_perimetre(requete, techno, user), cellules_autorisees(user, techno))
         if cellules is not None and not cellules:
             resultat.avertissements.append(f"{techno} : aucune cellule accessible dans ce périmètre.")
             continue

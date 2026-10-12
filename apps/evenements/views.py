@@ -1,19 +1,25 @@
+import logging
+
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Min
 from django.shortcuts import get_object_or_404, render
+from django.views.decorators.http import require_safe
+from sqlalchemy.exc import SQLAlchemyError
 
 from apps.comptes.models import JournalAudit
-from apps.kpi.source import BaseKpiNonConfiguree, moteur_kpi
+from apps.kpi.source import BaseKpiNonConfiguree, MESSAGE_BASE_INDISPONIBLE, moteur_kpi
 from apps.rapports.contenu import LIBELLES_REGLE
 
 from .analyse import NIVEAUX, AnalyseImpossible, analyser
 from .models import Evenement
+from .acces import evenements_visibles
 
-
+journal = logging.getLogger(__name__)
 
 @login_required
+@require_safe
 def liste(request):
-    evenements = Evenement.objects.annotate(nb_creneaux=Count("creneaux"), debut=Min("creneaux__debut"))
+    evenements = evenements_visibles(request.user).annotate(nb_creneaux=Count("creneaux"), debut=Min("creneaux__debut"))
     recherche = request.GET.get("recherche", "").strip()[:150]
     if recherche:
         evenements = evenements.filter(nom__icontains=recherche)
@@ -30,8 +36,10 @@ def _graphiques(res):
 
 
 @login_required
+@require_safe
 def detail(request, pk):
-    evenement = get_object_or_404(Evenement, pk=pk)
+    evenement = get_object_or_404(evenements_visibles(request.user, Evenement.objects.filter(pk=pk)))
+    statut = 200
     niveau = request.GET.get("niveau", "secteur")
     if niveau not in NIVEAUX:
         niveau = "secteur"
@@ -43,6 +51,12 @@ def detail(request, pk):
         contexte["analyse"] = analyse
         contexte["blocs"] = [{"res": r, "graphiques": _graphiques(r), "id": f"courbes-{r.techno}"}
                              for r in analyse.par_techno]
-    except (AnalyseImpossible, BaseKpiNonConfiguree) as e:
+    except AnalyseImpossible as e:
         contexte["erreur"] = str(e)
-    return render(request, "evenements/detail.html", contexte)
+    except BaseKpiNonConfiguree as e:
+        contexte["erreur"] = str(e) if request.user.is_staff else MESSAGE_BASE_INDISPONIBLE
+    except SQLAlchemyError:
+        journal.exception("Événement %s : source KPI indisponible", pk)
+        contexte["erreur"] = MESSAGE_BASE_INDISPONIBLE
+        statut = 503
+    return render(request, "evenements/detail.html", contexte, status=statut)

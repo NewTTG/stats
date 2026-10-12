@@ -53,8 +53,11 @@ def construire(user, aujourd_hui, selection="hier"):
         ctx["message"] = "Les indicateurs sont momentanément indisponibles. Vous pouvez toujours préparer un rapport."
         return ctx
     ctx["avertissements"] = resultat.avertissements
+    par_techno = {r.techno: r for r in resultat.par_techno}
     for code, titre, detail, icone in indicateurs:
-        res = next(r for r in resultat.par_techno if r.techno == cat[code].techno)
+        res = par_techno.get(cat[code].techno)
+        if res is None:
+            continue
         k = cat[code]
         v = valeur(res.synthese_globale.get(code))
         texte, unite = formater(v, k.unite)
@@ -72,4 +75,6 @@ def construire(user, aujourd_hui, selection="hier"):
                 "periodes": [p.strftime("%d/%m" if selection == "7j" else "%H:%M") for p in serie.index],
                 "valeurs": [None if valeur(n) is None else float(n) / diviseur for n in serie[code]],
                 "lien": lien})
+    if not ctx["cartes"]:
+        ctx["message"] = "Aucune cellule accessible dans votre périmètre. Contactez votre administrateur."
     return ctx

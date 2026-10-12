@@ -46,9 +46,10 @@ def lancer_dus(maintenant: datetime | None = None) -> int:
         plan.planifier(maintenant)
         plan.save(update_fields=["prochain_lancement"])
         try:
-            lancer_planifie(plan, maintenant)
+            rapport = lancer_planifie(plan, maintenant)
         except Exception:  # noqa: BLE001 — un rapport en échec ne bloque pas les suivants
             log.exception("échec du lancement du rapport planifié %s", plan.pk)
             continue
-        lances += 1
+        if rapport.statut != "erreur":
+            lances += 1
     return lances

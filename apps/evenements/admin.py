@@ -110,11 +110,12 @@ class EvenementAdmin(admin.ModelAdmin):
 @admin.register(ReglagesAnomalies)
 class ReglagesAnomaliesAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
-        return not ReglagesAnomalies.objects.exists()
+        return super().has_add_permission(request) and not ReglagesAnomalies.objects.exists()
 
     def has_delete_permission(self, request, obj=None):
         return False
 
     def changelist_view(self, request, extra_context=None):
-        ReglagesAnomalies.courant()
+        if self.has_view_or_change_permission(request):
+            ReglagesAnomalies.courant()
         return super().changelist_view(request, extra_context)

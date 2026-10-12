@@ -28,6 +28,8 @@ TABLES = {
 }
 
 _IDENTIFIANT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+MESSAGE_BASE_INDISPONIBLE = ("Les statistiques sont momentanément indisponibles : la base de données KPI n'est pas "
+                             "accessible. Prévenez l'administrateur de l'application.")
 
 
 def identite_source(engine: sa.Engine):

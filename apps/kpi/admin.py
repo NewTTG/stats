@@ -16,7 +16,8 @@ class SeuilKpiAdmin(admin.ModelAdmin):
     actions = ["retablir"]
 
     def changelist_view(self, request, extra_context=None):
-        SeuilKpi.synchroniser()
+        if self.has_view_or_change_permission(request):
+            SeuilKpi.synchroniser()
         return super().changelist_view(request, extra_context)
 
     def has_add_permission(self, request):
