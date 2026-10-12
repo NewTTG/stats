@@ -158,6 +158,12 @@ La recherche libre et les rapports en accès direct restent disponibles, ainsi q
 le constructeur de rapports personnalisés. Les graphiques proposent aussi un tableau
 de valeurs accessible sans JavaScript.
 
+**Agrandir** ouvre chaque graphique dans une fenêtre dédiée, refermable par Échap,
+le bouton Fermer ou un clic sur le fond. Un clic sur une heure (axe ou tracé) la met
+en avant dans tous les graphiques temporels de la page, y compris les causes par
+période. Recliquer la même heure efface la sélection ; une autre heure la remplace.
+Le choix de période au clavier et **Effacer la sélection** offrent les mêmes actions.
+
 Les résultats et événements proposent **Rapport PDF**, en plus de PowerPoint et Excel.
 Le PDF contient les paramètres, les synthèses, des graphiques vectoriels et les
 avertissements / cellules sans données. Il est généré par le worker et disponible

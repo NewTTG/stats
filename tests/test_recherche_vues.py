@@ -5,6 +5,7 @@ Base KPI : base de démonstration générée sur les cellules du référentiel s
 
 import html as html_lib
 import io
+import json
 import re
 from datetime import date
 from urllib.parse import urlencode
@@ -133,6 +134,23 @@ def test_causes_avec_non_ventile(admin, base_recherche):
     assert "Répartition par cause" in html and "Non ventilé" in html
     html = _html(admin.get("/", {"q": "causes de coupure 4G à Nouméa la semaine dernière"}))
     assert "Répartition par cause" in html and "Non ventilé" not in html  # causes LTE = total
+
+
+@pytest.mark.parametrize("espace", ["global", "site"])
+def test_cles_selection_courbes_et_causes(admin, base_recherche, espace):
+    html = _html(admin.get("/", {"q": "", "kpis": ["wcdma_cs_drop", "wcdma_drop_perte_synchro"],
+                              "techno": "WCDMA", "debut": "2026-10-01", "fin": "2026-10-02",
+                              "granularite_temps": "heure", "granularite_espace": espace}))
+    sources = {ident: json.loads(texte) for ident, texte in re.findall(
+        r'<script id="([^"]+)" type="application/json">(.*?)</script>', html)}
+    courbes = sources["graphiques-WCDMA"]
+    assert len(courbes["periodes_cles"]) == len(courbes["periodes"])
+    assert len(set(courbes["periodes_cles"])) == len(courbes["periodes"])
+    causes = next(d for d in sources.values() if "axe" in d)
+    if espace == "global":
+        assert causes["periodes_cles"] == courbes["periodes_cles"]
+    else:
+        assert causes["periodes_cles"] == []
 
 
 def test_puces_modifiables_sans_javascript(admin, base_recherche):

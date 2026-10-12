@@ -154,7 +154,8 @@ def graphiques(res: ResultatTechno, granularite_temps: str, conv=None) -> dict:
     format_periode = FORMAT_PERIODE[granularite_temps]
     if granularite_temps == "heure" and len({p.date() for p in periodes}) == 1:
         format_periode = "%Hh"
-    return {"periodes": [p.strftime(format_periode) for p in periodes], "kpis": graphes, "tronque": tronque,
+    return {"periodes": [p.strftime(format_periode) for p in periodes],
+            "periodes_cles": [p.isoformat() for p in periodes], "kpis": graphes, "tronque": tronque,
             "nombre": SERIES_PIRES}
 
 
@@ -204,6 +205,7 @@ def causes(res: ResultatTechno, granularite_temps: str, granularite_espace: str)
                        "seuil_negligeable": _fr(PART_NEGLIGEABLE, 1),
                        "non_ventile": any(b.get("non_ventile") for b in barres),
                        "graphique": {"titre": parent.libelle, "unite": parent.unite, "axe": axe, "series": series,
+                                     "periodes_cles": [p.isoformat() for p in table.index] if granularite_espace == "global" else [],
                                      "barres": [{"libelle": b["libelle"], "valeur": round(b["valeur"], 4),
                                                  "part": round(b["part"], 1)} for b in barres],
                                      "par": "période" if granularite_espace == "global" else "entité"}})

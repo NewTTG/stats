@@ -64,3 +64,18 @@ body.workspace{display:block;font-size:14px;line-height:1.55;background:var(--fo
   .workspace-topbar .mobile-account{flex:none}
   .workspace .bloc-entete{align-items:flex-start}
 }
+.graphique-commandes{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:12px;min-height:30px}
+.graphique-selection{margin-right:auto;font-size:11px;color:#256b51;font-weight:600}
+.graphique-action{border:1px solid #d4dfd6;border-radius:7px;background:#fff;color:#426052;padding:7px 11px;font:inherit;font-size:11px;cursor:pointer}
+.graphique-action:hover{background:#eef5f0;border-color:#a9c4b5}
+.graphique-action[hidden]{display:none}
+.graphique-periode{display:flex;align-items:center;gap:8px;margin-top:8px;color:#73877c;font-size:11px}
+.workspace .graphique-periode select{font-size:11px;min-height:30px;max-width:160px;padding:3px 8px}
+.graphique-popup{box-sizing:border-box;width:min(1180px,calc(100vw - 32px));max-width:none;max-height:calc(100dvh - 32px);padding:24px;border:1px solid #dce5de;border-radius:16px;box-shadow:0 24px 90px #173d3540;color:#223e32;background:#fff}
+.graphique-popup::backdrop{background:#152b25a6;backdrop-filter:blur(4px)}
+.graphique-popup-entete{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:12px}
+.workspace .graphique-popup h2{margin:0;font-size:18px}
+.graphique-popup-entete button{flex:none}
+.graphique-popup-canvas{height:min(58dvh,580px);min-height:200px;width:100%}
+.graphique-popup-ouverte{overflow:hidden}
+@media(max-width:700px){.graphique-popup{padding:16px;width:calc(100vw - 16px);max-height:calc(100dvh - 16px)}.workspace .graphique-popup h2{font-size:15px}.graphique-periode{flex-wrap:wrap}}

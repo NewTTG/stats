@@ -107,49 +107,6 @@
 {% block scripts %}
 {% if blocs %}
 <script src="{% static 'vendor/echarts-5.6.0.min.js' %}"></script>
-<script>
-document.querySelectorAll(".courbes").forEach(function (zone) {
-  var donnees = JSON.parse(document.getElementById(zone.dataset.source).textContent);
-  donnees.kpis.forEach(function (g) {
-    var carte = document.createElement("figure");
-    carte.className = "carte-graphique";
-    carte.style.margin = "0";
-    var div = document.createElement("div");
-    div.className = "graphique";
-    div.setAttribute("role", "img");
-    div.setAttribute("aria-label", g.titre + " : événement et référence");
-    carte.appendChild(div);
-    zone.appendChild(carte);
-    var ecart = g.max.map(function (v, i) { return v === null || g.min[i] === null ? null : v - g.min[i]; });
-    var graphique = echarts.init(div);
-    graphique.setOption({
-      animation: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-      aria: { enabled: true },
-      title: { text: g.titre, textStyle: { fontSize: 13, color: "#256b51" } },
-      tooltip: { trigger: "axis", formatter: function (p) {
-        var lignes = [p[0].axisValue], i = p[0].dataIndex;
-        lignes.push("Événement : " + (g.evenement[i] === null ? "N/D" : g.evenement[i]));
-        lignes.push("Référence : " + (g.reference[i] === null ? "N/D" : g.reference[i]));
-        if (g.min[i] !== null) lignes.push("Réf. min – max : " + g.min[i] + " – " + g.max[i]);
-        return lignes.join("<br>");
-      } },
-      legend: { bottom: 0, data: ["Événement", "Référence"] },
-      grid: { left: 8, right: 16, top: 40, bottom: 40, containLabel: true },
-      xAxis: { type: "category", data: donnees.instants },
-      yAxis: { type: "value", scale: true,
-               max: g.unite === "%" ? function (v) { return Math.min(100, Math.ceil(v.max)); } : null,
-               axisLabel: { formatter: function (v) { return (Math.round(v * 1e6) / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 6 }); } } },
-      series: [
-        { name: "min", type: "line", data: g.min, stack: "bande", symbol: "none", lineStyle: { opacity: 0 }, silent: true },
-        { name: "bande", type: "line", data: ecart, stack: "bande", symbol: "none", lineStyle: { opacity: 0 },
-          areaStyle: { color: "rgba(138,148,166,.25)" }, silent: true },
-        { name: "Référence", type: "line", data: g.reference, color: "#c59542", lineStyle: { type: "dashed" } },
-        { name: "Événement", type: "line", data: g.evenement, color: "#256b51", lineStyle: { width: 3 } }
-      ]
-    });
-    window.addEventListener("resize", function () { graphique.resize(); });
-  });
-});
-</script>
+<script src="{% static 'js/kpi.js' %}"></script>
 {% endif %}
 {% endblock %}
