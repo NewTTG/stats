@@ -16,6 +16,7 @@ from apps.kpi.source import BaseKpiNonConfiguree, moteur_kpi
 
 from .contenu import pptx_evenement, pptx_requete, xlsx_evenement
 from .models import Rapport
+from .pdf import pdf_evenement, pdf_requete
 
 log = logging.getLogger(__name__)
 
@@ -30,10 +31,10 @@ def contenu(rapport: Rapport) -> bytes:
     p, user = rapport.parametres, rapport.utilisateur
     if rapport.nature == "requete":
         resultat = executer(RequeteKpi(**p["requete"]), user, moteur_kpi())
-        return pptx_requete(resultat) if rapport.format == "pptx" else construire_excel(resultat)
+        return {"pptx": pptx_requete, "xlsx": construire_excel, "pdf": pdf_requete}[rapport.format](resultat)
     evenement = Evenement.objects.get(pk=p["evenement"])
     analyse = analyser(evenement, user, moteur_kpi(), niveau=p.get("niveau", "secteur"))
-    return (pptx_evenement if rapport.format == "pptx" else xlsx_evenement)(analyse)
+    return {"pptx": pptx_evenement, "xlsx": xlsx_evenement, "pdf": pdf_evenement}[rapport.format](analyse)
 
 
 def generer(rapport_id: int):

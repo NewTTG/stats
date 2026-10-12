@@ -294,7 +294,8 @@ def test_gabarits_noms_coupables_et_anomalies_etiquetees(settings):
     assert '<table class="anomalies">' in detail and "{{ a.entite|coupure }}" in detail
     assert 'data-etiquette="Règle"' in detail and '<td class="concerne">' in detail
     resultat = (settings.BASE_DIR / "templates" / "kpi" / "_resultat.html").read_text(encoding="utf-8")
-    assert resultat.count("l.entite|coupure") == 3
+    tableau = (settings.BASE_DIR / "templates" / "kpi" / "_tableau_resultat.html").read_text(encoding="utf-8")
+    assert (resultat + tableau).count("l.entite|coupure") == 3
 
 
 def test_vue_tableau_detaille_wbr(base_recherche, client):  # noqa: F811

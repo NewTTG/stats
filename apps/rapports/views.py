@@ -36,16 +36,19 @@ def _titre(req: RequeteKpi) -> str:
 @login_required
 @require_POST
 def rapport_requete(request):
-    """PowerPoint d'une requête KPI : mêmes paramètres que l'écran de requête."""
+    """Rapport d'une requête KPI : mêmes paramètres que l'écran de requête."""
+    fmt = request.POST.get("format", "pptx")
+    if fmt not in dict(Rapport.FORMATS):
+        raise Http404
     req = _requete(request.POST, request.user)
     if req is None:
         messages.error(request, "Impossible de créer le rapport : paramètres de requête invalides.")
         return redirect("kpi:requete")
     titre = f"{_titre(req)} — {req.periode.debut:%d/%m/%Y}-{req.periode.fin:%d/%m/%Y}"
-    rapport = Rapport.objects.create(utilisateur=request.user, titre=titre[:200], nature="requete", format="pptx",
+    rapport = Rapport.objects.create(utilisateur=request.user, titre=titre[:200], nature="requete", format=fmt,
                                      parametres={"requete": req.model_dump(mode="json")})
     lancer(rapport)
-    messages.success(request, "Rapport PowerPoint en cours de génération.")
+    messages.success(request, f"Rapport {rapport.get_format_display()} en cours de génération.")
     return redirect("rapports:liste")
 
 
@@ -55,7 +58,7 @@ def rapport_evenement(request, pk):
     evenement = get_object_or_404(Evenement, pk=pk)
     niveau = request.POST.get("niveau", "secteur")
     fmt = request.POST.get("format", "pptx")
-    if niveau not in NIVEAUX or fmt not in ("pptx", "xlsx"):
+    if niveau not in NIVEAUX or fmt not in dict(Rapport.FORMATS):
         raise Http404
     rapport = Rapport.objects.create(
         utilisateur=request.user, titre=f"{evenement.nom} — par {niveau}"[:200], nature="evenement", format=fmt,
@@ -67,10 +70,27 @@ def rapport_evenement(request, pk):
 
 @login_required
 def liste(request):
-    rapports = Rapport.objects.filter(utilisateur=request.user)[:50]
+    tous = Rapport.objects.filter(utilisateur=request.user)
+    plans = RapportPlanifie.objects.filter(utilisateur=request.user)
+    recherche = request.GET.get("recherche", "").strip()[:150]
+    fmt = request.GET.get("format", "")
+    rapports = tous
+    if recherche:
+        rapports = rapports.filter(titre__icontains=recherche)
+        plans = plans.filter(titre__icontains=recherche)
+    if fmt in dict(Rapport.FORMATS):
+        rapports = rapports.filter(format=fmt)
+        plans = plans.filter(format=fmt)
+    else:
+        fmt = ""
+    rapports = rapports[:50]
     return render(request, "rapports/liste.html",
                   {"rapports": rapports, "rafraichir": any(r.en_cours for r in rapports),
-                   "planifies": RapportPlanifie.objects.filter(utilisateur=request.user)})
+                   "planifies": plans, "recherche": recherche, "format_filtre": fmt,
+                   "formats": Rapport.FORMATS, "nb_fichiers": tous.count(),
+                   "nb_prets": tous.filter(statut="termine").count(),
+                   "nb_attente": tous.filter(statut__in=("en_attente", "en_cours")).count(),
+                   "nb_planifies": RapportPlanifie.objects.filter(utilisateur=request.user, actif=True).exclude(frequence="aucune").count()})
 
 
 class PlanificationForm(forms.ModelForm):

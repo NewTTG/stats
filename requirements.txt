@@ -9,3 +9,4 @@ python-pptx>=1.0
 gunicorn>=22
 whitenoise>=6.6
 django-q2>=1.7
+reportlab>=4.2,<5

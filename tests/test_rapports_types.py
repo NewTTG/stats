@@ -145,7 +145,8 @@ def test_visiteur_sans_administration(client):
 def test_administrateur_lien_a_part(admin, base_recherche):  # noqa: F811
     html = _html(admin.get("/"))
     assert 'class="lien-admin" href="/admin/"' in html
-    navigation = html[html.index('<ul class="navigation">'):html.index("</ul>", html.index('<ul class="navigation">'))]
+    debut = html.index('<nav aria-label="Navigation principale"')
+    navigation = html[debut:html.index("</nav>", debut)]
     assert "/admin/" not in navigation  # pas dans la navigation des statistiques
 
 
