@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static kpi_extras %}
-{% block titre %}{{ evenement.nom }} — Stats réseau{% endblock %}
+{% block titre %}{{ evenement.nom }} : Stats réseau{% endblock %}
 {% block contenu %}
 <p class="fil"><a href="{% url 'evenements:liste' %}">← Tous les événements</a></p>
 <div class="entete-page">
@@ -46,16 +46,16 @@
 
 {% for bloc in blocs %}
 <section class="carte">
-  <h2><span class="badge-techno {{ bloc.res.techno }}">{% if bloc.res.techno == "LTE" %}4G{% else %}3G{% endif %}</span> {{ bloc.res.techno }} — {{ bloc.res.nb_cellules }} cellule{{ bloc.res.nb_cellules|pluralize }}</h2>
+  <h2><span class="badge-techno {{ bloc.res.techno }}">{% if bloc.res.techno == "LTE" %}4G{% else %}3G{% endif %}</span> {{ bloc.res.techno }} : {{ bloc.res.nb_cellules }} cellule{{ bloc.res.nb_cellules|pluralize }}</h2>
   <h3>Synthèse événement / référence</h3>
   <div class="table-defil"><table class="synthese">
     <thead><tr><th>KPI</th><th>Événement</th><th>Référence</th><th>Unité</th><th>Écart</th><th>Statut</th></tr></thead>
     <tbody>{% for s in bloc.res.synthese %}
       <tr><td>{{ s.kpi.libelle }}{% if s.kpi.qualite == "approx" %} <span title="{{ s.kpi.note|default:'Valeur approximative' }}">≈</span>{% endif %}</td>
-        <td class="nombre {{ s.statut }}">{% if s.valeur is None %}—{% else %}{{ s.valeur|floatformat:"2g" }}{% endif %}</td>
-        <td class="nombre">{% if s.reference is None %}—{% else %}{{ s.reference|floatformat:"2g" }}{% endif %}</td>
+        <td class="nombre {{ s.statut }}">{% if s.valeur is None %}N/D{% else %}{{ s.valeur|floatformat:"2g" }}{% endif %}</td>
+        <td class="nombre">{% if s.reference is None %}N/D{% else %}{{ s.reference|floatformat:"2g" }}{% endif %}</td>
         <td>{{ s.kpi.unite }}</td>
-        <td class="nombre">{% if s.ecart_pct is None %}—{% else %}{{ s.ecart_pct|floatformat:"+1" }} %{% endif %}</td>
+        <td class="nombre">{% if s.ecart_pct is None %}N/D{% else %}{{ s.ecart_pct|floatformat:"+1" }} %{% endif %}</td>
         <td>{% if s.statut %}<span class="etiquette {{ s.statut }}">{{ s.statut|capfirst }}</span>{% elif s.valeur is not None %}<span class="etiquette ok">OK</span>{% endif %}</td></tr>
     {% endfor %}</tbody>
   </table></div>
@@ -128,8 +128,8 @@ document.querySelectorAll(".courbes").forEach(function (zone) {
       title: { text: g.titre, textStyle: { fontSize: 13, color: "#256b51" } },
       tooltip: { trigger: "axis", formatter: function (p) {
         var lignes = [p[0].axisValue], i = p[0].dataIndex;
-        lignes.push("Événement : " + (g.evenement[i] === null ? "—" : g.evenement[i]));
-        lignes.push("Référence : " + (g.reference[i] === null ? "—" : g.reference[i]));
+        lignes.push("Événement : " + (g.evenement[i] === null ? "N/D" : g.evenement[i]));
+        lignes.push("Référence : " + (g.reference[i] === null ? "N/D" : g.reference[i]));
         if (g.min[i] !== null) lignes.push("Réf. min – max : " + g.min[i] + " – " + g.max[i]);
         return lignes.join("<br>");
       } },

@@ -125,13 +125,13 @@ def _document(titre, elements):
         canvas.restoreState()
     intro = [p(titre, 'titre')]
     if est_demo():
-        intro.append(p('Données de démonstration (synthétiques) — valeurs fictives, sans lien avec le réseau réel.'))
+        intro.append(p('Données de démonstration (synthétiques) : valeurs fictives, sans lien avec le réseau réel.'))
     doc.build(intro + elements, onFirstPage=page, onLaterPages=page)
     return sortie.getvalue()
 
 
 def _annexe(resultats):
-    elements = [p('Annexe — cellules sans données', 'section')]
+    elements = [p('Annexe : cellules sans données', 'section')]
     for res in resultats:
         elements.append(p(f'{res.techno} : {len(res.cellules_sans_donnees)} cellule(s) sans données.'))
         # Paragraphes courts : la pagination fonctionne aussi pour de grands périmètres.
@@ -146,7 +146,7 @@ def pdf_requete(resultat):
     for a in resultat.avertissements:
         elements.append(p(f'Avertissement : {a}'))
     for res in resultat.par_techno:
-        elements.append(p(f'{res.techno} — Synthèse sur la période', 'section'))
+        elements.append(p(f'{res.techno} : Synthèse sur la période', 'section'))
         lignes = []
         for k in res.kpis:
             v = valeur(res.synthese_globale.get(k.code))
@@ -158,12 +158,12 @@ def pdf_requete(resultat):
                 elements.append(p(f'{k.libelle} : {k.note}'))
         graphes = donnees_graphiques(res, resultat.requete.granularite_temps)
         for g in graphes['kpis']:
-            elements.append(KeepTogether([p(f"{res.techno} — {g['titre']}", 'section'), courbe(graphes['periodes'], g['series'])]))
+            elements.append(KeepTogether([p(f"{res.techno} : {g['titre']}", 'section'), courbe(graphes['periodes'], g['series'])]))
         if graphes['tronque']:
             elements.append(p('Les graphiques sont limités aux 12 premières entités.'))
         if res.synthese is not None and not res.synthese.empty and len(res.synthese) > 1:
             for k in res.kpis:
-                elements.append(p(f'{k.libelle} — détail par entité', 'section'))
+                elements.append(p(f'{k.libelle} : détail par entité', 'section'))
                 elements.append(tableau(['Entité', 'Valeur', 'Unité'],
                     [[e, nombre(v), k.unite] for e, v in res.synthese[k.code].items()], [6, 2, 2]))
     elements += _annexe(resultat.par_techno)
@@ -179,13 +179,13 @@ def pdf_evenement(analyse):
     for a in analyse.avertissements:
         elements.append(p(f'Avertissement : {a}'))
     for res in analyse.par_techno:
-        elements.append(p(f'{res.techno} — Synthèse événement / référence', 'section'))
+        elements.append(p(f'{res.techno} : Synthèse événement / référence', 'section'))
         elements.append(tableau(['Indicateur', 'Événement', 'Référence', 'Unité', 'Écart', 'Statut'],
             [[s.kpi.libelle + (' ≈' if s.kpi.qualite == 'approx' else ''), nombre(s.valeur), nombre(s.reference), s.kpi.unite,
               pourcentage(s.ecart_pct), s.statut.capitalize() or ('Sans données' if s.valeur is None else 'OK')]
              for s in res.synthese], [5, 1.6, 1.6, 1, 1.5, 1.5]))
         for c in res.courbes:
-            elements.append(KeepTogether([p(f'{res.techno} — {c.kpi.libelle} ({c.kpi.unite})', 'section'),
+            elements.append(KeepTogether([p(f'{res.techno} : {c.kpi.libelle} ({c.kpi.unite})', 'section'),
                 courbe(res.instants, [{'nom': 'Événement', 'valeurs': c.evenement},
                                      {'nom': 'Référence', 'valeurs': c.reference},
                                      {'nom': 'Réf. min', 'valeurs': c.ref_min}, {'nom': 'Réf. max', 'valeurs': c.ref_max}])]))

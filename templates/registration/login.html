@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block titre %}{% if acces_anonyme %}Accès administrateur{% else %}Connexion{% endif %} — Stats KPI réseau{% endblock %}
+{% block titre %}{% if acces_anonyme %}Accès administrateur{% else %}Connexion{% endif %} : Stats KPI réseau{% endblock %}
 {% block contenu %}
 <div class="connexion">
   {% if acces_anonyme %}<p><a href="{% url 'kpi:requete' %}">← Retour aux statistiques</a></p>{% endif %}

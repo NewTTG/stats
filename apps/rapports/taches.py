@@ -50,7 +50,7 @@ def generer(rapport_id: int):
         rapport.message = str(e) if rapport.utilisateur.is_staff else MESSAGE_BASE_INDISPONIBLE
     except (RequeteRefusee, AnalyseImpossible, Evenement.DoesNotExist) as e:
         rapport.statut, rapport.message = "erreur", str(e) or "Événement supprimé."
-    except Exception:  # noqa: BLE001 — les détails techniques restent dans les journaux
+    except Exception:  # noqa: BLE001 : les détails techniques restent dans les journaux
         log.exception("échec du rapport %s", rapport_id)
         rapport.statut, rapport.message = "erreur", "La génération a échoué. Réessayez ou contactez votre administrateur."
     rapport.termine_le = timezone.now()

@@ -46,7 +46,7 @@ def formater(v, unite: str, diviseur: float | None = None) -> tuple[str, str]:
     """(valeur lisible, unité) : « 1,2 » « To », « 99,63 » « % », « 12 450 » « appels »."""
     v = valeur(v)
     if v is None:
-        return "—", unite
+        return "N/D", unite
     if diviseur is None:
         diviseur, affichee = conversion(unite, v)
     else:

@@ -1,10 +1,10 @@
-# Stats — analyse KPI réseau (LTE / WCDMA)
+# Stats : analyse KPI réseau (LTE / WCDMA)
 
 Application web interne de statistiques de trafic et de qualité radio, avec périmètre
 de données par utilisateur et exports Excel / PowerPoint. Cahier des charges :
 [`brief_app_kpi_reseau.md`](brief_app_kpi_reseau.md).
 
-**État : phase 2 + recherche en langage libre + rapports enregistrés et planifiés** — phase 1
+**État : phase 2 + recherche en langage libre + rapports enregistrés et planifiés** : phase 1
 (référentiel, catalogue KPI, moteur de calcul, périmètres d'accès, export Excel) + événements
 avec détection d'anomalies, rapports PowerPoint / Excel en tâche de fond, KPI WCDMA, seuils
 réglables dans l'admin ; barre de recherche en langage libre (règles locales, IA facultative) ;
@@ -37,13 +37,13 @@ python manage.py createsuperuser
 
 # 4. Chargement du référentiel + cellules : avec la base KPI (toutes les cellules de l'historique)…
 python manage.py import_referentiel OPT_Network_Database_V2.xlsx --cellules-kpi
-#    … ou, sans accès à la base KPI, cellules lues dans les extraits CSV — sur une seule ligne
+#    … ou, sans accès à la base KPI, cellules lues dans les extraits CSV : sur une seule ligne
 python manage.py import_referentiel OPT_Network_Database_V2.xlsx --cellules lte_cell_hour.csv lte_cell_day.csv wcdma_cell_hour.csv wcdma_cell_day.csv
 
 # 4 bis. Avec la base KPI : date de passage de 3 à 4 secteurs des sites concernés (DTS009, MDO355…)
 python manage.py detecter_bascules --enregistrer
 
-# 5. (une fois) Événements initiaux depuis l'onglet Cluster — créneaux à renseigner ensuite dans l'admin
+# 5. (une fois) Événements initiaux depuis l'onglet Cluster : créneaux à renseigner ensuite dans l'admin
 python manage.py import_clusters OPT_Network_Database_V2.xlsx
 
 # 5 bis. Sans accès à la base KPI : données de démonstration (≈ 20 s, ≈ 650 Mo dans data/)
@@ -170,7 +170,7 @@ et redémarrer l’application et le worker. En déploiement, exécuter aussi
 ### Ce que l'on peut faire aujourd'hui
 
 - **Rapports types** (page d'accueil, http://localhost:8000) : les demandes habituelles sans
-  phrase à écrire, en trois choix — **quel rapport** (carte), **où** (vide = tout le réseau ;
+  phrase à écrire, en trois choix : **quel rapport** (carte), **où** (vide = tout le réseau ;
   commune(s), province, site, événement, avec suggestions), **quand** (hier, 7 derniers jours,
   semaine dernière, ce mois-ci, mois dernier, 30 derniers jours ou dates précises) ; options
   repliées : détail temporel, regroupement (par commune, site…), heures.
@@ -305,7 +305,7 @@ quelque chose, elle pose une question avec des réponses en un clic.
   jamais pris pour un lieu. « comparaison », « comparer », « vs » ou plusieurs communes
   citées → résultat par commune.
 - **Lieux** : communes (accents et tirets tolérés), régions / provinces, codes et noms de
-  site, trigrammes, secteurs, cellules, événements — limités au périmètre de l'utilisateur
+  site, trigrammes, secteurs, cellules, événements : limités au périmètre de l'utilisateur
   (un lecteur restreint ne se voit proposer aucun lieu hors de son périmètre). Provinces
   lues avant le vocabulaire : « Province Sud » = toutes ses communes, Grand Nouméa compris ;
   « Province Nord », « Province des Îles » ; « sud » seul garde le sens « Sud (hors Grand

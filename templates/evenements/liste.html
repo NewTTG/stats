@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block titre %}Événements — Stats réseau{% endblock %}
+{% block titre %}Événements : Stats réseau{% endblock %}
 {% block contenu %}
 <div class="entete-page">
   <div>
@@ -20,7 +20,7 @@
   <div class="table-defil"><table class="liste-evenements">
     <thead><tr><th scope="col">Événement</th><th scope="col">Type</th><th scope="col">Premier créneau</th><th scope="col">Créneaux</th></tr></thead>
     <tbody>{% for e in evenements %}
-      <tr><td><a href="{% url 'evenements:detail' e.pk %}">{{ e.nom }}</a></td><td>{{ e.type|default:"—" }}</td>
+      <tr><td><a href="{% url 'evenements:detail' e.pk %}">{{ e.nom }}</a></td><td>{{ e.type|default:"Non renseigné" }}</td>
         <td>{{ e.debut|date:"d/m/Y H:i" }}</td><td class="nombre">{{ e.nb_creneaux }}</td></tr>
     {% endfor %}</tbody>
   </table></div>

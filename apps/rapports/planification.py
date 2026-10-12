@@ -29,7 +29,7 @@ def lancer_planifie(plan: RapportPlanifie, maintenant: datetime | None = None) -
     maintenant = maintenant or timezone.now()
     requete, libelle = requete_du(plan, timezone.localtime(maintenant).date())
     rapport = Rapport.objects.create(
-        utilisateur=plan.utilisateur, titre=f"{plan.titre} — {libelle}"[:200], nature="requete", format=plan.format,
+        utilisateur=plan.utilisateur, titre=f"{plan.titre} : {libelle}"[:200], nature="requete", format=plan.format,
         parametres={"requete": requete.model_dump(mode="json")}, planification=plan)
     plan.dernier_lancement = maintenant
     plan.save(update_fields=["dernier_lancement"])
@@ -47,7 +47,7 @@ def lancer_dus(maintenant: datetime | None = None) -> int:
         plan.save(update_fields=["prochain_lancement"])
         try:
             rapport = lancer_planifie(plan, maintenant)
-        except Exception:  # noqa: BLE001 — un rapport en échec ne bloque pas les suivants
+        except Exception:  # noqa: BLE001 : un rapport en échec ne bloque pas les suivants
             log.exception("échec du lancement du rapport planifié %s", plan.pk)
             continue
         if rapport.statut != "erreur":

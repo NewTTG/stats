@@ -80,7 +80,7 @@ def d(texte):
     return date(int(annee[0]) if annee else 2026, int(mois), int(jour))
 
 
-# (phrase, attendu) — seules les clés indiquées sont vérifiées.
+# (phrase, attendu) : seules les clés indiquées sont vérifiées.
 #   techno, kpis (liste exacte), kpis_inclus, perimetre (type, valeurs), periode (début, fin),
 #   gt / ge (granularités), fenetre, questions (champs), non_compris, note (extrait d'une note)
 CAS = [
@@ -269,7 +269,7 @@ def test_puces(ctx):
 
 def test_normalisation():
     assert normaliser("L'Île-des-Pins à Nouméa, 18h-22h !") == "l ile des pins a noumea 18h-22h"
-    assert normaliser("Mont-Dore — avant-hier") == "mont dore avant hier"
+    assert normaliser("Mont-Dore \u2014 avant-hier") == "mont dore avant hier"
 
 
 def test_lecteur_restreint_sans_fuite_de_lieux(ref_recherche):

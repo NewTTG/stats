@@ -28,7 +28,7 @@ class SeuilKpiAdmin(admin.ModelAdmin):
 
     @admin.display(description="libellé")
     def libelle(self, obj):
-        return k.libelle if (k := self._kpi(obj)) else "— absent du catalogue —"
+        return k.libelle if (k := self._kpi(obj)) else "Absent du catalogue"
 
     @admin.display(description="techno")
     def techno(self, obj):

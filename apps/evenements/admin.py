@@ -89,7 +89,7 @@ class EvenementAdmin(admin.ModelAdmin):
     @admin.display(description="premier créneau")
     def premier_creneau(self, obj):
         creneaux = list(obj.creneaux.all())
-        return creneaux[0] if creneaux else "— à compléter —"
+        return creneaux[0] if creneaux else "À compléter"
 
     @admin.display(description="créneaux")
     def nb_creneaux(self, obj):
@@ -98,12 +98,12 @@ class EvenementAdmin(admin.ModelAdmin):
     @admin.display(description="cellules retenues")
     def resolution(self, obj):
         if not obj.pk:
-            return "—"
+            return "N/D"
         lte, wcdma = obj.noms_cellules("LTE"), obj.noms_cellules("WCDMA")
         texte = f"{len(lte)} LTE, {len(wcdma)} WCDMA"
         inconnues = obj.cellules_inconnues()
         if inconnues:
-            texte += f" — absentes du référentiel : {', '.join(inconnues)}"
+            texte += f" : absentes du référentiel : {', '.join(inconnues)}"
         return texte
 
 

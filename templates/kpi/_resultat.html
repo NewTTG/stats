@@ -86,7 +86,7 @@
   <div class="classements">
     {% for cl in bloc.classement %}
     <div class="carte">
-      <h3>{{ cl.titre }} — {{ cl.kpi.libelle }}</h3>
+      <h3>{{ cl.titre }} : {{ cl.kpi.libelle }}</h3>
       <table class="classement">
         <tbody>
           {% for l in cl.lignes %}
@@ -96,7 +96,7 @@
           {% endfor %}
         </tbody>
       </table>
-      {% if cl.total > cl.lignes|length %}<p class="aide">{{ cl.lignes|length }} premiers sur {{ cl.total }} — liste complète dans le tableau détaillé.</p>{% endif %}
+      {% if cl.total > cl.lignes|length %}<p class="aide">{{ cl.lignes|length }} premiers sur {{ cl.total }}. La liste complète figure dans le tableau détaillé.</p>{% endif %}
     </div>
     {% endfor %}
   </div>

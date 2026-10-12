@@ -76,12 +76,12 @@ def charte_du_theme(xml: bytes) -> Charte:
 
 def nombre(v, decimales=2) -> str:
     if v is None or (isinstance(v, float) and math.isnan(v)):
-        return "—"
+        return "N/D"
     return f"{v:,.{decimales}f}".replace(",", " ").replace(".", ",")
 
 
 def pourcentage(v) -> str:
-    return "—" if v is None else f"{v:+.1f} %".replace(".", ",").replace("-", "−")
+    return "N/D" if v is None else f"{v:+.1f} %".replace(".", ",").replace("-", "−")
 
 
 def _rgb(hexa: str) -> RGBColor:

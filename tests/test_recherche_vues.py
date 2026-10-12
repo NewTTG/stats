@@ -211,4 +211,4 @@ def test_enregistrer_depuis_un_resultat(admin, base_recherche):
     params = [(m[1], html_lib.unescape(m[2])) for m in re.finditer(r'name="([^"]+)" value="([^"]*)"', champs)]
     page = _html(admin.get("/rapports/enregistrer/?" + urlencode(params)))
     assert re.search(r'<option value="semaine_derniere" selected>', page)
-    assert 'value="KPI WCDMA — NOUMEA"' in page
+    assert 'value="KPI WCDMA : NOUMEA"' in page

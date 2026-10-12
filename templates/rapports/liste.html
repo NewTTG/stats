@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block titre %}Mes rapports — Stats réseau{% endblock %}
+{% block titre %}Mes rapports : Stats réseau{% endblock %}
 {% block entete %}{% if rafraichir %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
 {% block contenu %}
 <div class="entete-page">
@@ -28,7 +28,7 @@
     <tbody>{% for p in planifies %}
       <tr><td class="texte">{{ p.titre }}</td><td>{{ p.get_periode_display }}</td><td>{{ p.get_format_display }}</td>
         <td>{{ p.description_frequence }}{% if p.planifie and not p.actif %} <span class="etiquette alerte">Suspendu</span>{% endif %}</td>
-        <td>{% if p.prochain_lancement %}{{ p.prochain_lancement|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
+        <td>{% if p.prochain_lancement %}{{ p.prochain_lancement|date:"d/m/Y H:i" }}{% else %}Non prévu{% endif %}</td>
         <td><div class="actions-ligne">
           {% with lien=p.lien_ecran %}{% if lien %}<a class="bouton secondaire petit" href="{{ lien }}" title="Afficher à l'écran sur la période {{ p.get_periode_display|lower }}">Afficher</a>{% endif %}{% endwith %}
           <form method="post" action="{% url 'rapports:planifie_lancer' p.pk %}">{% csrf_token %}<button class="bouton petit" type="submit" title="Générer le fichier {{ p.get_format_display }} maintenant">Générer</button></form>

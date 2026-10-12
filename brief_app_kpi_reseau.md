@@ -1,4 +1,4 @@
-# Brief projet — Application web d'analyse KPI réseau (OPT-NC)
+# Brief projet : Application web d'analyse KPI réseau (OPT-NC)
 
 > Brief destiné à Claude Code. Les éléments entre `[[...]]` sont à compléter avant lancement.
 > Avant d'écrire du code : lis ce document en entier, explore le schéma PostgreSQL (lecture seule), puis propose un plan et pose tes questions sur les points marqués « À confirmer ».
@@ -20,12 +20,12 @@ Cas d'usage types :
 
 ## 2. Stack technique
 
-- **Backend : Python 3.12 + Django 5** (auth, utilisateurs, groupes, permissions et interface d'admin intégrés — utile pour gérer le référentiel et les événements sans développer d'écrans)
+- **Backend : Python 3.12 + Django 5** (auth, utilisateurs, groupes, permissions et interface d'admin intégrés : utile pour gérer le référentiel et les événements sans développer d'écrans)
 - **Front : templates Django + HTMX + Alpine.js** (pas de SPA)
 - **Graphiques : Apache ECharts** (séries temporelles, heatmaps heure × jour)
 - **Données : pandas** pour les calculs ; **SQLAlchemy / psycopg 3** pour lire la base KPI
 - **Exports : python-pptx** (PowerPoint), **openpyxl** (Excel)
-- **Tâches longues (génération de rapports) :** Celery + Redis, ou django-q2 si on veut éviter Redis — [[À confirmer selon l'infra]]
+- **Tâches longues (génération de rapports) :** Celery + Redis, ou django-q2 si on veut éviter Redis : [[À confirmer selon l'infra]]
 - **Déploiement :** Docker Compose (app + base applicative + worker), derrière un reverse proxy (nginx), serveur interne [[nom/OS du serveur]]
 - **Tests :** pytest + pytest-django ; jeux de données de test synthétiques (pas de données réelles dans le dépôt)
 
@@ -40,7 +40,7 @@ Secrets dans des variables d'environnement (`.env` non versionné, `.env.example
 ## 3. Données sources
 
 ### 3.1 Tables KPI (PostgreSQL)
-- LTE : `[[nom table/vue LTE horaire]]` — granularité `[[horaire / 15 min]]`, clé cellule `[[colonne]]`, horodatage `[[colonne]]`
+- LTE : `[[nom table/vue LTE horaire]]` : granularité `[[horaire / 15 min]]`, clé cellule `[[colonne]]`, horodatage `[[colonne]]`
 - WCDMA : `[[nom table/vue WCDMA horaire]]`
 - Vues existantes réutilisables : `vw_calendar_hour`, vues LTE/WCDMA mensuelles, vue de remapping des noms de cellules WCDMA
 
@@ -59,7 +59,7 @@ Colonnes : `[[liste des colonnes]]`
 - historisation : chaque import est versionné (date, auteur, nb de lignes, diff ajouts/suppressions)
 - upload possible depuis l'admin Django
 
-**Plus tard — SharePoint :** prévoir une interface `ReferentielSource` avec une implémentation `FichierLocal` (MVP) et une implémentation `SharePointGraph` (Microsoft Graph API, app registration Entra ID en client credentials, permission `Sites.Selected` sur le seul site concerné). Synchronisation planifiée (quotidienne). Ne pas implémenter SharePoint dans le MVP, seulement l'interface.
+**Plus tard : SharePoint :** prévoir une interface `ReferentielSource` avec une implémentation `FichierLocal` (MVP) et une implémentation `SharePointGraph` (Microsoft Graph API, app registration Entra ID en client credentials, permission `Sites.Selected` sur le seul site concerné). Synchronisation planifiée (quotidienne). Ne pas implémenter SharePoint dans le MVP, seulement l'interface.
 
 ---
 
@@ -81,7 +81,7 @@ Les KPI sont définis **dans un fichier de configuration (YAML) versionné**, pa
 ```
 
 Catégories minimales : **débit** (DL/UL), **trafic** (volume, utilisateurs RRC), **accessibilité** (RRC/ERAB setup success), **retainability / drop** (ERAB drop rate, call drop 3G), **congestion / charge** (PRB DL utilisation, rejets), **mobilité** (HO success), **disponibilité** cellule.
-Formules exactes : `[[à fournir — lexiques KPI LTE et WCDMA existants]]`
+Formules exactes : `[[à fournir : lexiques KPI LTE et WCDMA existants]]`
 
 ### Règle d'agrégation (critique)
 Toujours agréger en **ratio de sommes**, jamais en moyenne de ratios :
@@ -152,7 +152,7 @@ Modèle : `Perimetre` (ensemble de communes / sites / cellules) rattaché à un 
 Règles :
 - Le filtrage par périmètre est fait **côté serveur** dans la couche d'accès aux données, une seule fonction centrale, couverte par des tests (un lecteur restreint ne doit jamais obtenir une cellule hors périmètre, même en forgeant la requête)
 - Journal d'audit : qui a demandé quoi, quand
-- Authentification : comptes Django pour le MVP ; prévoir SSO **[[AD/LDAP ou Entra ID OIDC — à confirmer avec la DSI]]** (django-auth-ldap ou mozilla-django-oidc)
+- Authentification : comptes Django pour le MVP ; prévoir SSO **[[AD/LDAP ou Entra ID OIDC : à confirmer avec la DSI]]** (django-auth-ldap ou mozilla-django-oidc)
 
 ---
 
@@ -184,7 +184,7 @@ Dans les deux cas : le formulaire pré-rempli est affiché pour validation avant
 
 ## 10. Performance
 
-- Index sur (cellule, horodatage) sur les tables sources si absents — **proposer** les index, ne pas les créer sans accord (base partagée)
+- Index sur (cellule, horodatage) sur les tables sources si absents : **proposer** les index, ne pas les créer sans accord (base partagée)
 - Agrégats journaliers par cellule (numérateurs/dénominateurs) en vues matérialisées ou tables d'agrégats dans la base applicative, rafraîchis quotidiennement
 - Cache des résultats de requêtes identiques (clé = hash de la requête §5 + périmètre)
 - Objectif : réponse < 5 s pour une commune sur un mois en granularité jour

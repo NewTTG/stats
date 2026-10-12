@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block titre %}{% if titre %}{{ titre }} — {% elif q %}{{ q }} — {% endif %}Stats réseau{% endblock %}
+{% block titre %}{% if titre %}{{ titre }} : {% elif q %}{{ q }} : {% endif %}Stats réseau{% endblock %}
 
 {% block recherche_entete %}
 {% if mode != "accueil" %}{% include "kpi/_barre.html" with classe="entete-recherche" suffixe="-haut" entete=True %}{% endif %}

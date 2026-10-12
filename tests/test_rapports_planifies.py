@@ -79,7 +79,7 @@ def test_lancer_dus(referentiel, analyste, worker):  # noqa: F811
     assert lancer_dus(maintenant) == 1
     rapport = Rapport.objects.get()
     assert (rapport.planification, rapport.statut, rapport.format) == (du, "termine", "xlsx")
-    assert rapport.titre == "Hebdo Nouméa — Hier, 02/09/2026-02/09/2026"
+    assert rapport.titre == "Hebdo Nouméa : Hier, 02/09/2026-02/09/2026"
     assert rapport.parametres["requete"]["periode"] == {"debut": "2026-09-02", "fin": "2026-09-02"}
     wb = load_workbook(BytesIO(rapport.fichier.read()))
     assert wb.sheetnames
@@ -114,7 +114,7 @@ def _champs_requete():
 def test_ecran_enregistrer(client_analyste, referentiel):  # noqa: F811
     html = client_analyste.get("/rapports/enregistrer/", _champs_requete()).content.decode()
     assert "Enregistrer un rapport" in html
-    assert 'value="KPI LTE — réseau"' in html
+    assert 'value="KPI LTE : réseau"' in html
 
 
 def test_enregistrer_puis_lancer(client_analyste, analyste, referentiel, worker):  # noqa: F811

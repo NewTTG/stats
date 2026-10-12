@@ -1,4 +1,4 @@
-# Catalogue KPI — versionné. Ajouter un KPI = ajouter une entrée (voir README).
+# Catalogue KPI : versionné. Ajouter un KPI = ajouter une entrée (voir README).
 #
 # numerateur / denominateur : expressions pandas (DataFrame.eval) sur les colonnes
 # des tables source. Le moteur somme numérateurs et dénominateurs sur le périmètre
@@ -24,7 +24,7 @@
 #   approx      pondération de substitution : à remplacer par les compteurs bruts
 #               dès que le lexique KPI est fourni (cf. docs/questions.md)
 #
-# Les seuils sont provisoires (valeurs d'exemple du brief) — à valider.
+# Les seuils sont provisoires (valeurs d'exemple du brief) : à valider.
 
 kpis:
   # ---------------------------------------------------------------- LTE

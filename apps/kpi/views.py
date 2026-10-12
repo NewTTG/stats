@@ -270,11 +270,11 @@ def _periode_courte(interp) -> str:
 
 
 def _entete_resultat(interp) -> dict:
-    """Titre (indicateurs — lieu) et sous-titre (période, détail) de la page de résultat."""
+    """Titre (indicateurs : lieu) et sous-titre (période, détail) de la page de résultat."""
     kpis, lieu, periode, temps = (interp.puce(c) for c in ("kpis", "perimetre", "periode", "granularite_temps"))
     titre = kpis.libelle if kpis else "Précisez votre demande"
     if kpis and lieu:
-        titre += f" — {lieu.libelle}"
+        titre += f" : {lieu.libelle}"
     sous_titre = " · ".join(x for x in (periode.libelle if periode else "", temps.libelle if temps else "") if x)
     return {"titre": titre, "sous_titre": sous_titre}
 
@@ -396,7 +396,7 @@ def requete(request):
             except ValidationError as e:
                 ctx["erreur"] = _message_validation(e)
         else:
-            ctx["erreur"] = "Paramètres de recherche invalides — " + " ; ".join(
+            ctx["erreur"] = "Paramètres de recherche invalides : " + " ; ".join(
                 f"{form.fields[c].label} : {' '.join(e.rstrip('.') for e in erreurs)}" if c in form.fields
                 else " ".join(e.rstrip(".") for e in erreurs) for c, erreurs in form.errors.items()) + "."
     else:
@@ -444,7 +444,7 @@ def requete(request):
             ctx["requete"] = req
             if not interp:  # ancien formulaire : lieu et période dans l'en-tête
                 lieu = ", ".join(req.perimetre.valeurs) or "tout le réseau autorisé"
-                ctx["titre"] = f"Indicateurs sélectionnés — {lieu}"
+                ctx["titre"] = f"Indicateurs sélectionnés : {lieu}"
                 ctx["sous_titre"] = f"Du {req.periode.debut:%d/%m/%Y} au {req.periode.fin:%d/%m/%Y}"
             nombre = interp.demande.classement_nombre if interp and interp.demande else None
             ctx["blocs"] = affichage.blocs(resultat, nombre)

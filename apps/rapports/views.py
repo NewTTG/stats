@@ -31,7 +31,7 @@ def _requete(donnees, user) -> RequeteKpi | None:
 
 
 def _titre(req: RequeteKpi) -> str:
-    return f"KPI {'/'.join(req.techno)} — {', '.join(req.perimetre.valeurs) or 'réseau'}"
+    return f"KPI {'/'.join(req.techno)} : {', '.join(req.perimetre.valeurs) or 'réseau'}"
 
 
 @login_required
@@ -45,7 +45,7 @@ def rapport_requete(request):
     if req is None:
         messages.error(request, "Impossible de créer le rapport : paramètres de requête invalides.")
         return redirect("kpi:requete")
-    titre = f"{_titre(req)} — {req.periode.debut:%d/%m/%Y}-{req.periode.fin:%d/%m/%Y}"
+    titre = f"{_titre(req)} : {req.periode.debut:%d/%m/%Y}-{req.periode.fin:%d/%m/%Y}"
     rapport = Rapport.objects.create(utilisateur=request.user, titre=titre[:200], nature="requete", format=fmt,
                                      parametres={"requete": req.model_dump(mode="json")})
     if lancer(rapport):
@@ -64,7 +64,7 @@ def rapport_evenement(request, pk):
     if niveau not in NIVEAUX or fmt not in dict(Rapport.FORMATS):
         raise Http404
     rapport = Rapport.objects.create(
-        utilisateur=request.user, titre=f"{evenement.nom} — par {niveau}"[:200], nature="evenement", format=fmt,
+        utilisateur=request.user, titre=f"{evenement.nom} : par {niveau}"[:200], nature="evenement", format=fmt,
         parametres={"evenement": evenement.pk, "niveau": niveau})
     if lancer(rapport):
         messages.success(request, f"Rapport {rapport.get_format_display()} en cours de génération.")

@@ -1,4 +1,4 @@
-# Contrôle des endpoints — 12 octobre 2026
+# Contrôle des endpoints : 12 octobre 2026
 
 Contrôle effectué sur la version intégrant l'interface et les rapports PDF de `main`
 (commit `4d3843e`), avec le cache des recherches et les corrections ci-dessous.

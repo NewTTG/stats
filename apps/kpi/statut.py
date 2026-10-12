@@ -4,7 +4,7 @@ from .catalogue import DefinitionKpi
 
 
 def statut(kpi: DefinitionKpi, valeur: float | None) -> str:
-    """'' (normal), 'alerte' ou 'critique' — voir ``DefinitionKpi.statut``.
+    """'' (normal), 'alerte' ou 'critique' : voir ``DefinitionKpi.statut``.
 
     Les seuils sont ceux de ``kpi`` : passer une définition issue de ``catalogue()``
     pour tenir compte des réglages faits dans l'admin.

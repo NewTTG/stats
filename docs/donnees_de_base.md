@@ -1,4 +1,4 @@
-# Données de base — appels, SMS, coupures, accès
+# Données de base : appels, SMS, coupures, accès
 
 Ce que l'on peut répondre aux questions courantes (« combien d'appels », « le drop 3G »,
 « pourquoi ça coupe », « le taux d'accès 4G »…) avec les colonnes des tables KPI, et avec quelle
@@ -42,7 +42,7 @@ faute du vrai dénominateur.
 Chaque cause est un KPI (`decomposition_de` = KPI parent), avec la **même pondération** que
 le parent : la part de chaque cause s'additionne.
 
-**4G** (`lte_erab_drop`) — vérifié : `ErabDropRate_p = ErabDropRateEnb_p + ErabDropRateMme_p`
+**4G** (`lte_erab_drop`) : vérifié : `ErabDropRate_p = ErabDropRateEnb_p + ErabDropRateMme_p`
 (écart nul) et Σ causes eNB = `ErabDropRateEnb_p` (écart max 0,01). Les causes **somment
 exactement** au taux de drop.
 
@@ -56,7 +56,7 @@ exactement** au taux de drop.
 | `lte_drop_preemption` | préemption (haute priorité + standard) | `ErabDropEnbHpr_p + ErabDropEnbPe_p` |
 | `lte_drop_licence` | limite de licence | `ErabDropEnbLic_p` |
 
-**3G voix** (`wcdma_cs_drop`) — les causes publiées n'expliquent qu'**environ la moitié** des
+**3G voix** (`wcdma_cs_drop`) : les causes publiées n'expliquent qu'**environ la moitié** des
 coupures (54 % sur l’extrait journalier). Le reste est affiché **« non ventilé »** (= total −
 Σ causes) ; il n'est pas réparti.
 
