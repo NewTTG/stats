@@ -22,10 +22,10 @@ def secteurs_a_la_date(techno: str, jour: date | None = None) -> dict[str, str |
             for nom, code, avant, bascule in _lignes(techno)}
 
 
-def secteur_par_ligne(df: pd.DataFrame, techno: str) -> pd.Series:
+def secteur_par_ligne(df: pd.DataFrame, techno: str, *, lignes=None) -> pd.Series:
     """Code du secteur de chaque ligne (``cellule``, ``horodatage``) d'une lecture KPI."""
     actuels, avants, bascules = {}, {}, {}
-    for nom, code, avant, bascule in _lignes(techno):
+    for nom, code, avant, bascule in (_lignes(techno) if lignes is None else lignes):
         actuels[nom] = code
         if avant and bascule:
             avants[nom], bascules[nom] = avant, pd.Timestamp(bascule)

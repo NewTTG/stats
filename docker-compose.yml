@@ -13,12 +13,14 @@ services:
     env_file: .env
     environment:
       APP_DB_HOST: db
+      KPI_CACHE_DIR: /app/cache_kpi
     depends_on:
       - db
     ports:
       - "8000:8000"
     volumes:
       - media:/app/media
+      - cache_kpi:/app/cache_kpi
     command: sh -c "python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"
 
   # Génération des rapports en tâche de fond (django-q2, file d'attente dans la base).
@@ -27,12 +29,15 @@ services:
     env_file: .env
     environment:
       APP_DB_HOST: db
+      KPI_CACHE_DIR: /app/cache_kpi
     depends_on:
       - app
     volumes:
       - media:/app/media
+      - cache_kpi:/app/cache_kpi
     command: python manage.py qcluster
 
 volumes:
   db_data:
   media:
+  cache_kpi:

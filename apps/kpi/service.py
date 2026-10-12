@@ -9,12 +9,13 @@ from django.db.models import Q
 
 from apps.comptes.acces import cellules_autorisees, kpis_autorises
 from apps.referentiel.models import Cellule
-from apps.referentiel.secteurs import cellules_des_secteurs, secteur_par_ligne
+from apps.referentiel.secteurs import cellules_des_secteurs, secteur_par_ligne, _lignes
 
 from .catalogue import DefinitionKpi, catalogue
-from .moteur import agreger, ratios_simples
+from .moteur import agreger, composantes, ratios_simples
+from .cache import memoriser
 from .requete import RequeteKpi
-from .source import lire
+from .source import lire, identite_source
 
 NON_RATTACHEE = "(non rattachée)"
 # Bornes de période : au-delà, message clair plutôt qu'une lecture démesurée (ou une erreur).
@@ -179,43 +180,72 @@ def executer(requete: RequeteKpi, user, engine) -> Resultat:
             resultat.avertissements.append(f"{techno} : aucune cellule accessible dans ce périmètre.")
             continue
 
-        df = lire(engine, techno, resolution, colonnes_utilisees(kpis),
-                  requete.periode.debut, requete.periode.fin, cellules)
-        if requete.perimetre.type == "secteur":
-            df = df[secteur_par_ligne(df, techno).isin(requete.perimetre.valeurs).to_numpy()]
-        couverture = couverture_donnees(df, requete.periode.debut, requete.periode.fin)
-        if couverture:
-            resultat.avertissements.append(f"{techno} : {couverture}")
-        df = _fenetre(df, requete.fenetre_horaire)
+        # Les droits et le référentiel sont relus AVANT chaque accès au cache.
+        # La clé contient le périmètre effectif, jamais seulement le texte de recherche.
+        correspondance = _entites(techno, requete.granularite_espace)
+        secteurs = (list(_lignes(techno)) if requete.perimetre.type == "secteur"
+                    or requete.granularite_espace == "secteur" else [])
+        source = identite_source(engine)
+        cle = {
+            "source": source, "techno": techno, "resolution": resolution,
+            "debut": requete.periode.debut, "fin": requete.periode.fin,
+            "temps": requete.granularite_temps, "espace": requete.granularite_espace,
+            "fenetre": requete.fenetre_horaire,
+            "secteurs_filtres": (sorted(set(requete.perimetre.valeurs))
+                                 if requete.perimetre.type == "secteur" else []),
+            "cellules": sorted(set(cellules)) if cellules is not None else None,
+            "kpis": [k.model_dump() for k in kpis],
+            "composants": [k.model_dump() for k in ratios_simples(kpis)],
+            "correspondance": correspondance, "secteurs": sorted(secteurs),
+        }
+        def calculer():
+            return _calculer_techno(requete, techno, resolution, kpis, cellules,
+                                   engine, correspondance, secteurs)
 
-        sans_donnees = sorted(set(cellules) - set(df["cellule"])) if cellules is not None else []
-
-        df = df.assign(periode=_periode(df["horodatage"], requete.granularite_temps))
-        if requete.granularite_espace == "global":
-            df = df.assign(entite="Global")
-        elif requete.granularite_espace == "cellule":
-            df = df.assign(entite=df["cellule"])
-        elif requete.granularite_espace == "secteur":
-            df = df.assign(entite=secteur_par_ligne(df, techno).fillna(NON_RATTACHEE))
-        else:
-            correspondance = _entites(techno, requete.granularite_espace)
-            df = df.assign(entite=df["cellule"].map(correspondance).fillna(NON_RATTACHEE))
-
-        codes = [k.code for k in kpis]
-        if len(df):
-            table = agreger(df, kpis, par=["periode", "entite"])[codes]
-            synthese = agreger(df, kpis, par=["entite"])[codes]
-            globale = agreger(df, kpis, par=[])[codes].iloc[0].to_dict()
-        else:
-            table = synthese = pd.DataFrame(columns=codes)
-            globale = dict.fromkeys(codes, float("nan"))
-        resultat.par_techno.append(ResultatTechno(
-            techno=techno,
-            kpis=kpis,
-            table=table,
-            cellules_demandees=len(cellules) if cellules is not None else df["cellule"].nunique(),
-            cellules_sans_donnees=sans_donnees,
-            synthese=synthese,
-            synthese_globale=globale,
-        ))
+        res, avertissements = memoriser("resultat", cle, calculer, actif=source is not None)
+        resultat.par_techno.append(res)
+        resultat.avertissements.extend(avertissements)
     return resultat
+
+
+def _calculer_techno(requete, techno, resolution, kpis, cellules, engine, correspondance, secteurs):
+    avertissements = []
+    df = lire(engine, techno, resolution, colonnes_utilisees(kpis),
+              requete.periode.debut, requete.periode.fin, cellules)
+    if requete.perimetre.type == "secteur":
+        df = df[secteur_par_ligne(df, techno, lignes=secteurs).isin(requete.perimetre.valeurs).to_numpy()]
+    couverture = couverture_donnees(df, requete.periode.debut, requete.periode.fin)
+    if couverture:
+        avertissements.append(f"{techno} : {couverture}")
+    df = _fenetre(df, requete.fenetre_horaire)
+
+    sans_donnees = sorted(set(cellules) - set(df["cellule"])) if cellules is not None else []
+
+    df = df.assign(periode=_periode(df["horodatage"], requete.granularite_temps))
+    if requete.granularite_espace == "global":
+        df = df.assign(entite="Global")
+    elif requete.granularite_espace == "cellule":
+        df = df.assign(entite=df["cellule"])
+    elif requete.granularite_espace == "secteur":
+        df = df.assign(entite=secteur_par_ligne(df, techno, lignes=secteurs).fillna(NON_RATTACHEE))
+    else:
+        df = df.assign(entite=df["cellule"].map(correspondance).fillna(NON_RATTACHEE))
+
+    codes = [k.code for k in kpis]
+    if len(df):
+        comp = composantes(df, kpis)
+        table = agreger(df, kpis, par=["periode", "entite"], comp=comp)[codes]
+        synthese = agreger(df, kpis, par=["entite"], comp=comp)[codes]
+        globale = agreger(df, kpis, par=[], comp=comp)[codes].iloc[0].to_dict()
+    else:
+        table = synthese = pd.DataFrame(columns=codes)
+        globale = dict.fromkeys(codes, float("nan"))
+    return ResultatTechno(
+        techno=techno,
+        kpis=kpis,
+        table=table,
+        cellules_demandees=len(cellules) if cellules is not None else df["cellule"].nunique(),
+        cellules_sans_donnees=sans_donnees,
+        synthese=synthese,
+        synthese_globale=globale,
+    ), avertissements
