@@ -17,6 +17,7 @@ def test_dashboard_respecte_perimetre(referentiel, base_kpi, lecteur_paita, monk
     assert len(d['cartes']) == 1
     assert d['cartes'][0]['texte'] == '100,00'
     assert d['graphiques'][0]['valeurs'] == [100, 100]
+    assert d['graphiques'][0]['periodes_cles'] == ['2026-09-02T00:00:00', '2026-09-02T19:00:00']
     assert d['fin'] == date(2026, 9, 2)
 
 

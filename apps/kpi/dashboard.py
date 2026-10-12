@@ -73,6 +73,7 @@ def construire(user, aujourd_hui, selection="hier"):
             diviseur, unite_graphe = conversion(k.unite, v)
             ctx["graphiques"].append({"code": code, "titre": titre, "unite": unite_graphe,
                 "periodes": [p.strftime("%d/%m" if selection == "7j" else "%H:%M") for p in serie.index],
+                "periodes_cles": [p.isoformat() for p in serie.index],
                 "valeurs": [None if valeur(n) is None else float(n) / diviseur for n in serie[code]],
                 "lien": lien})
     if not ctx["cartes"]:

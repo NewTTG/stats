@@ -1,5 +1,5 @@
 /* Écran de recherche KPI : graphiques ECharts (servi localement) et confort des puces.
-   La page fonctionne sans JavaScript (formulaires GET) ; ce script n'ajoute que l'affichage graphique. */
+   La page fonctionne sans JavaScript (formulaires GET et tableaux). */
 (function () {
   "use strict";
 
@@ -7,6 +7,147 @@
   var PALETTE = ["#256b51", "#9abd87", "#527da7", "#7c3aed", "#c2410c", "#2563eb", "#be185d", "#4d7c0f",
                  "#0891b2", "#92400e", "#64748b", "#a21caf"];
   var graphiques = [];
+  var vues = [], periodeSelectionnee = null, popup = null, vuePopup = null;
+
+  /* Les clés ISO permettent de relier les heures malgré des libellés différents
+     (14h / 12/10 14h) et des périodes absentes dans une technologie. */
+  function mettreEnAvant(vue) {
+    if (!vue.cles.length) return;
+    var index = vue.cles.indexOf(periodeSelectionnee);
+    var actif = index >= 0;
+    var series = vue.option.series.map(function (s, i) {
+      var copie = Object.assign({}, s);
+      copie.lineStyle = Object.assign({}, s.lineStyle, { opacity: (s.lineStyle && s.lineStyle.opacity !== undefined ? s.lineStyle.opacity : 1) * (actif ? 0.3 : 1) });
+      copie.areaStyle = s.areaStyle ? Object.assign({}, s.areaStyle, { opacity: actif ? 0.2 : 1 }) : undefined;
+      copie.data = s.data.map(function (v, n) {
+        return { value: v, itemStyle: { opacity: actif && n !== index ? 0.25 : 1 } };
+      });
+      copie.markPoint = { silent: true, symbol: "circle", symbolSize: 10,
+        label: { show: false }, itemStyle: { opacity: 1, borderColor: "#fff", borderWidth: 2 },
+        data: actif && !s.silent && s.type === "line" && s.data[index] !== null ? [{ coord: [index, s.data[index]] }] : [] };
+      if (i === 0) {
+        copie.markLine = Object.assign({}, s.markLine, { silent: true, symbol: "none", label: { show: false },
+          data: (s.markLine ? s.markLine.data : []).concat(actif ? [{ xAxis: index,
+            lineStyle: { color: MARINE, width: 2, type: "solid", opacity: 0.65 } }] : []) });
+      }
+      return copie;
+    });
+    vue.g.setOption({ series: series });
+    vue.etat.textContent = actif ? "Période sélectionnée : " + vue.periodes[index] : "";
+    vue.reset.hidden = !periodeSelectionnee;
+  }
+
+  function selectionner(vue, index) {
+    var cle = vue.cles[index];
+    if (!cle) return;
+    periodeSelectionnee = periodeSelectionnee === cle ? null : cle;
+    vues.forEach(mettreEnAvant);
+    if (vuePopup) mettreEnAvant(vuePopup);
+  }
+
+  function commandes(vue, parent) {
+    var barre = document.createElement("div");
+    barre.className = "graphique-commandes";
+    vue.etat = document.createElement("span");
+    vue.etat.className = "graphique-selection";
+    vue.etat.setAttribute("role", "status");
+    barre.appendChild(vue.etat);
+    vue.reset = document.createElement("button");
+    vue.reset.type = "button";
+    vue.reset.className = "graphique-action";
+    vue.reset.textContent = "Effacer la sélection";
+    vue.reset.hidden = true;
+    vue.reset.addEventListener("click", function () {
+      periodeSelectionnee = null;
+      vues.forEach(mettreEnAvant);
+      if (vuePopup) mettreEnAvant(vuePopup);
+    });
+    barre.appendChild(vue.reset);
+    parent.appendChild(barre);
+    if (vue.cles.length) {
+      var label = document.createElement("label");
+      label.className = "graphique-periode";
+      label.appendChild(document.createTextNode("Mettre en avant une période "));
+      var select = document.createElement("select");
+      var vide = document.createElement("option");
+      vide.value = "";
+      vide.textContent = "Choisir…";
+      select.appendChild(vide);
+      vue.periodes.forEach(function (p, i) {
+        var o = document.createElement("option");
+        o.value = i;
+        o.textContent = p;
+        select.appendChild(o);
+      });
+      select.addEventListener("change", function () {
+        if (select.value !== "") selectionner(vue, Number(select.value));
+        select.value = "";
+      });
+      label.appendChild(select);
+      // Même interaction accessible au clavier, sans ouvrir la popup.
+      parent.appendChild(label);
+    }
+    return barre;
+  }
+
+  function interactions(vue, agrandir) {
+    vue.g.on("click", function (e) {
+      if (e.componentType === "xAxis" && vue.cles.length) {
+        selectionner(vue, vue.periodes.indexOf(e.value));
+      } else if (agrandir && (e.componentType === "title" || (!vue.cles.length && e.componentType === "series"))) {
+        ouvrirGraphique(vue);
+      }
+    });
+    vue.g.getZr().on("click", function (e) {
+      var point = [e.offsetX, e.offsetY];
+      if (vue.cles.length && vue.g.containPixel({ gridIndex: 0 }, point)) {
+        selectionner(vue, Math.round(vue.g.convertFromPixel({ xAxisIndex: 0 }, e.offsetX)));
+      } else if (agrandir && !e.target) {
+        ouvrirGraphique(vue);
+      }
+    });
+  }
+
+  function ouvrirGraphique(vue) {
+    if (!popup) {
+      popup = document.createElement("dialog");
+      popup.className = "graphique-popup";
+      popup.setAttribute("aria-labelledby", "titre-graphique-popup");
+      popup.innerHTML = '<div class="graphique-popup-entete"><h2 id="titre-graphique-popup"></h2>' +
+        '<button type="button" class="graphique-action" autofocus aria-label="Fermer le graphique agrandi">Fermer ×</button></div>' +
+        '<p class="aide">Cliquez sur une période pour la mettre en avant sur les graphiques.</p>' +
+        '<div class="graphique-popup-canvas" role="img"></div><div class="graphique-popup-pied"></div>';
+      document.body.appendChild(popup);
+      popup.querySelector("button").addEventListener("click", function () { popup.close(); });
+      popup.addEventListener("click", function (e) {
+        var r = popup.getBoundingClientRect();
+        if (e.target === popup && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) popup.close();
+      });
+      popup.addEventListener("close", function () {
+        if (vuePopup) {
+          var bouton = vuePopup.retour;
+          vuePopup.g.dispose();
+          vuePopup = null;
+          bouton.focus({ preventScroll: true });
+        }
+        document.body.classList.remove("graphique-popup-ouverte");
+      });
+    }
+    popup.querySelector("h2").textContent = vue.titre;
+    popup.querySelector(".aide").hidden = !vue.cles.length;
+    var div = popup.querySelector(".graphique-popup-canvas");
+    div.setAttribute("aria-label", vue.titre + " : graphique agrandi");
+    var pied = popup.querySelector(".graphique-popup-pied");
+    pied.replaceChildren();
+    document.body.classList.add("graphique-popup-ouverte");
+    popup.showModal();
+    var g = echarts.init(div, null, { renderer: "canvas" });
+    g.setOption(vue.g.getOption());
+    vuePopup = { g: g, option: vue.option, cles: vue.cles, periodes: vue.periodes, titre: vue.titre, retour: vue.bouton };
+    commandes(vuePopup, pied);
+    interactions(vuePopup, false);
+    mettreEnAvant(vuePopup);
+  }
 
   function nombre(v, unite) {
     if (v === null || v === undefined || isNaN(v)) return "N/D";
@@ -36,10 +177,25 @@
     return morceaux.join("     ");
   }
 
-  function initialiser(div, option) {
+  function initialiser(div, option, cles, titre) {
+    option.animation = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    option.xAxis.triggerEvent = true;
     var g = echarts.init(div, null, { renderer: "canvas" });
     g.setOption(option);
     graphiques.push(g);
+    var vue = { g: g, option: option, cles: cles || [], periodes: option.xAxis.data, titre: titre || div.getAttribute("aria-label") };
+    vues.push(vue);
+    var barre = commandes(vue, div.parentNode);
+    var bouton = document.createElement("button");
+    bouton.type = "button";
+    bouton.className = "graphique-action graphique-agrandir";
+    bouton.textContent = "Agrandir ↗";
+    bouton.setAttribute("aria-label", "Agrandir : " + vue.titre);
+    bouton.setAttribute("aria-haspopup", "dialog");
+    bouton.addEventListener("click", function () { ouvrirGraphique(vue); });
+    barre.appendChild(bouton);
+    vue.bouton = bouton;
+    interactions(vue, true);
     return g;
   }
 
@@ -119,7 +275,48 @@
                  axisLine: { lineStyle: { color: "#c3ccda" } } },
         yAxis: axeY(bornes),
         series: series
-      });
+      }, donnees.periodes_cles, g.titre);
+    });
+  }
+
+  function courbesEvenement(zone) {
+    var donnees = JSON.parse(document.getElementById(zone.dataset.source).textContent);
+    donnees.kpis.forEach(function (g) {
+      var carte = document.createElement("figure");
+      carte.className = "carte-graphique";
+      carte.style.margin = "0";
+      var div = document.createElement("div");
+      div.className = "graphique";
+      div.setAttribute("role", "img");
+      div.setAttribute("aria-label", g.titre + " : événement et référence");
+      carte.appendChild(div);
+      zone.appendChild(carte);
+      var ecart = g.max.map(function (v, i) { return v === null || g.min[i] === null ? null : v - g.min[i]; });
+      initialiser(div, {
+        animation: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+        aria: { enabled: true },
+        title: { text: g.titre, textStyle: { fontSize: 13, color: "#256b51" } },
+        tooltip: { trigger: "axis", formatter: function (p) {
+          var lignes = [p[0].axisValue], i = p[0].dataIndex;
+          lignes.push("Événement : " + (g.evenement[i] === null ? "N/D" : g.evenement[i]));
+          lignes.push("Référence : " + (g.reference[i] === null ? "N/D" : g.reference[i]));
+          if (g.min[i] !== null) lignes.push("Réf. min – max : " + g.min[i] + " – " + g.max[i]);
+          return lignes.join("<br>");
+        } },
+        legend: { bottom: 0, data: ["Événement", "Référence"] },
+        grid: { left: 8, right: 16, top: 40, bottom: 40, containLabel: true },
+        xAxis: { type: "category", data: donnees.instants },
+        yAxis: { type: "value", scale: true,
+                 max: g.unite === "%" ? function (v) { return Math.min(100, Math.ceil(v.max)); } : null,
+                 axisLabel: { formatter: function (v) { return (Math.round(v * 1e6) / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 6 }); } } },
+        series: [
+          { name: "min", type: "line", data: g.min, stack: "bande", symbol: "none", lineStyle: { opacity: 0 }, silent: true },
+          { name: "bande", type: "line", data: ecart, stack: "bande", symbol: "none", lineStyle: { opacity: 0 },
+            areaStyle: { color: "rgba(138,148,166,.25)" }, silent: true },
+          { name: "Référence", type: "line", data: g.reference, color: "#c59542", lineStyle: { type: "dashed" } },
+          { name: "Événement", type: "line", data: g.evenement, color: "#256b51", lineStyle: { width: 3 } }
+        ]
+      }, donnees.instants, g.titre);
     });
   }
 
@@ -142,7 +339,7 @@
       series: g.series.map(function (s) {
         return { name: s.nom, type: "bar", stack: "causes", data: s.valeurs, barMaxWidth: 36, emphasis: { focus: "series" } };
       })
-    });
+    }, g.periodes_cles, g.titre + " · par " + g.par);
   }
 
   /* Un seul espace pour lire une évolution : le contrôle remplace le graphique par le
@@ -254,15 +451,19 @@
             xAxis: { type: "category", data: g.periodes, boundaryGap: false, axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: "#86968a", fontSize: 10, hideOverlap: true } },
             yAxis: { type: "value", min: g.unite === "%" ? function (range) { return Math.max(0, Math.floor(range.min - Math.max(1, range.max - range.min) * .2)); } : 0, max: g.unite === "%" ? 100 : null, axisLabel: { color: "#86968a", fontSize: 10, formatter: function (v) { return nombre(v); } }, splitLine: { lineStyle: { color: "#edf2ed", type: "dashed" } } },
             series: [{ type: "line", data: g.valeurs, connectNulls: false, showSymbol: false, lineStyle: { color: color, width: 2.5 }, itemStyle: { color: color }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: color + "32" }, { offset: 1, color: color + "02" }]) } }]
-          });
+          }, g.periodes_cles, g.titre);
         });
       }
-      document.querySelectorAll(".graphiques[data-source]").forEach(courbes);
+      document.querySelectorAll(".graphiques[data-source]:not(.courbes)").forEach(courbes);
       document.querySelectorAll(".graphique-causes[data-source]").forEach(causes);
+      document.querySelectorAll(".courbes[data-source]").forEach(courbesEvenement);
       var attente;
       window.addEventListener("resize", function () {
         clearTimeout(attente);
-        attente = setTimeout(function () { graphiques.forEach(function (g) { g.resize(); }); }, 120);
+        attente = setTimeout(function () {
+          graphiques.forEach(function (g) { g.resize(); });
+          if (vuePopup) vuePopup.g.resize();
+        }, 120);
       });
     }
     document.querySelectorAll("[data-visualisation]").forEach(basculeVisualisation);
