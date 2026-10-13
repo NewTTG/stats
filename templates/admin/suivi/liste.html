@@ -1,0 +1,2 @@
+{% extends 'admin/change_list.html' %}
+{% block content %}<div class="admin-list-intro"><p>Chaque ligne conserve une tentative : demande originale, suggestions proposées, précisions et résultat.</p><p>« À préciser » signifie que l’app a posé une question. Le filtre « suite du parcours » permet de retrouver les questions sans réponse et celles suivies d’un succès. Les anciennes traces restent dans le <a href="{% url 'admin:comptes_journalaudit_changelist' %}">journal d’audit</a>.</p></div>{{ block.super }}{% endblock %}

@@ -325,7 +325,7 @@ def _motifs(aujourdhui: date):
         (r"(?:ce |le )?(?:week end|weekend)", ce_week_end),
         (rf"(?:le |ce |du )?({_JOURS})(?: (?:dernier|passe|precedent))?", jour_semaine),
         (r"avant hier", avant_hier),
-        (r"aujourd hui|aujourdhui|ce jour", relatif("aujourdhui")),
+        (r"aujourd hui|aujourdhui|auj|ajd|ce jour", relatif("aujourdhui")),
         (r"(?:d )?hier", relatif("hier")),
         (r"(?:cette annee|l annee en cours|depuis le debut de l annee|depuis janvier)", cette_annee),
         (r"(?:l )?annee (?:derniere|passee|precedente)", annee_derniere),

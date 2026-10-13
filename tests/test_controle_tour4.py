@@ -92,6 +92,8 @@ def lecteur_paita(base_recherche, client):  # noqa: F811
 def _page(client, phrase, mot):
     html = client.get("/", {"q": phrase}).content.decode()
     html = re.sub(r'name="csrfmiddlewaretoken" value="[^"]+"', "", html)
+    # Identifiant aléatoire propre à chaque tentative, indépendant des lieux reconnus.
+    html = re.sub(r'(name="suivi" value="|suivi=)[0-9a-f-]{36}', r'\1SUIVI', html)
     return html.replace(mot, "MOT").replace(mot.capitalize(), "MOT")
 
 

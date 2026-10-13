@@ -87,7 +87,7 @@ def test_ordre_des_sections(client_admin):
     modeles = {a["app_label"]: [m["object_name"] for m in a["models"]] for a in reponse.context["app_list"]}
     assert modeles["evenements"] == ["Evenement"]
     assert modeles["kpi"] == ["SeuilKpi", "ReglagesAnomalies"]
-    assert modeles["comptes"] == ["User", "Group", "Perimetre", "JournalAudit"]
+    assert modeles["comptes"] == ["User", "Group", "Perimetre", "DemandeSuivie", "JournalAudit"]
     assert modeles["referentiel"] == ["Site", "Secteur", "Cellule", "ImportReferentiel"]
     assert modeles["rapports"] == ["RapportPlanifie", "Rapport"]
     assert modeles["django_q"][0] == "Schedule"

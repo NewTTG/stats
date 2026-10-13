@@ -27,6 +27,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from apps.comptes.acces import kpis_autorises, voit_tout_le_reseau
 from apps.comptes.models import JournalAudit
+from apps.comptes import suivi
 from apps.rapports.models import RapportPlanifie
 
 from .catalogue import catalogue
@@ -107,7 +108,7 @@ def donnees_graphiques(res_techno, granularite_temps):
 
 def _paires(get, retirer=()) -> list[tuple[str, str]]:
     """Paramètres courants (q, ia, paramètres explicites) sauf ceux à remplacer."""
-    garder = ("q", "ia", *PARAMETRES)
+    garder = ("q", "ia", "suivi", *PARAMETRES)
     return [(k, v) for k, valeurs in get.lists() if k in garder and k not in retirer for v in valeurs if v != ""]
 
 
@@ -355,9 +356,13 @@ def _message_validation(e: ValidationError) -> str:
 
 @login_required
 @require_safe
+@suivi.suivre_recherche
 def requete(request):
     statut = 200
+    demande = request.demande_suivie
     get = request.GET.copy()
+    if demande:
+        get["suivi"] = str(demande.pk)
     export = get.pop("export", [None])[0] == "xlsx"
     visibles = kpis_autorises(request.user, set(catalogue()))
     aujourdhui = timezone.localdate()
@@ -365,7 +370,7 @@ def requete(request):
     ia_ok = ia_disponible()
     ia = ia_ok and get.get("ia") == "1"
     explicites = parametres_explicites(get)
-    ctx = {"q": q, "ia": ia, "ia_disponible": ia_ok}
+    ctx = {"q": q, "ia": ia, "ia_disponible": ia_ok, "suivi": str(demande.pk) if demande else ""}
     req, interp = None, None
 
     if "q" in get and (q or explicites):
@@ -375,9 +380,12 @@ def requete(request):
                   else construire(Demande(), contexte, aujourdhui))
         interp = avec_parametres(interp, get, contexte, aujourdhui)
         ctx["interp"] = interp
+        suivi.interpretation(demande, interp)
         ctx["exemples"] = _exemples(request.user, aujourdhui, contexte)  # texte indicatif de la barre (m10)
         if get.get("ia") == "1":  # liens : requête résolue, sans nouvel appel IA
             get = _parametres_resolus(q, interp.params)
+            if demande:
+                get["suivi"] = str(demande.pk)
         ctx.update(_edition(get, interp, contexte))
         ctx.update(_entete_resultat(interp))
         if interp.complete:
@@ -436,7 +444,12 @@ def requete(request):
             statut = 503
         else:
             if export:
-                reponse = HttpResponse(construire_excel(resultat), content_type=XLSX)
+                contenu = construire_excel(resultat)
+                from apps.rapports.archives import archiver_export
+                if request.method == 'GET':
+                    archiver_export(request.user, req, contenu, demande)
+                suivi.terminer(demande, 'reussie', 'Fichier Excel généré et archivé.')
+                reponse = HttpResponse(contenu, content_type=XLSX)
                 nom = f"kpi_{req.periode.debut:%Y%m%d}_{req.periode.fin:%Y%m%d}.xlsx"
                 reponse["Content-Disposition"] = f'attachment; filename="{nom}"'
                 return reponse
@@ -455,8 +468,18 @@ def requete(request):
             ctx["lien_export"] = "?" + urlencode([*get.lists(), ("export", ["xlsx"])], doseq=True)
             ctx["requete_params"] = [(k, v if isinstance(v, list) else [v])
                                      for k, v in champs_depuis_requete(req).items()]  # rapport PowerPoint (POST)
+            if demande:
+                ctx["requete_params"].append(("suivi", [str(demande.pk)]))
+            suivi.terminer(demande, 'reussie' if ctx['donnees_presentes'] else 'sans_donnees',
+                           resultat={'avertissements': ctx['avertissements'],
+                                     'lignes': sum(b['lignes_total'] for b in ctx['blocs']),
+                                     'titre': ctx['titre']})
             if est_demo() and voit_tout_le_reseau(request.user):  # incidents : noms de sites
                 ctx["demo_infos"] = infos_demo()
+    if demande and ctx.get('erreur'):
+        suivi.terminer(demande, 'erreur', ctx['erreur'])
+    elif demande and req is None:
+        suivi.terminer(demande, 'a_preciser', 'Des précisions ont été proposées à l’utilisateur.')
     return render(request, "kpi/recherche.html", ctx, status=statut)
 
 

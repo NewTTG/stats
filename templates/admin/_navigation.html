@@ -1,0 +1,5 @@
+{% if has_permission %}<nav class="admin-topnav" aria-label="Navigation de l’administration">
+<a href="{% url 'admin:index' %}"{% if request.resolver_match.url_name == 'index' %} aria-current="page"{% endif %}>Vue d’ensemble</a>
+{% if peut_suivi %}<a href="{% url 'admin:comptes_demandesuivie_changelist' %}"{% if opts.model_name == 'demandesuivie' %} aria-current="page"{% endif %}>Suivi des demandes</a>{% endif %}
+{% if peut_rapports %}<a href="{% url 'admin:rapports_rapport_changelist' %}"{% if opts.model_name == 'rapport' %} aria-current="page"{% endif %}>Rapports générés</a>{% endif %}
+</nav>{% endif %}

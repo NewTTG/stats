@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST, require_safe, require_http_methods
 from pydantic import ValidationError
 
+from apps.comptes import suivi
 from apps.comptes.acces import kpis_autorises
 from apps.evenements.analyse import NIVEAUX
 from apps.evenements.models import Evenement
@@ -43,12 +44,17 @@ def rapport_requete(request):
         raise Http404
     req = _requete(request.POST, request.user)
     if req is None:
+        champs = ('format', 'kpis', 'debut', 'fin', 'heures', 'perimetre_type', 'perimetre_valeurs')
+        params = {k: request.POST.getlist(k) for k in champs if k in request.POST}
+        demande = suivi.commencer(request.user, 'rapport', 'Rapport non créé', params,
+                                   suivi.origine(request.user, request.POST.get('suivi')))
+        suivi.terminer(demande, 'erreur', 'Impossible de créer le rapport : paramètres de requête invalides.')
         messages.error(request, "Impossible de créer le rapport : paramètres de requête invalides.")
         return redirect("kpi:requete")
     titre = f"{_titre(req)} : {req.periode.debut:%d/%m/%Y}-{req.periode.fin:%d/%m/%Y}"
     rapport = Rapport.objects.create(utilisateur=request.user, titre=titre[:200], nature="requete", format=fmt,
                                      parametres={"requete": req.model_dump(mode="json")})
-    if lancer(rapport):
+    if lancer(rapport, parent=suivi.origine(request.user, request.POST.get("suivi"))):
         messages.success(request, f"Rapport {rapport.get_format_display()} en cours de génération.")
     else:
         messages.error(request, rapport.message)
@@ -66,7 +72,7 @@ def rapport_evenement(request, pk):
     rapport = Rapport.objects.create(
         utilisateur=request.user, titre=f"{evenement.nom} : par {niveau}"[:200], nature="evenement", format=fmt,
         parametres={"evenement": evenement.pk, "niveau": niveau})
-    if lancer(rapport):
+    if lancer(rapport, parent=suivi.origine(request.user, request.POST.get("suivi"))):
         messages.success(request, f"Rapport {rapport.get_format_display()} en cours de génération.")
     else:
         messages.error(request, rapport.message)

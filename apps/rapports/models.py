@@ -105,6 +105,8 @@ class Rapport(models.Model):
     STATUTS = [("en_attente", "En attente"), ("en_cours", "En cours"), ("termine", "Terminé"), ("erreur", "Erreur")]
 
     utilisateur = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="rapports")
+    demande = models.ForeignKey('comptes.DemandeSuivie', null=True, blank=True,
+                                on_delete=models.SET_NULL, related_name='rapports')
     titre = models.CharField(max_length=200)
     nature = models.CharField(max_length=16, choices=NATURES)
     format = models.CharField(max_length=8, choices=FORMATS)

@@ -7,6 +7,7 @@ import unicodedata
 from django.core.files.base import ContentFile
 from django.utils import timezone
 
+from apps.comptes import suivi
 from apps.evenements.analyse import AnalyseImpossible, analyser
 from apps.evenements.models import Evenement
 from apps.evenements.acces import evenements_visibles
@@ -55,3 +56,5 @@ def generer(rapport_id: int):
         rapport.statut, rapport.message = "erreur", "La génération a échoué. Réessayez ou contactez votre administrateur."
     rapport.termine_le = timezone.now()
     rapport.save()
+    suivi.terminer(rapport.demande, 'reussie' if rapport.statut == 'termine' else 'erreur', rapport.message,
+                   {'rapport': rapport.pk, 'format': rapport.format, 'titre': rapport.titre})
