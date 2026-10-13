@@ -1,6 +1,6 @@
 """Modèle de requête unique (brief §5) : formulaire, futur parseur NL et API produisent cet objet."""
 
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -57,6 +57,16 @@ class RequeteKpi(BaseModel):
     fenetre_horaire: str = "journee"
     kpis: list[str] = Field(min_length=1)
     comparaison: Comparaison = Field(default_factory=Comparaison)
+    # Créneaux exacts de l'accueil, conservés dans les liens et les exports.
+    heures: list[datetime] = Field(default_factory=list, max_length=24)
+
+    @model_validator(mode="after")
+    def _heures(self):
+        if any(h.tzinfo is not None or h.minute or h.second or h.microsecond
+               or not self.periode.debut <= h.date() <= self.periode.fin for h in self.heures):
+            raise ValueError("les heures doivent être des heures entières de la période, sans fuseau")
+        self.heures = sorted(set(self.heures))
+        return self
 
     @model_validator(mode="after")
     def _fenetre(self):

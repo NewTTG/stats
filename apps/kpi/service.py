@@ -129,6 +129,8 @@ def verifier_periode(requete: RequeteKpi, resolution: str):
     if p.debut < DATE_MIN or p.fin > DATE_MAX:
         raise RequeteRefusee(f"Période hors limites : choisissez des dates entre {DATE_MIN:%d/%m/%Y} "
                              f"et {DATE_MAX:%d/%m/%Y}.")
+    if requete.heures:  # Lecture SQL limitée à 24 créneaux, même avec de longs trous.
+        return
     jours = (p.fin - p.debut).days + 1
     if jours > JOURS_MAX[resolution]:
         if resolution == "heure":
@@ -170,7 +172,7 @@ def executer(requete: RequeteKpi, user, engine) -> Resultat:
     if refuses:
         resultat.avertissements.append(f"KPI non autorisés ignorés : {', '.join(sorted(refuses))}")
 
-    resolution = "heure" if requete.granularite_temps == "heure" or requete.fenetre_horaire != "journee" else "jour"
+    resolution = "heure" if requete.heures or requete.granularite_temps == "heure" or requete.fenetre_horaire != "journee" else "jour"
     verifier_periode(requete, resolution)
 
     for techno in requete.techno:
@@ -191,6 +193,7 @@ def executer(requete: RequeteKpi, user, engine) -> Resultat:
         cle = {
             "source": source, "techno": techno, "resolution": resolution,
             "debut": requete.periode.debut, "fin": requete.periode.fin,
+            "heures": requete.heures,
             "temps": requete.granularite_temps, "espace": requete.granularite_espace,
             "fenetre": requete.fenetre_horaire,
             "secteurs_filtres": (sorted(set(requete.perimetre.valeurs))
@@ -213,7 +216,7 @@ def executer(requete: RequeteKpi, user, engine) -> Resultat:
 def _calculer_techno(requete, techno, resolution, kpis, cellules, engine, correspondance, secteurs):
     avertissements = []
     df = lire(engine, techno, resolution, colonnes_utilisees(kpis),
-              requete.periode.debut, requete.periode.fin, cellules)
+              requete.periode.debut, requete.periode.fin, cellules, heures=requete.heures)
     if requete.perimetre.type == "secteur":
         df = df[secteur_par_ligne(df, techno, lignes=secteurs).isin(requete.perimetre.valeurs).to_numpy()]
     couverture = couverture_donnees(df, requete.periode.debut, requete.periode.fin)

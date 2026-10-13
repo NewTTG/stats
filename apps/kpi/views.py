@@ -402,7 +402,7 @@ def requete(request):
     else:
         ctx["mode"] = "accueil"
         from .dashboard import construire as construire_dashboard
-        ctx["dashboard"] = construire_dashboard(request.user, aujourdhui, get.get("vue", "hier"))
+        ctx["dashboard"] = construire_dashboard(request.user, aujourdhui, get.get("vue", "24h"))
         ctx["q"] = get.get("reprendre", "").strip()[:300]  # « Modifier » une recherche de l'historique
         contexte = Contexte.pour(request.user)
         ctx["rapports_types"] = _rapports_types(contexte)
