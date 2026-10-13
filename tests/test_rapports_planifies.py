@@ -59,6 +59,20 @@ def test_requete_du(analyste):  # noqa: F811
     assert libelle == "Semaine dernière, 28/09/2026-04/10/2026"
 
 
+def test_enregistrer_depuis_accueil_ne_fige_pas_les_heures(client, analyste):
+    req = requete(heures=[datetime(2026, 9, 1, 19)], granularite_temps='heure')
+    client.force_login(analyste)
+    reponse = client.post('/rapports/enregistrer/', {
+        **champs_depuis_requete(req), 'titre': 'Depuis accueil', 'periode': 'hier',
+        'format': 'xlsx', 'frequence': 'aucune', 'jour_semaine': 0, 'heure': 7,
+    })
+    assert reponse.status_code == 302
+    plan = RapportPlanifie.objects.get()
+    assert 'heures' not in plan.requete
+    relance, _ = requete_du(plan, date(2026, 10, 13))
+    assert relance.periode.debut == date(2026, 10, 12) and not relance.heures
+
+
 @pytest.fixture
 def worker(monkeypatch, base_kpi, settings, tmp_path):  # noqa: F811
     """Exécute la génération immédiatement (pas de worker django-q2 en test)."""

@@ -46,6 +46,7 @@ class RequeteForm(forms.Form):
     granularite_espace = forms.ChoiceField(label="Niveau", choices=GRAN_ESPACE, initial="global")
     fenetre_horaire = forms.ChoiceField(label="Fenêtre horaire", choices=FENETRES, initial="journee")
     kpis = forms.MultipleChoiceField(label="KPI", widget=forms.CheckboxSelectMultiple)
+    heures = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, kpis_visibles=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -70,12 +71,13 @@ class RequeteForm(forms.Form):
             "granularite_espace": d["granularite_espace"],
             "fenetre_horaire": d["fenetre_horaire"],
             "kpis": d["kpis"],
+            "heures": [h for h in d["heures"].split(",") if h],
         }
 
 
 def champs_depuis_requete(req) -> dict:
     """Champs du formulaire équivalents à une ``RequeteKpi`` (rapport PowerPoint, liens)."""
-    return {
+    champs = {
         "techno": list(req.techno),
         "perimetre_type": req.perimetre.type,
         "perimetre_valeurs": ", ".join(req.perimetre.valeurs),
@@ -86,4 +88,7 @@ def champs_depuis_requete(req) -> dict:
         "fenetre_horaire": req.fenetre_horaire,
         "kpis": list(req.kpis),
     }
+    if req.heures:
+        champs["heures"] = ",".join(h.isoformat() for h in req.heures)
+    return champs
 

@@ -10,7 +10,7 @@ synthétiques) générée par ``python manage.py charger_demo_kpi``.
 import json
 import hashlib
 import re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 from urllib.parse import unquote
@@ -141,6 +141,30 @@ def cellules_distinctes(engine: sa.Engine, techno: str) -> list[str]:
         return sorted(conn.execute(sql).scalars())
 
 
+def dernieres_heures(engine: sa.Engine, techno: str, cellules: list[str] | None) -> list[datetime]:
+    """Les 24 derniers créneaux horaires présents dans le périmètre autorisé.
+
+    Chaque technologie a sa propre fraîcheur ; les trous ne consomment pas de créneau.
+    La limite porte sur les heures distinctes, jamais sur les lignes de cellules.
+    """
+    if cellules is not None and not cellules:
+        return []
+    table, col_cellule, col_temps = TABLES[(techno, "heure")]
+    temps = _citer(col_temps)
+    sql = f"SELECT DISTINCT {temps} FROM {_citer(table)} WHERE {temps} IS NOT NULL"
+    params = {}
+    if cellules is not None:
+        sql += f" AND {_citer(col_cellule)} IN :cellules"
+        params["cellules"] = list(cellules)
+    sql += f" ORDER BY {temps} DESC LIMIT 24"
+    requete = sa.text(sql)
+    if cellules is not None:
+        requete = requete.bindparams(sa.bindparam("cellules", expanding=True))
+    with engine.connect() as conn:
+        heures = conn.execute(requete, params).scalars().all()
+    return sorted(pd.Timestamp(h).to_pydatetime() for h in heures)
+
+
 def lire(
     engine: sa.Engine,
     techno: str,
@@ -149,10 +173,12 @@ def lire(
     debut: date,
     fin: date,
     cellules: list[str] | None,
+    heures: list[datetime] | None = None,
 ) -> pd.DataFrame:
     """Lignes de la table KPI sur [debut, fin] (bornes incluses).
 
     ``cellules`` à None : toutes les cellules. Liste vide : aucune ligne.
+    ``heures`` renseigné : uniquement ces créneaux de la table horaire.
     Renvoie les colonnes ``cellule``, ``horodatage`` puis ``colonnes``.
     """
     table, col_cellule, col_temps = TABLES[(techno, resolution)]
@@ -167,10 +193,15 @@ def lire(
     params = {"debut": debut, "fin": fin + timedelta(days=1)}
     if cellules is not None:
         sql += f" AND {_citer(col_cellule)} IN :cellules"
+    if heures:
+        sql += f" AND {_citer(col_temps)} IN :heures"
     requete = sa.text(sql)
     if cellules is not None:
         requete = requete.bindparams(sa.bindparam("cellules", expanding=True))
         params["cellules"] = list(cellules)
+    if heures:
+        requete = requete.bindparams(sa.bindparam("heures", expanding=True, type_=sa.DateTime()))
+        params["heures"] = list(heures)
 
     # Lecture via SQLAlchemy plutôt que pd.read_sql : certaines combinaisons
     # de versions pandas/SQLAlchemy ne reconnaissent pas la connexion.

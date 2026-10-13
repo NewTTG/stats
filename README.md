@@ -149,11 +149,15 @@ sont conservés dans le volume `media`.
 
 ### Tableau de bord et exports PDF
 
-L’accueil affiche les KPI du périmètre autorisé et leurs courbes horaires : volume data
-4G descendant, pic d’utilisateurs, débit descendant et taux d’accès. Les sélecteurs
-**Aujourd’hui**, **Hier** (par défaut) et **7 derniers jours** permettent de changer de
-période. La journée en cours est signalée comme partielle ; une démo ancienne affiche
-sa dernière période disponible avec un avertissement. Aucune valeur n’est inventée.
+L’accueil affiche les KPI 4G et 3G du périmètre autorisé et leurs courbes horaires.
+Par défaut, il utilise les **24 dernières heures disponibles** dans les tables horaires,
+indépendamment pour chaque technologie : les périodes 3G et 4G peuvent être différentes.
+Les heures manquantes sont sautées ; s’il reste moins de 24 heures, seules celles présentes
+sont affichées. Les bornes exactes et le nombre d’heures sont indiqués par technologie.
+Les valeurs des cartes, courbes, liens d’analyse et exports utilisent les mêmes créneaux.
+Les sélecteurs **Aujourd’hui**, **Hier** et **7 derniers jours** restent disponibles.
+La journée en cours est signalée comme partielle ; pour ces périodes calendaires, une démo
+ancienne affiche sa dernière période disponible avec un avertissement. Aucune valeur n’est inventée.
 La recherche libre et les rapports en accès direct restent disponibles, ainsi que
 le constructeur de rapports personnalisés. Les graphiques proposent aussi un tableau
 de valeurs accessible sans JavaScript.

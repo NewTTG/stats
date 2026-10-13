@@ -131,7 +131,8 @@ def enregistrer(request):
         if form.is_valid():
             plan = form.save(commit=False)
             plan.utilisateur = request.user
-            plan.requete = req.model_dump(mode="json", exclude={"periode"})
+            # Les créneaux fixes de l'accueil ne s'appliquent pas à une période relative.
+            plan.requete = req.model_dump(mode="json", exclude={"periode", "heures"})
             plan.planifier()
             plan.save()
             messages.success(request, f"Rapport « {plan.titre} » enregistré"
