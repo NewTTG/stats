@@ -77,6 +77,8 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 # Base applicative : PostgreSQL si APP_DB_HOST est défini, sinon SQLite (dev / tests).
+# APP_DB_SQLITE permet de placer le fichier SQLite sur un disque local quand le code est
+# sur un partage réseau (SQLite n'y gère pas correctement les verrous ni les droits).
 if env("APP_DB_HOST"):
     DATABASES = {
         "default": {
@@ -92,7 +94,7 @@ else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+            "NAME": Path(env("APP_DB_SQLITE") or BASE_DIR / "db.sqlite3"),
         }
     }
 

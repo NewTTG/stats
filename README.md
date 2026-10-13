@@ -63,7 +63,9 @@ depuis une tâche planifiée (cron, Planificateur de tâches Windows) toutes les
 `cp .env.example .env`.
 
 Le fichier `.env` est lu automatiquement. Renseigner `APP_DB_HOST` (et les autres
-`APP_DB_*`) pour utiliser PostgreSQL plutôt que SQLite.
+`APP_DB_*`) pour utiliser PostgreSQL plutôt que SQLite. Si le projet est sur un
+partage réseau (`\\serveur\...`), SQLite y échoue (« attempt to write a readonly
+database », verrous) : renseigner `APP_DB_SQLITE` avec un chemin sur un disque local.
 
 Tests : `pytest` (aucun appel réseau : l'API IA est simulée).
 
@@ -449,6 +451,7 @@ les pages. Dès que `KPI_DB_HOST` est renseigné, la base PostgreSQL est utilis�
 |---|---|
 | `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS` | Django |
 | `APP_DB_*` | base applicative PostgreSQL (vide : SQLite local) |
+| `APP_DB_SQLITE` | fichier SQLite de la base applicative sans `APP_DB_HOST` (défaut `db.sqlite3`) ; à placer sur un disque local, jamais sur un partage réseau |
 | `KPI_DB_*` | base KPI PostgreSQL en lecture seule |
 | `KPI_DEMO_SQLITE` | base de démonstration (défaut `data/kpi_demo.sqlite3`), utilisée sans `KPI_DB_HOST` |
 | `GROQ_API_KEY` | clé de l'API Groq ; vide = pas de recherche IA (jamais dans le dépôt) |
