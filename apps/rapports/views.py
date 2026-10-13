@@ -44,7 +44,7 @@ def rapport_requete(request):
         raise Http404
     req = _requete(request.POST, request.user)
     if req is None:
-        champs = ('format', 'kpis', 'debut', 'fin', 'perimetre_type', 'perimetre_valeurs')
+        champs = ('format', 'kpis', 'debut', 'fin', 'heures', 'perimetre_type', 'perimetre_valeurs')
         params = {k: request.POST.getlist(k) for k in champs if k in request.POST}
         demande = suivi.commencer(request.user, 'rapport', 'Rapport non créé', params,
                                    suivi.origine(request.user, request.POST.get('suivi')))

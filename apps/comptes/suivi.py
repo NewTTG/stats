@@ -65,7 +65,7 @@ def suivre_recherche(view):
         recherche = 'q' in request.GET and (request.GET.get('q', '').strip() or
                                             any(k in request.GET for k in PARAMETRES))
         if request.method == 'GET' and (recherche or any(k in request.GET for k in CHAMPS_FORMULAIRE)):
-            params = {k: request.GET.getlist(k) for k in ('q', 'ia', 'export', *PARAMETRES, *CHAMPS_FORMULAIRE)
+            params = {k: request.GET.getlist(k) for k in ('q', 'ia', 'export', 'heures', *PARAMETRES, *CHAMPS_FORMULAIRE)
                       if k in request.GET}
             parent = origine(request.user, request.GET.get('suivi'))
             demande = commencer(request.user, 'export' if request.GET.get('export') == 'xlsx' else 'recherche',

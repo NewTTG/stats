@@ -187,3 +187,16 @@ def test_phrase_velodrome_exacte(ref_recherche):
     assert len(interp.params['kpis']) > 5
     precis = interpreter('stats du débit velodrome auj', J, Contexte.pour(None))
     assert precis.demande.intentions == ['debit']
+
+
+def test_creneaux_exacts_conserves_dans_le_suivi(admin, base_recherche):
+    response = admin.get('/', {'q': 'débit 4G Païta hier'})
+    params = {k: v for k, v in response.context['requete_params']}
+    params['granularite_temps'] = 'heure'
+    params['heures'] = '2026-10-07T10:00:00'
+    response = admin.get('/', params)
+    assert response.status_code == 200
+    trace = DemandeSuivie.objects.first()
+    assert trace.parametres['heures'] == ['2026-10-07T10:00:00']
+    assert trace.statut in ('reussie', 'sans_donnees')
+    assert [h.isoformat() for h in response.context['requete'].heures] == ['2026-10-07T10:00:00']
