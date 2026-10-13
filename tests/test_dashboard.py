@@ -1,10 +1,12 @@
 """Accueil : valeurs réelles, filtrage des droits, dates et états indisponibles."""
 from datetime import date, datetime, timedelta
+from unittest.mock import Mock
 
 import pandas as pd
 import pytest
 import sqlalchemy as sa
 from django.contrib.auth.models import User
+from psycopg.errors import ConnectionTimeout
 
 from apps.kpi.dashboard import construire
 from apps.kpi.forms import RequeteForm
@@ -130,3 +132,58 @@ def test_source_absente(monkeypatch):
     monkeypatch.setattr('apps.kpi.dashboard.moteur_kpi', absente)
     d = construire(User.objects.create_superuser('admin-source'), date(2026, 10, 13))
     assert d['message'] and not d['cartes'] and not d['graphiques']
+
+
+@pytest.mark.parametrize('selection', ['24h', 'hier', 'aujourdhui', '7j'])
+def test_timeout_connexion_une_seule_tentative(selection, client, monkeypatch, caplog):
+    # SQLAlchemy enveloppe réellement le timeout psycopg, comme dans le journal
+    # de production ; aucun accès réseau ni attente effective pendant le test.
+    connexion = Mock(side_effect=ConnectionTimeout('serveur-prive mot-de-passe-secret'))
+    engine = sa.create_engine('postgresql+psycopg://', creator=connexion)
+    monkeypatch.setattr('apps.kpi.dashboard.moteur_kpi', lambda: engine)
+    client.force_login(User.objects.create_superuser('admin-timeout'))
+    try:
+        reponse = client.get('/', {'vue': selection})
+        assert reponse.status_code == 200
+        d = reponse.context['dashboard']
+        assert not d['cartes'] and not d['graphiques'] and not d['periodes']
+        assert "base de données KPI n'est pas accessible" in d['message']
+        assert 'Aucune donnée' not in d['message']
+        assert connexion.call_count == 1
+        html = reponse.content.decode()
+        assert 'serveur-prive' not in html + caplog.text
+        assert 'mot-de-passe-secret' not in html + caplog.text
+        avertissements = [r for r in caplog.records if r.name == 'apps.kpi.dashboard']
+        assert len(avertissements) == 1 and avertissements[0].exc_info is None
+        assert 'KPI_DB_HOST/KPI_DB_PORT' in avertissements[0].message
+    finally:
+        engine.dispose()
+
+
+def test_timeout_apres_une_techno_preserve_les_donnees_et_reessaie(historique_horaire, monkeypatch):
+    engine, _, _ = historique_horaire
+    panne = sa.exc.OperationalError(None, None, ConnectionTimeout('connection timeout expired'))
+    lecture = Mock(side_effect=[dernieres_heures(engine, 'LTE', None), panne])
+    monkeypatch.setattr('apps.kpi.dashboard.dernieres_heures', lecture)
+    user = User.objects.create_superuser('admin-panne-partielle')
+    d = construire(user, date(2026, 10, 13))
+    assert len(d['cartes']) == len(d['graphiques']) == len(d['periodes']) == 1
+    assert d['periodes'][0]['techno'] == '4G'
+    assert d['cartes'][0]['texte'] == '72'
+    assert any("base de données KPI n'est pas accessible" in a for a in d['avertissements'])
+
+    monkeypatch.setattr('apps.kpi.dashboard.dernieres_heures', dernieres_heures)
+    d = construire(user, date(2026, 10, 13))
+    assert len(d['cartes']) == len(d['graphiques']) == len(d['periodes']) == 2
+    assert not d['avertissements']
+
+
+def test_erreur_sql_lte_ne_masque_pas_wcdma(historique_horaire, caplog):
+    engine, _, _ = historique_horaire
+    with engine.begin() as conn:
+        conn.execute(sa.text('DROP TABLE lte_cell_hour'))
+    d = construire(User.objects.create_superuser('admin-table-absente'), date(2026, 10, 13))
+    assert len(d['cartes']) == len(d['graphiques']) == len(d['periodes']) == 1
+    assert d['periodes'][0]['techno'] == '3G'
+    assert any('LTE' in a for a in d['avertissements'])
+    assert any(r.exc_info for r in caplog.records if r.name == 'apps.kpi.dashboard')

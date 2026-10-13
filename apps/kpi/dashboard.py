@@ -4,6 +4,7 @@ import logging
 from datetime import timedelta
 from urllib.parse import urlencode
 
+from psycopg.errors import ConnectionTimeout
 from sqlalchemy.exc import SQLAlchemyError
 
 from .catalogue import catalogue
@@ -11,7 +12,10 @@ from .forms import champs_depuis_requete
 from .recherche.affichage import conversion, formater, valeur
 from .requete import RequeteKpi
 from .service import RequeteRefusee, executer
-from .source import BaseKpiNonConfiguree, dernieres_heures, est_demo, infos_demo, moteur_kpi
+from .source import (
+    MESSAGE_BASE_INDISPONIBLE, BaseKpiNonConfiguree, dernieres_heures, est_demo,
+    infos_demo, moteur_kpi,
+)
 from apps.comptes.acces import cellules_autorisees, kpis_autorises
 
 log = logging.getLogger(__name__)
@@ -70,7 +74,19 @@ def construire(user, aujourd_hui, selection="24h"):
                              granularite_temps="jour" if selection == "7j" else "heure",
                              kpis=[i[0] for i in indicateurs if cat[i[0]].techno == techno])
             resultat = executer(req, user, engine)
-        except (RequeteRefusee, SQLAlchemyError):
+        except (RequeteRefusee, SQLAlchemyError) as exc:
+            if isinstance(getattr(exc, "orig", None), ConnectionTimeout):
+                # LTE et WCDMA partagent la connexion : ne pas attendre un second
+                # timeout. Une prochaine consultation pourra réessayer normalement.
+                log.warning(
+                    "Tableau de bord : délai de connexion à la base KPI dépassé. "
+                    "Vérifier KPI_DB_HOST/KPI_DB_PORT, le réseau/VPN et PostgreSQL."
+                )
+                if par_techno:
+                    ctx["avertissements"].append(MESSAGE_BASE_INDISPONIBLE)
+                else:
+                    ctx["message"] = MESSAGE_BASE_INDISPONIBLE
+                break
             log.warning("Tableau de bord : source %s indisponible", techno, exc_info=True)
             ctx["avertissements"].append(f"{techno} : les indicateurs sont momentanément indisponibles.")
             continue
@@ -107,5 +123,5 @@ def construire(user, aujourd_hui, selection="24h"):
                 "valeurs": [None if valeur(n) is None else float(n) / diviseur for n in serie[code]],
                 "lien": lien})
     if not ctx["cartes"]:
-        ctx["message"] = "Aucune donnée accessible pour cette période. Vous pouvez toujours préparer un rapport."
+        ctx.setdefault("message", "Aucune donnée accessible pour cette période. Vous pouvez toujours préparer un rapport.")
     return ctx

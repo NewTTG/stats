@@ -443,6 +443,46 @@ coupures sur un site, congestion PRB en soirée) listés à la fin de la command
 le bandeau. Un bandeau « Données de démonstration (synthétiques) » est affiché sur toutes
 les pages. Dès que `KPI_DB_HOST` est renseigné, la base PostgreSQL est utilisée.
 
+### Délai de connexion à la base KPI dépassé
+
+`psycopg.errors.ConnectionTimeout: connection timeout expired` signifie que la
+connexion à PostgreSQL n'a pas abouti dans le délai configuré (10 secondes).
+L'erreur survient avant l'exécution du SQL : modifier les KPI ou la période ne
+rétablit pas la connexion. L'administration peut fonctionner car elle utilise
+la base applicative, distincte de la source KPI.
+
+Depuis le poste qui lance Django (Windows / PowerShell) :
+
+1. Vérifier `KPI_DB_HOST` et `KPI_DB_PORT` dans `.env`, puis l'accès au réseau
+   interne ou au VPN qui dessert PostgreSQL.
+2. Tester le port en remplaçant les valeurs par celles de `.env` :
+
+   ```powershell
+   Test-NetConnection -ComputerName "hote-de-la-base" -Port 5432
+   ```
+
+   Si `TcpTestSucceeded` est faux, vérifier la résolution DNS, le routage/VPN,
+   le pare-feu et le service PostgreSQL (adresse et port d'écoute) avec
+   l'administrateur réseau/base de données.
+3. Si le port répond, tester la connexion depuis l'environnement Python de
+   l'application avec une requête en lecture seule :
+
+   ```powershell
+   python manage.py shell -c "from apps.kpi.source import moteur_kpi; from sqlalchemy import text; c = moteur_kpi().connect(); print(c.execute(text('SELECT 1')).scalar_one()); c.close()"
+   ```
+
+   Si la connexion est refusée, vérifier le nom de base, le compte, le mot de
+   passe et les règles d'accès PostgreSQL. Ne pas publier le contenu de `.env`.
+4. Redémarrer l'application et le worker après toute modification de `.env`.
+
+En cas de timeout, l'accueil affiche que la base est inaccessible et cesse ses
+tentatives pour cette consultation : LTE et WCDMA partagent la même base. Les
+indicateurs déjà chargés restent visibles ; les erreurs SQL propres à une table
+n'empêchent pas la lecture de l'autre technologie. Une nouvelle consultation
+réessaie normalement. Aucun basculement automatique vers des données synthétiques
+n'est effectué ; pour travailler volontairement en démonstration, suivre la
+section précédente.
+
 ## Variables d'environnement
 
 | Variable | Rôle |
