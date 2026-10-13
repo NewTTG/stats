@@ -7,6 +7,7 @@ from django.views.decorators.http import require_safe
 from sqlalchemy.exc import SQLAlchemyError
 
 from apps.comptes.models import JournalAudit
+from apps.comptes import suivi
 from apps.kpi.source import BaseKpiNonConfiguree, MESSAGE_BASE_INDISPONIBLE, moteur_kpi
 from apps.rapports.contenu import LIBELLES_REGLE
 
@@ -44,6 +45,9 @@ def detail(request, pk):
     if niveau not in NIVEAUX:
         niveau = "secteur"
     contexte = {"evenement": evenement, "niveau": niveau, "niveaux": NIVEAUX, "regles": LIBELLES_REGLE}
+    demande = suivi.commencer(request.user, 'evenement', evenement.nom,
+                              {'evenement': evenement.pk, 'niveau': niveau}) if request.method == 'GET' else None
+    contexte['suivi'] = str(demande.pk) if demande else ''
     try:
         analyse = analyser(evenement, request.user, moteur_kpi(), niveau=niveau)
         JournalAudit.objects.create(utilisateur=request.user, action="analyse_evenement",
@@ -59,4 +63,13 @@ def detail(request, pk):
         journal.exception("Événement %s : source KPI indisponible", pk)
         contexte["erreur"] = MESSAGE_BASE_INDISPONIBLE
         statut = 503
+    except Exception:
+        suivi.terminer(demande, 'erreur', 'Erreur inattendue pendant l’analyse de l’événement.')
+        raise
+    if contexte.get('erreur'):
+        suivi.terminer(demande, 'erreur', contexte['erreur'])
+    else:
+        presentes = sum(r.nb_cellules - len(r.cellules_sans_donnees) for r in analyse.par_techno)
+        suivi.terminer(demande, 'reussie' if presentes else 'sans_donnees',
+                       resultat={'cellules_avec_donnees': presentes, 'avertissements': analyse.avertissements})
     return render(request, "evenements/detail.html", contexte, status=statut)

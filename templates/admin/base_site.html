@@ -1,5 +1,5 @@
 {% extends "admin/base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
@@ -171,6 +171,7 @@ html[data-theme="dark"] {
 #nav-sidebar .current-app .section:link, #nav-sidebar .current-app .section:visited { color: var(--accent); }
 .breadcrumbs { border-bottom: 1px solid var(--hairline-color); }
 </style>
+<link rel="stylesheet" href="{% static 'css/admin.css' %}">
 {% endblock %}
 
 {% block branding %}
@@ -191,3 +192,7 @@ html[data-theme="dark"] {
 {% endblock %}
 
 {% block nav-global %}{% endblock %}
+{% block nav-breadcrumbs %}
+{% include 'admin/_navigation.html' %}
+{{ block.super }}
+{% endblock %}

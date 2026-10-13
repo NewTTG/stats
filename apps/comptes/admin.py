@@ -1,9 +1,13 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
-from django.db.models import Count
+from django.db.models import Count, Exists, OuterRef
+from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
+from django.template.response import TemplateResponse
+from django.utils.html import format_html
 
-from .models import JournalAudit, Perimetre
+from .models import DemandeSuivie, JournalAudit, Perimetre
 from .visiteurs import est_visiteur, filtre_visiteurs
 
 
@@ -85,6 +89,9 @@ class PerimetreAdmin(admin.ModelAdmin):
 
 # Libellés des actions tracées (apps/kpi/views.py, apps/evenements/views.py, apps/rapports/lancement.py).
 LIBELLES_ACTIONS = {
+    "telechargement_admin": "Téléchargement administrateur",
+    "rapport_requete_pdf": "Rapport PDF (requête)",
+    "rapport_evenement_pdf": "Rapport PDF (événement)",
     "recherche_kpi": "Recherche",
     "requete_kpi": "Recherche avancée",
     "export_excel": "Export Excel",
@@ -138,3 +145,93 @@ class JournalAuditAdmin(admin.ModelAdmin):
         if obj.action == "analyse_evenement" and requete.get("evenement"):
             return f"événement n° {requete['evenement']} ({requete.get('niveau', 'secteur')})"
         return ""
+
+
+class SuiteFilter(admin.SimpleListFilter):
+    title = 'suite du parcours'
+    parameter_name = 'suite'
+
+    def lookups(self, request, model_admin):
+        return [('sans_suite', 'Précision sans réponse'), ('recuperee', 'Précision suivie d’un succès')]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'sans_suite':
+            return queryset.filter(statut='a_preciser', suites__isnull=True)
+        if self.value() == 'recuperee':
+            return queryset.filter(statut='a_preciser', parcours_abouti=True)
+        return queryset
+
+
+@admin.register(DemandeSuivie)
+class DemandeSuivieAdmin(admin.ModelAdmin):
+    list_display = ['demande', 'etat', 'utilisateur', 'creee_le', 'nature', 'suite_parcours', 'duree_ms']
+    list_display_links = ['creee_le', 'demande']
+    list_filter = ['statut', SuiteFilter, 'nature', ('creee_le', admin.DateFieldListFilter)]
+    search_fields = ['texte', 'utilisateur__username', 'utilisateur__email', 'message']
+    search_help_text = 'Rechercher une demande, un utilisateur ou un message d’erreur.'
+    list_select_related = ['utilisateur']
+    list_per_page = 30
+    date_hierarchy = 'creee_le'
+    actions = None
+    change_list_template = 'admin/suivi/liste.html'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(parcours_abouti=Exists(
+            DemandeSuivie.objects.filter(parcours=OuterRef('parcours'), statut='reussie',
+                                        creee_le__gt=OuterRef('creee_le'))))
+
+    @admin.display(description='demande')
+    def demande(self, obj):
+        return str(obj)[:120]
+
+    @admin.display(description='résultat', ordering='statut')
+    def etat(self, obj):
+        return format_html('<span class="etat etat-{}">{}</span>', obj.statut, obj.get_statut_display())
+
+    @admin.display(description='suite')
+    def suite_parcours(self, obj):
+        return 'Aboutie après précision' if obj.statut == 'a_preciser' and obj.parcours_abouti else '—'
+
+    def changelist_view(self, request, extra_context=None):
+        return super().changelist_view(request, {'title': 'Suivi des demandes', **(extra_context or {})})
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        import json
+        if not self.has_view_permission(request) or request.method not in ('GET', 'HEAD'):
+            raise PermissionDenied
+        obj = self.get_object(request, object_id)
+        if obj is None:
+            return self._get_obj_does_not_exist_redirect(request, self.opts, object_id)
+        etapes = DemandeSuivie.objects.filter(parcours=obj.parcours).select_related('utilisateur', 'parent').order_by('creee_le')
+        page = Paginator(etapes, 30).get_page(request.GET.get('page'))
+        for etape in page:
+            etape.diagnostic = json.dumps({'parametres': etape.parametres, 'interpretation': etape.interpretation,
+                                         'resultat': etape.resultat}, ensure_ascii=False, indent=2)
+            etape.reponses = []
+            if etape.parent and etape.parent.interpretation.get('questions'):
+                for question in etape.parent.interpretation['questions']:
+                    for option in question.get('options', []):
+                        def identique(cle, valeur):
+                            envoyees = etape.parametres.get(cle, [])
+                            attendues = valeur if isinstance(valeur, list) else [valeur]
+                            return [str(v) for v in envoyees] == [str(v) for v in attendues]
+                        if option.get('params') and all(identique(k, v) for k, v in option['params'].items()):
+                            etape.reponses.append(option['libelle'])
+        from apps.rapports.models import Rapport
+        peut_rapports = request.user.has_perm('rapports.view_rapport')
+        rapports = Rapport.objects.filter(demande__parcours=obj.parcours).select_related('utilisateur') if peut_rapports else []
+        request.current_app = self.admin_site.name
+        return TemplateResponse(request, 'admin/suivi/detail.html', {
+            **self.admin_site.each_context(request), 'title': 'Parcours de la demande', 'original': obj,
+            'opts': self.model._meta, 'etapes': page, 'rapports': rapports, 'peut_rapports': peut_rapports,
+            'aboutie': etapes.filter(statut='reussie').exists(),
+        })

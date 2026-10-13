@@ -245,6 +245,56 @@ et redémarrer l’application et le worker. En déploiement, exécuter aussi
   tâches de fond. La liste des utilisateurs masque par défaut les sessions visiteur (filtre
   « Type de compte »).
 
+### Suivi des demandes et administration
+
+L’administration propose une vue d’ensemble de l’activité des **7 derniers jours**, un
+accès permanent au **Suivi des demandes** et aux **Rapports générés**, et des pages de
+configuration adaptées aux écrans étroits et aux thèmes clair / sombre.
+
+Chaque recherche soumise conserve son texte, ses paramètres, les éléments compris,
+les mots non reconnus, les questions et toutes les options proposées. Les liens de
+précision, les filtres et la reformulation depuis la barre du résultat relient les
+nouvelles tentatives à leur origine. Les onglets restent indépendants ; un identifiant
+d’une autre session ne permet pas de rattacher une demande au parcours d’un autre utilisateur.
+L’accueil et l’autocomplétion ne créent pas de demandes.
+
+- **Aboutie** : un résultat a été obtenu ou un fichier a été généré.
+- **À préciser** : l’app a demandé un complément ; le filtre « Précision sans réponse »
+  retrouve celles sans suite enregistrée. Cela ne prouve pas un abandon.
+- **Sans données** : la recherche a été comprise, mais n’a renvoyé aucune ligne.
+- **Échec** : validation, accès aux données, calcul ou génération en erreur.
+- **En cours** : traitement commencé, ou rapport en attente / en cours dans le worker.
+
+La fiche d’un parcours présente sa chronologie, les choix repris et les paramètres
+modifiés, le nombre de lignes, les avertissements et les fichiers associés. Les
+recherches sans résultat, les analyses d’événements, les rapports planifiés et les
+erreurs du worker sont aussi suivis. La liste se filtre par statut, type, date et suite
+du parcours ; la recherche porte sur la demande, l’utilisateur et le message d’erreur.
+Les compteurs comptent les **tentatives**, pas les utilisateurs ou les parcours uniques.
+
+Les exports Excel immédiats sont désormais archivés dans `MEDIA_ROOT`, comme les PDF
+et PowerPoint, et apparaissent aussi dans « Mes rapports ». L’administrateur peut
+retrouver le fichier exact par utilisateur, titre, format, statut ou date, puis le
+télécharger depuis une route protégée (pas de lien public direct vers le stockage).
+Les téléchargements administrateur sont inscrits au journal d’audit.
+
+L’accès nécessite un compte staff avec `comptes.view_demandesuivie` pour les demandes
+et `rapports.view_rapport` pour les fichiers (ou un superutilisateur). Les traces sont
+en lecture seule dans l’admin. Les fichiers suivent les règles de conservation déjà
+existantes des rapports : pas de purge automatique des archives par cette fonctionnalité.
+Sauvegarder la base applicative **et** `MEDIA_ROOT` pour conserver les parcours et fichiers.
+
+**Mise à jour** : installer les dépendances, exécuter `python manage.py migrate`, puis
+`python manage.py collectstatic --noinput` et redémarrer l’application et le worker.
+Les deux migrations ajoutent le suivi et son lien aux rapports sans modifier les
+anciennes traces. Le suivi détaillé commence après l’installation : les questions et
+résultats passés ne peuvent pas être reconstruits à partir de l’ancien journal.
+Les anciens rapports restent disponibles dans « Rapports générés ».
+
+La recherche comprend désormais **auj**, **auj.** et **ajd** comme « aujourd’hui »
+(heure de Nouméa). « Stats » ou « statistiques », sans indicateur précis, demande un
+bilan complet ; un indicateur explicite reste prioritaire (« stats du débit » = débit).
+
 ### Événements
 
 - Cellules : codes site (toutes leurs cellules), codes secteur et/ou noms de cellules

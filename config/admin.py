@@ -18,7 +18,7 @@ ORDRE_SECTIONS = ["evenements", "kpi", "comptes", "auth", "referentiel", "rappor
 ORDRE_MODELES = [
     "Evenement",
     "SeuilKpi", "ReglagesAnomalies",
-    "User", "Group", "Perimetre", "JournalAudit",
+    "User", "Group", "Perimetre", "DemandeSuivie", "JournalAudit",
     "Site", "Secteur", "Cellule", "ImportReferentiel",
     "RapportPlanifie", "Rapport",
     "Schedule", "Failure", "Success", "OrmQ",
@@ -42,6 +42,10 @@ def _evenements_sans_creneau():
 # Accès rapides du tableau de bord : (titre, description, modèle, page, paramètres de la liste,
 # compteur affiché sur la carte). Une carte n'est affichée que si l'utilisateur a le droit correspondant.
 ACCES_RAPIDES = [
+    ("Suivi des demandes", "Demandes, suggestions, précisions et résultats de chaque parcours.",
+     "comptes.DemandeSuivie", "changelist", {}, None),
+    ("Rapports générés", "Retrouver et télécharger les fichiers d’un utilisateur.",
+     "rapports.Rapport", "changelist", {}, None),
     ("Créer un événement", "Cellules concernées, créneaux et semaines de référence.",
      "evenements.Evenement", "add", {}, None),
     ("Événements à compléter", "Événements sans créneau : leur analyse n'est pas encore possible.",
@@ -126,6 +130,12 @@ class AdminStats(admin.AdminSite):
         dernier = ImportReferentiel.objects.select_related("auteur").first()
         return {"import": dernier, "url": self._url(ImportReferentiel, "changelist")}
 
+    def each_context(self, request):
+        contexte = super().each_context(request)
+        contexte['peut_suivi'] = request.user.has_perm('comptes.view_demandesuivie')
+        contexte['peut_rapports'] = request.user.has_perm('rapports.view_rapport')
+        return contexte
+
     def index(self, request, extra_context=None):
         from apps.kpi.source import est_demo
 
@@ -136,6 +146,21 @@ class AdminStats(admin.AdminSite):
             "referentiel": self.dernier_import(request),
             **(extra_context or {}),
         }
+        if request.user.has_perm('comptes.view_demandesuivie'):
+            from datetime import timedelta
+            from django.db.models import Count, Q, Exists, OuterRef
+            from django.utils import timezone
+            from apps.comptes.models import DemandeSuivie
+            depuis = timezone.now() - timedelta(days=7)
+            contexte['suivi_depuis'] = depuis.isoformat()
+            demandes = DemandeSuivie.objects.filter(creee_le__gte=depuis).annotate(
+                a_une_suite=Exists(DemandeSuivie.objects.filter(parent_id=OuterRef('pk'))))
+            contexte['suivi_stats'] = demandes.aggregate(
+                total=Count('pk'), reussies=Count('pk', filter=Q(statut='reussie')),
+                erreurs=Count('pk', filter=Q(statut='erreur')),
+                a_preciser=Count('pk', filter=Q(statut='a_preciser', a_une_suite=False)),
+                sans_donnees=Count('pk', filter=Q(statut='sans_donnees')))
+            contexte['dernieres_demandes'] = DemandeSuivie.objects.select_related('utilisateur')[:8]
         return super().index(request, contexte)
 
     def login(self, request, extra_context=None):

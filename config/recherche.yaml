@@ -77,7 +77,7 @@ intentions:
            faire le point, point complet, point general, vue d ensemble, tableau de bord, dashboard,
            bilan mensuel, bilan hebdo, bilan hebdomadaire, rapport mensuel, rapport hebdo, rapport hebdomadaire,
            point mensuel, point hebdo]
-    mots_generiques: [bilan, bilans, synthese, resume, rapport, rapports, point]
+    mots_generiques: [bilan, bilans, synthese, resume, rapport, rapports, point, stat, stats, statistique, statistiques]
     technos_defaut: [WCDMA, LTE]
     kpis:
       WCDMA: [wcdma_appels_voix, wcdma_sms, wcdma_cssr_cs, wcdma_cssr_ps, wcdma_cs_drop, wcdma_ps_drop]

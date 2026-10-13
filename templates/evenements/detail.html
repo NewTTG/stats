@@ -28,15 +28,15 @@
 <div class="barre-evenement">
   <nav class="onglets" aria-label="Niveau d'analyse">{% for code, libelle in niveaux.items %}<a href="?niveau={{ code }}" class="{% if code == niveau %}actif{% endif %}"{% if code == niveau %} aria-current="page"{% endif %}>Par {{ libelle|lower }}</a>{% endfor %}</nav>
   <div class="boutons">
-    <form method="post" action="{% url 'rapports:evenement' evenement.pk %}">{% csrf_token %}
+    <form method="post" action="{% url 'rapports:evenement' evenement.pk %}">{% csrf_token %}<input type="hidden" name="suivi" value="{{ suivi }}">
       <input type="hidden" name="niveau" value="{{ niveau }}"><input type="hidden" name="format" value="pdf">
       <button class="bouton secondaire" type="submit">Rapport PDF</button>
     </form>
-    <form method="post" action="{% url 'rapports:evenement' evenement.pk %}">{% csrf_token %}
+    <form method="post" action="{% url 'rapports:evenement' evenement.pk %}">{% csrf_token %}<input type="hidden" name="suivi" value="{{ suivi }}">
       <input type="hidden" name="niveau" value="{{ niveau }}"><input type="hidden" name="format" value="xlsx">
       <button class="bouton secondaire" type="submit">Rapport Excel</button>
     </form>
-    <form method="post" action="{% url 'rapports:evenement' evenement.pk %}">{% csrf_token %}
+    <form method="post" action="{% url 'rapports:evenement' evenement.pk %}">{% csrf_token %}<input type="hidden" name="suivi" value="{{ suivi }}">
       <input type="hidden" name="niveau" value="{{ niveau }}"><input type="hidden" name="format" value="pptx">
       <button class="bouton" type="submit">Rapport PowerPoint</button>
     </form>
