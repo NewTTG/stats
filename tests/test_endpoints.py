@@ -110,6 +110,9 @@ APPLICATION = [
     ('kpi:dashboard', {}, 200),
     ('kpi:requete', {}, 200), ('kpi:suggestions', {}, 200),
     ('evenements:liste', {}, 200), ('evenements:detail', {'pk': 1}, 200),
+    # Création / modification : droits evenements.* requis (l'analyste ne les a pas).
+    ('evenements:nouveau', {}, 403), ('evenements:modifier', {'pk': 1}, 403), ('evenements:reseau', {}, 403),
+    ('evenements:supprimer', {'pk': 1}, 405),
     ('rapports:liste', {}, 200), ('rapports:requete', {}, 405),
     ('rapports:evenement', {'pk': 1}, 405), ('rapports:telecharger', {'pk': 1}, 200),
     ('rapports:enregistrer', {}, 200), ('rapports:planifie_lancer', {'pk': 1}, 405),
@@ -179,7 +182,7 @@ def test_csrf_obligatoire(analyste, ressources, nom):
     assert Rapport.objects.count() == 1 and RapportPlanifie.objects.count() == 1
 
 
-@pytest.mark.parametrize('nom,kwargs,statut', APPLICATION[:12])
+@pytest.mark.parametrize('nom,kwargs,statut', [a for a in APPLICATION if a[0] not in ('login', 'logout')])
 @pytest.mark.parametrize('methode', ['get', 'post'])
 def test_connexion_obligatoire_sans_visiteurs(client, settings, nom, kwargs, statut, methode):
     settings.ACCES_ANONYME = False

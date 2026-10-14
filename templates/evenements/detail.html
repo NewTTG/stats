@@ -9,7 +9,7 @@
     {% if evenement.type %}<p class="sous-titre">{{ evenement.type }}</p>{% endif %}
   </div>
   {% if perms.evenements.change_evenement %}
-  <div class="boutons"><a class="bouton secondaire" href="{% url 'admin:evenements_evenement_change' evenement.pk %}">Modifier l'événement</a></div>
+  <div class="boutons"><a class="bouton secondaire" href="{% url 'evenements:modifier' evenement.pk %}">Modifier l'événement</a></div>
   {% endif %}
 </div>
 <section class="carte">
