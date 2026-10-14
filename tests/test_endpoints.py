@@ -37,7 +37,7 @@ def test_source_indisponible_reponse_controlee(utilisateur, referentiel, monkeyp
     else:
         e = Evenement.objects.create(nom='Événement accessible', cellules=['AAAe1'])
         monkeypatch.setattr('apps.evenements.views.moteur_kpi', panne)
-        url, params = f'/evenements/{e.pk}/', {}
+        url, params = f'/evenements/{e.pk}/', {'debut': '2026-09-01T18:00', 'fin': '2026-09-01T20:00'}
     reponse = utilisateur.get(url, params)
     assert reponse.status_code == 503
     html = reponse.content.decode()
@@ -112,7 +112,7 @@ APPLICATION = [
     ('evenements:liste', {}, 200), ('evenements:detail', {'pk': 1}, 200),
     # Création / modification : droits evenements.* requis (l'analyste ne les a pas).
     ('evenements:nouveau', {}, 403), ('evenements:modifier', {'pk': 1}, 403), ('evenements:reseau', {}, 403),
-    ('evenements:supprimer', {'pk': 1}, 405),
+    ('evenements:supprimer', {'pk': 1}, 405), ('evenements:memoriser_periode', {'pk': 1}, 405),
     ('rapports:liste', {}, 200), ('rapports:requete', {}, 405),
     ('rapports:evenement', {'pk': 1}, 405), ('rapports:telecharger', {'pk': 1}, 200),
     ('rapports:enregistrer', {}, 200), ('rapports:planifie_lancer', {'pk': 1}, 405),

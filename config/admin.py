@@ -36,16 +36,10 @@ REGROUPEMENTS = {
 }
 
 
-def _evenements_sans_creneau():
-    from apps.evenements.models import Evenement
-
-    return Evenement.objects.filter(creneaux__isnull=True).count()
-
-
 # Raccourcis du tableau de bord : (titre, description, modèle, page, paramètres de la liste).
 # Un raccourci n'est affiché que si l'utilisateur a le droit correspondant.
 ACCES_RAPIDES = [
-    ("Créer un événement", "Page de l’application : carte des secteurs, créneaux, KPI",
+    ("Créer un événement", "Page de l’application : carte des secteurs, KPI",
      "evenements.Evenement", "add", {}),
     ("Seuils KPI", "Seuils d'alerte et critiques",
      "kpi.SeuilKpi", "changelist", {}),
@@ -150,10 +144,8 @@ class AdminStats(admin.AdminSite):
             m = modeles[cle]
             ranges.add(cle)
             url = m.get("admin_url")
-            # Pastille : événements à compléter (sans créneau, donc pas encore analysables).
-            compteur = (_evenements_sans_creneau() or None) if cle == "evenements.Evenement" else None
             return {"libelle": LIBELLES_NAVIGATION.get(cle, m["name"]), "url": url,
-                    "actif": bool(url) and request.path.startswith(url), "compteur": compteur}
+                    "actif": bool(url) and request.path.startswith(url), "compteur": None}
 
         for titre, cles in NAVIGATION:
             entrees = []
@@ -196,13 +188,9 @@ class AdminStats(admin.AdminSite):
     def a_traiter(self, request, depuis):
         """Points à examiner : (libellé, nombre, lien, gravité), selon les droits de l'utilisateur."""
         from apps.comptes.models import DemandeSuivie
-        from apps.evenements.models import Evenement
         from apps.rapports.models import Rapport
 
         lignes = []
-        if self._droit(request, "evenements.Evenement"):
-            lignes.append(("Événements sans créneau", _evenements_sans_creneau(),
-                           self._url(Evenement, "changelist", {"creneaux": "sans"}), "attention"))
         if self._droit(request, "comptes.DemandeSuivie"):
             recentes = DemandeSuivie.objects.filter(creee_le__gte=depuis)
             lignes.append(("Précisions sans réponse (7 j)",

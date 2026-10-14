@@ -1,5 +1,5 @@
 "use strict";
-// Édition d'un événement (administration) : zone couverte (recherche, carte des secteurs), créneaux, KPI.
+// Édition d'un événement : zone couverte (recherche, carte des secteurs), KPI.
 //
 // La sélection est rangée comme dans le modèle : sites entiers, secteurs, cellules isolées (champs
 // cachés « sites », « secteurs », « cellules »). Retirer un secteur d'un site entier, ou une cellule
@@ -550,110 +550,6 @@
     }
 
     zone.querySelector("[data-recentrer]").addEventListener("click", () => recentrer());
-  }
-
-  // ------------------------------------------------------------------ créneaux
-  const blocCreneaux = formulaire.querySelector("[data-creneaux]");
-  if (blocCreneaux) initialiserCreneaux(blocCreneaux);
-
-  function initialiserCreneaux(bloc) {
-    const prefixe = bloc.dataset.prefix;
-    const totalForms = formulaire.querySelector(`input[name="${prefixe}-TOTAL_FORMS"]`);
-    const modele = formulaire.querySelector("template[data-modele-creneau]");
-    const sansCreneau = formulaire.querySelector("[data-sans-creneau]");
-    const HEURE = 3600 * 1000;
-
-    const lireDate = (input) => (input.value ? new Date(input.value) : null);
-    const versChamp = (date) => {
-      const p = (n) => String(n).padStart(2, "0");
-      return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}`;
-    };
-    const champs = (ligne) => ligne.querySelectorAll('input[type="datetime-local"]');
-
-    function majDuree(ligne) {
-      const [debut, fin] = [...champs(ligne)].map(lireDate);
-      const sortie = ligne.querySelector("[data-duree]");
-      sortie.classList.remove("erreur");
-      if (!debut || !fin) { sortie.textContent = ""; return; }
-      const minutes = Math.round((fin - debut) / 60000);
-      if (minutes <= 0) {
-        sortie.textContent = "La fin doit suivre le début";
-        sortie.classList.add("erreur");
-        return;
-      }
-      const j = Math.floor(minutes / 1440), h = Math.floor((minutes % 1440) / 60), m = minutes % 60;
-      sortie.textContent = [j && `${j} j`, h && `${h} h`, m && `${m} min`].filter(Boolean).join(" ");
-    }
-
-    function majVide() {
-      const visibles = [...bloc.querySelectorAll("[data-creneau]")].filter((l) => !l.hidden && !l.classList.contains("retire"));
-      sansCreneau.hidden = visibles.length > 0;
-    }
-
-    function ajouter(debut, fin) {
-      const index = Number(totalForms.value);
-      const fragment = modele.content.cloneNode(true);
-      for (const noeud of fragment.querySelectorAll("[name], [id], [for]")) {
-        for (const attr of ["name", "id", "for"]) {
-          if (noeud.hasAttribute(attr)) noeud.setAttribute(attr, noeud.getAttribute(attr).replace(/__prefix__/g, index));
-        }
-      }
-      const ligne = fragment.querySelector("[data-creneau]");
-      const [champDebut, champFin] = champs(ligne);
-      if (debut) champDebut.value = versChamp(debut);
-      if (fin) champFin.value = versChamp(fin);
-      bloc.append(fragment);
-      totalForms.value = index + 1;
-      majDuree(ligne);
-      majVide();
-      marquerModifie();
-      if (!debut) champDebut.focus();
-      return ligne;
-    }
-
-    bloc.addEventListener("change", (event) => {
-      const ligne = event.target.closest("[data-creneau]");
-      if (!ligne) return;
-      const [champDebut, champFin] = champs(ligne);
-      // Début saisi sans fin : 3 h proposées par défaut, modifiables.
-      if (event.target === champDebut && champDebut.value && !champFin.value) {
-        champFin.value = versChamp(new Date(lireDate(champDebut).getTime() + 3 * HEURE));
-      }
-      majDuree(ligne);
-    });
-
-    bloc.addEventListener("click", (event) => {
-      const bouton = event.target.closest("button");
-      const ligne = bouton?.closest("[data-creneau]");
-      if (!ligne) return;
-      const suppression = ligne.querySelector('input[name$="-DELETE"]');
-      if (bouton.matches("[data-retirer-creneau]")) {
-        if (suppression) suppression.checked = true;
-        if (ligne.hasAttribute("data-existant")) {
-          ligne.classList.add("retire");
-          ligne.querySelector("[data-annuler-retrait]").hidden = false;
-          bouton.hidden = true;
-        } else {
-          ligne.hidden = true;
-        }
-        marquerModifie();
-        majVide();
-      } else if (bouton.matches("[data-annuler-retrait]")) {
-        if (suppression) suppression.checked = false;
-        ligne.classList.remove("retire");
-        bouton.hidden = true;
-        ligne.querySelector("[data-retirer-creneau]").hidden = false;
-        majVide();
-      } else if (bouton.matches("[data-jour-suivant]")) {
-        const [debut, fin] = [...champs(ligne)].map(lireDate);
-        if (!debut || !fin) { champs(ligne)[debut ? 1 : 0].focus(); return; }
-        ajouter(new Date(debut.getTime() + 24 * HEURE), new Date(fin.getTime() + 24 * HEURE));
-      }
-    });
-
-    formulaire.querySelector("[data-ajouter-creneau]").addEventListener("click", () => ajouter());
-    bloc.querySelectorAll("[data-creneau]").forEach(majDuree);
-    majVide();
   }
 
   // ------------------------------------------------------------------ KPI

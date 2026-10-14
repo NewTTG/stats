@@ -136,7 +136,7 @@ def test_rapport_en_erreur(client_analyste, referentiel, worker):  # noqa: F811
     e = Evenement.objects.create(nom="Sans date", cellules=["AAAe1"])
     client_analyste.post(f"/rapports/evenement/{e.pk}/", {"niveau": "secteur", "format": "xlsx"})
     rapport = Rapport.objects.get()
-    assert rapport.statut == "erreur" and "créneau" in rapport.message
+    assert rapport.statut == "erreur" and "période" in rapport.message
 
 
 def test_rapport_requete(client_analyste, referentiel, base_kpi, worker, monkeypatch):  # noqa: F811

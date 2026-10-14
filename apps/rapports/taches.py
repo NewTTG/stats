@@ -3,6 +3,7 @@
 import logging
 import re
 import unicodedata
+from datetime import datetime
 
 from django.core.files.base import ContentFile
 from django.utils import timezone
@@ -35,7 +36,9 @@ def contenu(rapport: Rapport) -> bytes:
         resultat = executer(RequeteKpi(**p["requete"]), user, moteur_kpi())
         return {"pptx": pptx_requete, "xlsx": construire_excel, "pdf": pdf_requete}[rapport.format](resultat)
     evenement = evenements_visibles(user, Evenement.objects.filter(pk=p["evenement"])).get()
-    analyse = analyser(evenement, user, moteur_kpi(), niveau=p.get("niveau", "secteur"))
+    # Rapports antérieurs au choix de la période à l'affichage : créneaux mémorisés de l'événement.
+    creneaux = [(datetime.fromisoformat(d), datetime.fromisoformat(f)) for d, f in p["creneaux"]] if "creneaux" in p else None
+    analyse = analyser(evenement, user, moteur_kpi(), niveau=p.get("niveau", "secteur"), creneaux=creneaux)
     return {"pptx": pptx_evenement, "xlsx": xlsx_evenement, "pdf": pdf_evenement}[rapport.format](analyse)
 
 

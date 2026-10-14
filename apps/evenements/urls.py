@@ -10,4 +10,5 @@ urlpatterns = [
     path("<int:pk>/", views.detail, name="detail"),
     path("<int:pk>/modifier/", views.edition, name="modifier"),
     path("<int:pk>/supprimer/", views.supprimer, name="supprimer"),
+    path("<int:pk>/periode/", views.memoriser_periode, name="memoriser_periode"),
 ]

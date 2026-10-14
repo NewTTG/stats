@@ -1,5 +1,5 @@
 /* Création / modification d'un événement (templates/evenements/edition.html) : blocs, carte des secteurs,
-   créneaux, KPI. Jetons de static/css/app.css et workspace.css (--marine-*, --bord, --texte…). */
+   KPI. Jetons de static/css/app.css et workspace.css (--marine-*, --bord, --texte…). */
 
 .edition-evenement { --ev-accent: #1b6652; --ev-accent-fort: #144f3e; --ev-accent-doux: #e8f3ed;
   --ev-libre: rgba(255, 255, 255, .75); --ev-partiel: rgba(27, 102, 82, .38); --ev-trait: #3f5a50; }
@@ -135,22 +135,6 @@
 .ev-z-moyen .ev-marqueur-nom { top: calc(82% - 4px); }
 .ev-z-loin .ev-marqueur-nom { display: none !important; }
 
-/* ------------------------------------------------------------------ créneaux */
-.ev-creneaux { display: flex; flex-direction: column; gap: 8px; }
-.ev-creneau { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; padding: 12px 14px; border: 1px solid var(--bord); border-radius: 10px; background: #fbfcfb; }
-.ev-creneau.en-erreur { border-color: #f4b8b0; }
-.ev-creneau.retire { opacity: .55; }
-.ev-creneau.retire .ev-creneau-champ, .ev-creneau.retire .ev-fleche, .ev-creneau.retire .ev-duree, .ev-creneau.retire [data-jour-suivant] { text-decoration: line-through; pointer-events: none; }
-.edition-evenement .ev-creneau-champ { display: flex; flex-direction: column; gap: 4px; margin: 0; color: var(--texte-3); font-size: 11px; font-weight: 600; }
-.ev-creneau-champ input { width: 220px; background: #fff; }
-.ev-fleche { padding-bottom: 10px; color: var(--texte-3); }
-.ev-duree { min-width: 70px; padding-bottom: 10px; color: var(--texte-2); font-size: 12px; font-variant-numeric: tabular-nums; }
-.ev-duree.erreur { color: var(--critique); }
-.ev-creneau-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; padding-bottom: 6px; }
-.ev-creneau-erreurs { flex-basis: 100%; }
-.ev-sans-creneau { margin: 0; padding: 10px 12px; border: 1px dashed #f3d27a; border-radius: 10px; background: var(--alerte-fond); color: var(--alerte); font-size: 12px; }
-.ev-ajouter { margin-top: 12px; }
-
 /* ------------------------------------------------------------------ KPI */
 .ev-semaines { margin-bottom: 20px; }
 .edition-evenement .ev-option { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; color: var(--texte); font-size: 12px; font-weight: 550; cursor: pointer; }
@@ -182,8 +166,6 @@
   .ev-grille-infos { grid-template-columns: minmax(0, 1fr); }
   .ev-entete { flex-direction: column; padding: 18px 18px 14px; }
   .ev-total { text-align: left; }
-  .ev-creneau-champ, .ev-creneau-champ input { width: 100%; }
-  .ev-fleche { display: none; }
   .ev-legende { max-width: calc(100% - 20px); bottom: 30px; }
   .ev-actions { position: static; }
   .ev-actions .bouton { flex: 1 1 auto; }

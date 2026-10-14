@@ -29,7 +29,7 @@ def importer_clusters(chemin: Path, auteur=None) -> tuple[list[str], list[str]]:
         Evenement.objects.create(
             nom=nom,
             type=types.mode().iloc[0] if len(types) else "",
-            description="Importé de l'onglet Cluster du référentiel : créneaux à renseigner.",
+            description="Importé de l'onglet Cluster du référentiel.",
             cellules=sorted(set(groupe["Cellule"].str.strip())),
             cree_par=auteur,
         )

@@ -1,15 +1,14 @@
-"""Création / modification d'un événement (pages publiques /evenements/nouveau/ et /<pk>/modifier/) :
-formulaires, données de la carte de sélection, KPI proposés."""
+"""Création / modification d'un événement (pages /evenements/nouveau/ et /<pk>/modifier/) : formulaire,
+données de la carte de sélection, KPI proposés. La période analysée se choisit à l'affichage (``periode``)."""
 
 import re
 
 from django import forms
-from django.forms import inlineformset_factory
 
 from apps.kpi.catalogue import catalogue_yaml, kpis_principaux
 from apps.referentiel.models import Cellule, Site
 
-from .models import Creneau, Evenement
+from .models import Evenement
 
 _SEPARATEURS = re.compile(r"[\s,;]+")
 LIBELLES_TECHNO = {"LTE": "4G (LTE)", "WCDMA": "3G (WCDMA)"}
@@ -62,26 +61,6 @@ class EvenementForm(forms.ModelForm):
         elif not donnees.get("kpis") and "kpis" not in self.errors:
             self.add_error("kpis", "Cochez au moins un KPI, ou revenez aux KPI principaux.")
         return donnees
-
-
-class CreneauForm(forms.ModelForm):
-    """Début et fin en un seul champ date + heure (sélecteur du navigateur), heure de Nouméa."""
-
-    debut = forms.DateTimeField(label="Début", widget=forms.DateTimeInput(
-        attrs={"type": "datetime-local", "step": 60}, format="%Y-%m-%dT%H:%M"))
-    fin = forms.DateTimeField(label="Fin", widget=forms.DateTimeInput(
-        attrs={"type": "datetime-local", "step": 60}, format="%Y-%m-%dT%H:%M"))
-
-    class Meta:
-        model = Creneau
-        fields = ["debut", "fin"]
-
-
-def creneaux_formset(evenement: Evenement, data=None):
-    """Créneaux de l'événement ; une ligne vide tant qu'il n'en a aucun."""
-    vide = evenement.pk is None or not evenement.creneaux.exists()
-    classe = inlineformset_factory(Evenement, Creneau, form=CreneauForm, extra=1 if vide else 0, can_delete=True)
-    return classe(data, instance=evenement, prefix="creneaux")
 
 
 def reseau_pour_carte() -> dict:

@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from apps.comptes import suivi
 from apps.comptes.acces import kpis_autorises
+from apps.evenements import periode
 from apps.evenements.analyse import NIVEAUX
 from apps.evenements.models import Evenement
 from apps.evenements.acces import evenements_visibles
@@ -69,9 +70,17 @@ def rapport_evenement(request, pk):
     fmt = request.POST.get("format", "pptx")
     if niveau not in NIVEAUX or fmt not in dict(Rapport.FORMATS):
         raise Http404
+    # Période affichée sur la page de l'événement ; à défaut, ses créneaux mémorisés.
+    try:
+        creneaux = periode.lire(request.POST.getlist("debut"), request.POST.getlist("fin")) or periode.memorises(evenement)
+    except periode.PeriodeInvalide as e:
+        messages.error(request, str(e))
+        return redirect("evenements:detail", evenement.pk)
+    quand = f" du {creneaux[0][0]:%d/%m/%Y}" if creneaux else ""
     rapport = Rapport.objects.create(
-        utilisateur=request.user, titre=f"{evenement.nom} : par {niveau}"[:200], nature="evenement", format=fmt,
-        parametres={"evenement": evenement.pk, "niveau": niveau})
+        utilisateur=request.user, titre=f"{evenement.nom}{quand} : par {niveau}"[:200], nature="evenement", format=fmt,
+        parametres={"evenement": evenement.pk, "niveau": niveau,
+                    "creneaux": [[d.isoformat(), f.isoformat()] for d, f in creneaux]})
     if lancer(rapport, parent=suivi.origine(request.user, request.POST.get("suivi"))):
         messages.success(request, f"Rapport {rapport.get_format_display()} en cours de génération.")
     else:

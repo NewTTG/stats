@@ -173,12 +173,15 @@ def _courbes(df, kpis, instants) -> list[Courbe]:
     return courbes
 
 
-def analyser(evenement: Evenement, user, engine, niveau: str = "secteur") -> Analyse:
+def analyser(evenement: Evenement, user, engine, niveau: str = "secteur", creneaux=None) -> Analyse:
+    """``creneaux`` : période choisie à l'affichage (heure locale) ; à défaut, créneaux mémorisés."""
     if niveau not in NIVEAUX:
         raise AnalyseImpossible(f"Niveau inconnu : {niveau}")
-    creneaux = [(_local(c.debut), _local(c.fin)) for c in evenement.creneaux.all()]
+    if creneaux is None:
+        creneaux = [(_local(c.debut), _local(c.fin)) for c in evenement.creneaux.all()]
+    creneaux = sorted((_local(d), _local(f)) for d, f in creneaux)
     if not creneaux:
-        raise AnalyseImpossible("Aucun créneau défini pour cet événement : à renseigner dans l'administration.")
+        raise AnalyseImpossible("Choisissez la période à analyser.")
 
     reglages = ReglagesAnomalies.courant()
     cat = catalogue()

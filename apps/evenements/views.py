@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
@@ -8,6 +9,8 @@ from django.db import transaction
 from django.db.models import Count, Min
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_POST, require_safe
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -18,8 +21,9 @@ from apps.rapports.contenu import LIBELLES_REGLE
 
 from .acces import evenements_visibles
 from .analyse import NIVEAUX, AnalyseImpossible, analyser
-from .edition import EvenementForm, creneaux_formset, groupes_kpi, nb_kpis_principaux, reseau_pour_carte
-from .models import Evenement
+from . import periode
+from .edition import EvenementForm, groupes_kpi, nb_kpis_principaux, reseau_pour_carte
+from .models import Creneau, Evenement
 
 journal = logging.getLogger(__name__)
 
@@ -30,9 +34,10 @@ def liste(request):
     recherche = request.GET.get("recherche", "").strip()[:150]
     if recherche:
         evenements = evenements.filter(nom__icontains=recherche)
+    # Période mémorisée la plus récente d'abord ; sans période, par nom (elle se choisit à l'affichage).
     dates = sorted((e for e in evenements if e.debut), key=lambda e: e.debut, reverse=True)
-    sans_date = [e for e in evenements if not e.debut]
-    return render(request, "evenements/liste.html", {"evenements": dates, "sans_date": sans_date, "recherche": recherche})
+    sans_date = sorted((e for e in evenements if not e.debut), key=lambda e: e.nom.lower())
+    return render(request, "evenements/liste.html", {"evenements": dates + sans_date, "recherche": recherche})
 
 
 def _graphiques(res):
@@ -40,6 +45,27 @@ def _graphiques(res):
         {"titre": f"{c.kpi.libelle} ({c.kpi.unite})", "unite": c.kpi.unite, "seuils": c.kpi.seuils.model_dump(),
          "evenement": c.evenement, "reference": c.reference, "min": c.ref_min, "max": c.ref_max}
         for c in res.courbes]}
+
+
+def _periode_demandee(request, evenement):
+    """(créneaux, lignes du formulaire, erreur) : période de l'URL, sinon créneaux mémorisés."""
+    debuts, fins = request.GET.getlist("debut"), request.GET.getlist("fin")
+    if not (debuts or fins):
+        creneaux = periode.memorises(evenement)
+        return creneaux, periode.parametres(creneaux), None
+    lignes = [p for d, f in zip(debuts, fins) for p in (("debut", d), ("fin", f))]
+    try:
+        creneaux = periode.lire(debuts, fins)
+    except periode.PeriodeInvalide as e:
+        return [], lignes, str(e)
+    return creneaux, periode.parametres(creneaux), None
+
+
+def _lignes_formulaire(parametres):
+    """[(début, fin)] au format du champ date + heure ; une ligne vide si aucune."""
+    valeurs = [v for _, v in parametres]
+    lignes = list(zip(valeurs[0::2], valeurs[1::2]))
+    return lignes or [("", "")]
 
 
 @login_required
@@ -50,14 +76,27 @@ def detail(request, pk):
     niveau = request.GET.get("niveau", "secteur")
     if niveau not in NIVEAUX:
         niveau = "secteur"
-    contexte = {"evenement": evenement, "niveau": niveau, "niveaux": NIVEAUX, "regles": LIBELLES_REGLE}
-    demande = suivi.commencer(request.user, 'evenement', evenement.nom,
-                              {'evenement': evenement.pk, 'niveau': niveau}) if request.method == 'GET' else None
+    creneaux, parametres, erreur_periode = _periode_demandee(request, evenement)
+    url = reverse("evenements:detail", args=[evenement.pk])
+    contexte = {
+        "evenement": evenement, "niveau": niveau, "niveaux": NIVEAUX, "regles": LIBELLES_REGLE,
+        "creneaux": creneaux, "lignes_periode": _lignes_formulaire(parametres), "erreur_periode": erreur_periode,
+        "periode_url": urlencode(parametres) if creneaux else "",
+        "parametres_periode": parametres if creneaux else [],
+        "decalages": [(libelle, f"{url}?{urlencode(periode.parametres(periode.decaler(creneaux, mois, jours)) + [('niveau', niveau)])}")
+                      for libelle, mois, jours in periode.DECALAGES] if creneaux else [],
+        "peut_memoriser": bool(creneaux) and request.user.has_perm("evenements.change_evenement")
+                          and creneaux != periode.memorises(evenement),
+    }
+    if not creneaux:  # rien à analyser : on demande la période
+        return render(request, "evenements/detail.html", contexte)
+    trace = {'evenement': evenement.pk, 'niveau': niveau,
+             'creneaux': [[d.isoformat(), f.isoformat()] for d, f in creneaux]}
+    demande = suivi.commencer(request.user, 'evenement', evenement.nom, trace) if request.method == 'GET' else None
     contexte['suivi'] = str(demande.pk) if demande else ''
     try:
-        analyse = analyser(evenement, request.user, moteur_kpi(), niveau=niveau)
-        JournalAudit.objects.create(utilisateur=request.user, action="analyse_evenement",
-                                    requete={"evenement": evenement.pk, "niveau": niveau})
+        analyse = analyser(evenement, request.user, moteur_kpi(), niveau=niveau, creneaux=creneaux)
+        JournalAudit.objects.create(utilisateur=request.user, action="analyse_evenement", requete=trace)
         contexte["analyse"] = analyse
         contexte["blocs"] = [{"res": r, "graphiques": _graphiques(r), "id": f"courbes-{r.techno}"}
                              for r in analyse.par_techno]
@@ -81,6 +120,25 @@ def detail(request, pk):
     return render(request, "evenements/detail.html", contexte, status=statut)
 
 
+@login_required
+@require_POST
+def memoriser_periode(request, pk):
+    """La période affichée devient celle proposée à la prochaine ouverture de l'événement."""
+    _exiger(request, "change")
+    evenement = get_object_or_404(evenements_visibles(request.user, Evenement.objects.filter(pk=pk)))
+    try:
+        creneaux = periode.lire(request.POST.getlist("debut"), request.POST.getlist("fin"))
+    except periode.PeriodeInvalide as e:
+        messages.error(request, str(e))
+        return redirect("evenements:detail", evenement.pk)
+    with transaction.atomic():
+        evenement.creneaux.all().delete()
+        Creneau.objects.bulk_create([Creneau(evenement=evenement, debut=timezone.make_aware(d), fin=timezone.make_aware(f))
+                                     for d, f in creneaux])
+    messages.success(request, "Période mémorisée : elle sera proposée à la prochaine ouverture de l'événement.")
+    return redirect(f"{reverse('evenements:detail', args=[evenement.pk])}?{urlencode(periode.parametres(creneaux))}")
+
+
 # ------------------------------------------------------------------ création / modification
 
 def _exiger(request, droit):
@@ -99,15 +157,11 @@ def edition(request, pk=None):
         evenement = get_object_or_404(evenements_visibles(request.user, Evenement.objects.filter(pk=pk)))
     donnees = request.POST if request.method == "POST" else None
     formulaire = EvenementForm(donnees, instance=evenement)
-    creneaux = creneaux_formset(evenement, donnees)
-    if donnees is not None and formulaire.is_valid() and creneaux.is_valid():
-        with transaction.atomic():
-            evenement = formulaire.save(commit=False)
-            if not evenement.cree_par_id:
-                evenement.cree_par = request.user
-            evenement.save()
-            creneaux.instance = evenement
-            creneaux.save()
+    if donnees is not None and formulaire.is_valid():
+        evenement = formulaire.save(commit=False)
+        if not evenement.cree_par_id:
+            evenement.cree_par = request.user
+        evenement.save()
         JournalAudit.objects.create(utilisateur=request.user,
                                     action="creation_evenement" if pk is None else "modification_evenement",
                                     requete={"evenement": evenement.pk, "nom": evenement.nom})
@@ -116,7 +170,7 @@ def edition(request, pk=None):
             return redirect("evenements:modifier", evenement.pk)
         return redirect("evenements:detail", evenement.pk)
     return render(request, "evenements/edition.html", {
-        "evenement": evenement, "formulaire": formulaire, "creneaux": creneaux,
+        "evenement": evenement, "formulaire": formulaire,
         "erreurs": donnees is not None,
         "types_existants": sorted(set(Evenement.objects.exclude(type="").values_list("type", flat=True))),
         "groupes_kpi": groupes_kpi(formulaire), "nb_kpis_principaux": nb_kpis_principaux(),
