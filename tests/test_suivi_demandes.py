@@ -35,6 +35,37 @@ def test_abreviations_aujourdhui(mot):
 
 def test_abreviation_ne_capture_pas_un_nom():
     assert extraire_periode(Texte('stats de aujardin'), J)[0] is None
+    assert extraire_periode(Texte('stats de semineville dernière'), J)[0] is None
+
+
+def test_demande_a_copier(admin):
+    import re
+    from html import unescape
+    from zoneinfo import ZoneInfo
+    from datetime import datetime
+
+    user = User.objects.get(username='admin')
+    d = suivi.commencer(user, 'recherche', 'Drop 3G Nouméa </textarea><script>test</script>',
+                        {'q': ['Drop 3G Nouméa semine dernière']})
+    d.creee_le = datetime(2026, 10, 14, 13, 27, 39, tzinfo=ZoneInfo('Pacific/Noumea'))
+    d.interpretation = {'compris': [{'libelle': '3G', 'defaut': False}],
+                        'non_compris': ['semine', 'dernière'],
+                        'questions': [{'texte': 'Sur quelle période ?', 'options': [{'libelle': 'Semaine dernière'}]}]}
+    d.save()
+    suivi.terminer(d, 'a_preciser', 'Des précisions ont été proposées à l’utilisateur.')
+    response = admin.get(reverse('admin:comptes_demandesuivie_change', args=[d.pk]))
+    html = response.content.decode()
+    assert 'data-copier-demande' in html
+    assert 'js/suivi-demandes.js' in html
+    texte = unescape(re.search(r'<textarea[^>]*>(.*?)</textarea>', html, re.S)[1])
+    assert f'Identifiant : {d.pk}' in texte
+    assert '14/10/2026 13:27:39 (Nouméa)' in texte
+    assert d.texte in texte
+    assert 'Sur quelle période ?\n- Semaine dernière' in texte
+    assert 'Mots non reconnus : semine, dernière' in texte
+    assert '[À compléter avant transmission]' in texte
+    assert '"q": [' in texte
+    assert '<script>test</script>' not in response.content.decode()
 
 
 def test_precision_puis_succes_et_rapport(admin, base_recherche, monkeypatch):

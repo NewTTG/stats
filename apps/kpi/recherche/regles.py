@@ -111,7 +111,20 @@ def analyser(texte: str, aujourdhui: date, contexte: Contexte) -> tuple[Demande,
     # Provinces et régions avant le vocabulaire (« province », « région » y sont neutres).
     lieux_regions, ambiguites_regions = contexte.lieux.resoudre_regions(t)
 
-    d.intentions = _intentions(voc, voc.mots.trouver(t), d)
+    # Une variante de KPI ne doit pas avaler un nom de site explicite ou un trigramme.
+    noms_exacts = {i for indices, _ in contexte.lieux.noms_sites.trouver(t, consommer=False) for i in indices}
+
+    def accepter_variante(expression, indices):
+        for i in indices:
+            if t.mots[i] not in voc.aliases_saisie:
+                continue
+            if i in noms_exacts or (len(t.mots[i]) == 3 and t.origines[i].isupper()):
+                return False
+            if i and t.mots[i - 1] in ('site', 'sites', 'commune', 'cellule', 'secteur', 'trigramme'):
+                return False
+        return True
+
+    d.intentions = _intentions(voc, voc.mots.trouver(t, filtre=accepter_variante), d)
     if d.periode is None:  # « Nouméa S40 » : « Semaine 40 » proposée en premier (après « S1 » = interface)
         d.semaine_suggeree = semaine_suggeree(t)
 

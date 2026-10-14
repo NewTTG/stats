@@ -23,6 +23,10 @@ _NOM_JOUR = rf"(?:(?:{_JOURS}) )?"
 NOMBRES = {"un": 1, "une": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5, "six": 6, "sept": 7, "huit": 8,
            "neuf": 9, "dix": 10, "quinze": 15, "trente": 30}
 _NOMBRE = r"(\d{1,3}|" + "|".join(NOMBRES) + ")"
+# Variantes ciblées, toujours dans une expression de période complète.
+_SEMAINE = r"(?:semaine|semine|semiane|semanie|semain)"
+_DERNIERE = r"(?:derniere|dernere|derneire|dernierre)"
+_DERNIER = r"(?:dernier|derner|derneir|dernierr)"
 
 # Préréglages de période (paramètre GET « periode ») : code -> libellé.
 PRESETS = {
@@ -316,10 +320,11 @@ def _motifs(aujourdhui: date):
         (rf"(?:les |sur les |ces |depuis )?{_NOMBRE} (?:derniers |dernieres )?(jours|jour|semaines|semaine|mois)"
          rf"(?: derniers| dernieres| ecoules| passes)?|(?:les |sur les |ces )?(?:derniers|dernieres) {_NOMBRE} (jours|semaines|mois)",
          derniers),
-        (r"(?:la |cette )?semaine (?:derniere|passee|precedente)|(?:la |cette )?derniere semaine", relatif("semaine_derniere")),
-        (r"(?:le |ce )?mois (?:dernier|precedent|passe)|(?:le )?dernier mois", relatif("mois_dernier")),
+        (rf"(?:la |cette )?{_SEMAINE} (?:{_DERNIERE}|passee|precedente)|(?:la |cette )?{_DERNIERE} {_SEMAINE}",
+         relatif("semaine_derniere")),
+        (rf"(?:le |ce )?(?:mois|moi) (?:{_DERNIER}|precedent|passe)|(?:le )?{_DERNIER} mois", relatif("mois_dernier")),
         (r"(?:ce |le )?mois ci|ce mois|(?:le |du )?mois (?:en cours|courant)|depuis le debut du mois", relatif("mois_courant")),
-        (r"(?:cette |la )?semaine (?:en cours|courante)|cette semaine", cette_semaine),
+        (rf"(?:cette |la )?{_SEMAINE} (?:en cours|courante)|cette {_SEMAINE}", cette_semaine),
         (r"(?:le |ce )?(?:week end|weekend|we) (?:dernier|passe|precedent)|(?:le )?dernier (?:week end|weekend)",
          week_end_dernier),
         (r"(?:ce |le )?(?:week end|weekend)", ce_week_end),

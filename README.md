@@ -67,6 +67,20 @@ Le fichier `.env` est lu automatiquement. Renseigner `APP_DB_HOST` (et les autre
 
 Tests : `pytest` (aucun appel réseau : l'API IA est simulée).
 
+La recherche accepte des fautes usuelles déclarées dans `variantes_saisie` de
+`config/recherche.yaml` : `Dro`, `drp`, `debti`, `traffic`, `disponiblite`, etc.
+Ces variantes sont reprises dans les expressions composées (`dro voix`, `taux de
+couprue`, `debti ul`). `Drop`, `taux de coupure` et leurs synonymes sélectionnent
+les mêmes KPI ; les précisions voix/data restent prises en compte. Les noms de
+sites exacts, les lieux explicites et les trigrammes majuscules sont préservés.
+Les périodes relatives acceptent aussi `semine dernière`, `semiane derneire` et
+`mois derneir`, en gardant les limites calendaires habituelles à Nouméa.
+Le batch de régression se lance avec `pytest tests/test_recherche_fautes.py`.
+
+Dans le suivi administratif, le bouton de copie utilise le presse-papiers du
+navigateur puis une copie depuis la sélection, utile sur HTTP interne. Si les
+deux échouent, le texte reste sélectionné pour une copie manuelle.
+
 ### Performances et cache des recherches
 
 Les résultats calculés sont conservés dans un **cache partagé sur disque local** :
