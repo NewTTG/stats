@@ -17,6 +17,7 @@ PERIMETRES = [
 ]
 FENETRES = [("journee", "Journée complète"), ("18-22", "18h – 22h"), ("7-20", "7h – 20h")]
 GRAN_TEMPS = [("jour", "Jour"), ("heure", "Heure"), ("semaine", "Semaine"), ("mois", "Mois")]
+DONNEES = [("jour", "Journalières"), ("heure", "Horaires")]
 GRAN_ESPACE = [("global", "Global"), ("commune", "Commune"), ("site", "Site"),
                ("secteur", "Secteur"), ("cellule", "Cellule")]
 _PLAGE = re.compile(r"^(\d{1,2})-(\d{1,2})$")
@@ -45,6 +46,7 @@ class RequeteForm(forms.Form):
     granularite_temps = forms.ChoiceField(label="Pas de temps", choices=GRAN_TEMPS, initial="jour")
     granularite_espace = forms.ChoiceField(label="Niveau", choices=GRAN_ESPACE, initial="global")
     fenetre_horaire = forms.ChoiceField(label="Fenêtre horaire", choices=FENETRES, initial="journee")
+    donnees = forms.ChoiceField(label="Données", choices=[("", "Automatique"), *DONNEES], required=False)
     kpis = forms.MultipleChoiceField(label="KPI", widget=forms.CheckboxSelectMultiple)
     heures = forms.CharField(required=False, widget=forms.HiddenInput)
 
@@ -70,6 +72,7 @@ class RequeteForm(forms.Form):
             "granularite_temps": d["granularite_temps"],
             "granularite_espace": d["granularite_espace"],
             "fenetre_horaire": d["fenetre_horaire"],
+            "donnees": d["donnees"] or None,
             "kpis": d["kpis"],
             "heures": [h for h in d["heures"].split(",") if h],
         }
@@ -88,6 +91,8 @@ def champs_depuis_requete(req) -> dict:
         "fenetre_horaire": req.fenetre_horaire,
         "kpis": list(req.kpis),
     }
+    if req.donnees:
+        champs["donnees"] = req.donnees
     if req.heures:
         champs["heures"] = ",".join(h.isoformat() for h in req.heures)
     return champs

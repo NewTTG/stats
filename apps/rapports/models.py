@@ -89,7 +89,7 @@ class RapportPlanifie(models.Model):
                       "perimetre_valeurs": ", ".join(r["perimetre"].get("valeurs") or [])}
         except (KeyError, TypeError, AttributeError):
             return None
-        for cle in ("granularite_temps", "granularite_espace", "fenetre_horaire"):
+        for cle in ("granularite_temps", "granularite_espace", "fenetre_horaire", "donnees"):
             if isinstance(r.get(cle), str):
                 params[cle] = r[cle]
         return reverse("kpi:requete") + "?" + urlencode(params, doseq=True)

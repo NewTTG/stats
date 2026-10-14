@@ -21,9 +21,13 @@ from .vocabulaire import LIBELLES_TECHNO, TECHNOS, causes_de, kpis_intention, vo
 TYPES_PERIMETRE = ("global", "commune", "site", "trigramme", "cellule", "secteur", "evenement")
 GRANULARITES_TEMPS = ("heure", "jour", "semaine", "mois")
 GRANULARITES_ESPACE = ("global", "commune", "site", "secteur", "cellule")
+DONNEES = ("heure", "jour")
+LIBELLES_DONNEES = {"heure": "horaires", "jour": "journalières"}
+# Au-delà, des données horaires choisies sans détail temporel sont montrées par jour (ou plus).
+JOURS_DETAIL_HORAIRE = 7
 # Paramètres GET explicites reconnus (priment sur le texte).
 PARAMETRES = ("techno", "kpis", "intention", "perimetre_type", "perimetre_valeurs", "periode", "debut", "fin",
-              "granularite_temps", "granularite_espace", "fenetre_horaire")
+              "granularite_temps", "granularite_espace", "fenetre_horaire", "donnees")
 QUESTION_PERIODE = ["hier", "7j", "semaine_derniere", "mois_dernier", "mois_courant"]
 
 
@@ -223,10 +227,22 @@ def construire(demande: Demande, contexte: Contexte, aujourdhui: date, *, source
         fenetre = "journee"
     params["fenetre_horaire"] = fenetre
 
-    # Granularités
-    temps = demande.granularite_temps or (granularite_par_defaut(periode.jours) if periode else None)
+    # Granularités, puis données lues : un détail par heure ou une plage horaire l'emporte
+    # sur des données journalières (qui n'ont pas d'heures).
+    donnees = demande.donnees
+    temps = demande.granularite_temps
+    if not temps and periode:
+        temps = ("heure" if donnees == "heure" and periode.jours <= JOURS_DETAIL_HORAIRE
+                 else granularite_par_defaut(periode.jours))
+        if temps == "heure" and donnees == "jour":
+            temps = "jour"
+    if donnees == "jour" and (temps == "heure" or fenetre != "journee"):
+        interp.notes.append("Les données journalières n'ont pas d'heures : données horaires utilisées.")
+        donnees = "heure"
     if temps:
         params["granularite_temps"] = temps
+    if donnees:
+        params["donnees"] = donnees
     compare = None if demande.granularite_espace or demande.classement else niveau_comparaison(demande)
     espace = demande.granularite_espace or ("site" if demande.classement else compare or "global")
     params["granularite_espace"] = espace
@@ -244,6 +260,8 @@ def construire(demande: Demande, contexte: Contexte, aujourdhui: date, *, source
     if periode:
         interp.compris.append(Puce("periode", _libelle_periode(periode),
                                    titre=f"Du {periode.debut:%d/%m/%Y} au {periode.fin:%d/%m/%Y}"))
+    interp.compris.append(Puce("donnees", LIBELLES_DONNEES[donnees_lues(params)], defaut=not params.get("donnees"),
+                               titre="Données horaires (heure par heure) ou journalières (une valeur par jour)"))
     if temps:
         interp.compris.append(Puce("granularite_temps", LIBELLES_TEMPS[temps], defaut=not demande.granularite_temps))
     interp.compris.append(Puce("granularite_espace", LIBELLES_ESPACE[espace],
@@ -252,6 +270,15 @@ def construire(demande: Demande, contexte: Contexte, aujourdhui: date, *, source
                                defaut=not demande.fenetre))
     interp.notes = list(dict.fromkeys(interp.notes))
     return interp
+
+
+def donnees_lues(params: dict) -> str:
+    """Table lue pour ces paramètres : celle choisie, sinon horaire dès qu'une heure compte
+    (même règle que ``RequeteKpi.resolution``)."""
+    if params.get("donnees") in DONNEES:
+        return params["donnees"]
+    heures = params.get("granularite_temps") == "heure" or params.get("fenetre_horaire", "journee") != "journee"
+    return "heure" if heures or params.get("heures") else "jour"
 
 
 # ------------------------------------------------------------------ paramètres explicites
@@ -331,6 +358,8 @@ def appliquer(demande: Demande | None, explicites: dict, contexte: Contexte, auj
             notes.append("Dates saisies non valides : format attendu AAAA-MM-JJ.")
     if explicites.get("granularite_temps") in GRANULARITES_TEMPS:
         d.granularite_temps = explicites["granularite_temps"]
+    if explicites.get("donnees") in DONNEES:
+        d.donnees = explicites["donnees"]
     if explicites.get("granularite_espace") in GRANULARITES_ESPACE:
         d.granularite_espace = explicites["granularite_espace"]
         d.classement = False

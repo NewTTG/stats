@@ -172,7 +172,7 @@ def executer(requete: RequeteKpi, user, engine) -> Resultat:
     if refuses:
         resultat.avertissements.append(f"KPI non autorisés ignorés : {', '.join(sorted(refuses))}")
 
-    resolution = "heure" if requete.heures or requete.granularite_temps == "heure" or requete.fenetre_horaire != "journee" else "jour"
+    resolution = requete.resolution
     verifier_periode(requete, resolution)
 
     for techno in requete.techno:

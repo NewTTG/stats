@@ -62,7 +62,7 @@ class Question:
 class Puce:
     """Élément compris, affiché comme une puce cliquable (modifiable)."""
 
-    champ: str  # techno | kpis | perimetre | periode | granularite_temps | granularite_espace | fenetre_horaire
+    champ: str  # techno | kpis | perimetre | periode | donnees | granularite_temps | granularite_espace | fenetre_horaire
     libelle: str
     titre: str = ""  # détail (infobulle)
     defaut: bool = False  # valeur par défaut (non dite dans la demande)
@@ -85,6 +85,7 @@ class Demande:
     fenetre_libelle: str | None = None
     granularite_temps: str | None = None
     granularite_espace: str | None = None
+    donnees: str | None = None  # table lue choisie : "heure" ou "jour"
     classement: bool = False
     heure_chargee: bool = False
     comparaison: bool = False  # « comparaison », « comparer », « vs »

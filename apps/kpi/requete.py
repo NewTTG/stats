@@ -11,6 +11,8 @@ TypePerimetre = Literal[
 ]
 GranulariteTemps = Literal["heure", "jour", "semaine", "mois"]
 GranulariteEspace = Literal["global", "commune", "site", "secteur", "cellule"]
+# Table lue : horaire (*_cell_hour) ou journalière (*_cell_day).
+Donnees = Literal["heure", "jour"]
 TypeComparaison = Literal["aucune", "periode_precedente", "meme_periode_annee_n-1", "reference_personnalisee"]
 
 
@@ -55,6 +57,8 @@ class RequeteKpi(BaseModel):
     granularite_espace: GranulariteEspace = "global"
     # "18-22", "7-20", "journee" ou "heure_chargee"
     fenetre_horaire: str = "journee"
+    # Données lues ; vide : déduites du détail temporel et des heures (voir ``resolution``).
+    donnees: Donnees | None = None
     kpis: list[str] = Field(min_length=1)
     comparaison: Comparaison = Field(default_factory=Comparaison)
     # Créneaux exacts de l'accueil, conservés dans les liens et les exports.
@@ -67,6 +71,22 @@ class RequeteKpi(BaseModel):
             raise ValueError("les heures doivent être des heures entières de la période, sans fuseau")
         self.heures = sorted(set(self.heures))
         return self
+
+    @model_validator(mode="after")
+    def _donnees(self):
+        if self.donnees == "jour" and (self.granularite_temps == "heure" or self.heures
+                                       or self.fenetre_horaire != "journee"):
+            raise ValueError("les données journalières n'ont ni détail par heure ni plage horaire")
+        return self
+
+    @property
+    def resolution(self) -> Donnees:
+        """Table lue : celle choisie, sinon horaire dès qu'une heure compte, journalière sinon."""
+        if self.donnees:
+            return self.donnees
+        if self.heures or self.granularite_temps == "heure" or self.fenetre_horaire != "journee":
+            return "heure"
+        return "jour"
 
     @model_validator(mode="after")
     def _fenetre(self):

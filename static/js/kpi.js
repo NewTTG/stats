@@ -483,29 +483,188 @@
       }, 0);
     });
 
-    // Sites proposés au fil de la saisie (communes, régions et événements sont déjà dans la liste).
-    var champ = form.querySelector("#lieu"), liste = document.getElementById("lieux-accueil");
-    if (!champ || !liste || !window.fetch) return;
-    var base = liste.innerHTML, attente, derniere = "";
-    champ.addEventListener("input", function () {
+    donnees(form);
+    comboLieu(form);
+  }
+
+  /* Données journalières ou horaires. Tant qu'on n'a pas choisi, la case suit la règle du serveur
+     (horaires pour un ou deux jours, un point par heure ou une plage horaire) et n'est pas envoyée.
+     Un point par heure ou une plage horaire demandent les données horaires ; revenir aux
+     journalières remet ces deux options à « automatique ». */
+  function donnees(form) {
+    var radios = form.querySelectorAll('input[name="donnees"]');
+    var temps = form.querySelector("#o-temps"), heures = form.querySelector("#o-heures");
+    if (!radios.length || !temps || !heures) return;
+    var choisi = false;
+    function cocher(valeur) { radios.forEach(function (r) { r.checked = r.value === valeur; }); }
+    function horaireNecessaire() { return temps.value === "heure" || heures.value !== ""; }
+    function suivre() {
+      if (choisi && !horaireNecessaire()) return;
+      var horaire = horaireNecessaire();
+      var periode = form.querySelector('input[name="periode"]:checked');
+      if (!horaire && periode && periode.value === "hier") horaire = true;
+      if (!horaire && periode && periode.value === "dates") {
+        var debut = form.querySelector("#debut").valueAsNumber, fin = form.querySelector("#fin").valueAsNumber;
+        horaire = !isNaN(debut) && !isNaN(fin) && Math.abs(fin - debut) / 864e5 < 2;
+      }
+      cocher(horaire ? "heure" : "jour");
+    }
+    radios.forEach(function (r) {
+      r.addEventListener("change", function () {
+        choisi = true;
+        if (r.value === "jour") {
+          if (temps.value === "heure") temps.value = "";
+          heures.value = "";
+        }
+      });
+    });
+    form.querySelectorAll('input[name="periode"], #debut, #fin, #o-temps, #o-heures').forEach(function (x) {
+      x.addEventListener("change", suivre);
+    });
+    form.addEventListener("submit", function (e) {
+      if (!choisi && !e.defaultPrevented) radios.forEach(function (r) { r.disabled = true; });
+    });
+    suivre();
+  }
+
+  /* Lieu : liste sous le champ (régions, communes, événements, puis sites trouvés au fil de la
+     saisie). Le texte reste libre : plusieurs lieux séparés par « , » ou « et », la proposition
+     choisie remplace le dernier. Sans JavaScript, la datalist d'origine sert de repli. */
+  function comboLieu(form) {
+    var champ = form.querySelector("#lieu"), source = document.getElementById("lieux-accueil");
+    if (!champ || !source) return;
+    var base = Array.prototype.map.call(source.options, function (o) {
+      return { valeur: o.value, type: o.textContent.trim(), detail: "" };
+    });
+    var sites = [], visibles = [], actif = -1, attente, derniere = "";
+    var liste = document.createElement("ul");
+    liste.id = "lieu-propositions";
+    liste.className = "combo-liste";
+    liste.setAttribute("role", "listbox");
+    liste.setAttribute("aria-label", "Lieux proposés");
+    liste.hidden = true;
+    champ.parentNode.appendChild(liste);
+    // Clic sur une proposition ou sur la barre de défilement : le champ garde le focus.
+    liste.addEventListener("mousedown", function (e) { e.preventDefault(); });
+    champ.removeAttribute("list");
+    champ.setAttribute("role", "combobox");
+    champ.setAttribute("aria-autocomplete", "list");
+    champ.setAttribute("aria-controls", liste.id);
+    champ.setAttribute("aria-expanded", "false");
+
+    function normaliser(t) { return t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
+    function decouper() {  // [lieux déjà saisis + séparateur, lieu en cours]
+      var m = champ.value.match(/^(.*(?:,\s*|\s+et\s+))?(.*)$/i);
+      return [m[1] || "", m[2]];
+    }
+    function rang(item, q) {
+      if (!q) return 0;
+      var n = normaliser(item.valeur + " " + item.detail);
+      if (n.indexOf(q) === 0) return 1;
+      if (n.indexOf(" " + q) >= 0 || n.indexOf("(" + q) >= 0) return 2;
+      return n.indexOf(q) >= 0 ? 3 : -1;
+    }
+    function texteAvecMarque(parent, texte, q) {
+      var i = q ? normaliser(texte).indexOf(q) : -1;
+      if (i < 0) { parent.appendChild(document.createTextNode(texte)); return; }
+      var mark = document.createElement("mark");
+      mark.textContent = texte.slice(i, i + q.length);
+      parent.append(texte.slice(0, i), mark, texte.slice(i + q.length));
+    }
+    function fermer() {
+      liste.hidden = true;
+      actif = -1;
+      champ.setAttribute("aria-expanded", "false");
+      champ.removeAttribute("aria-activedescendant");
+    }
+    function activer(i) {
+      var items = liste.children;
+      if (actif >= 0 && items[actif]) {
+        items[actif].classList.remove("actif");
+        items[actif].removeAttribute("aria-selected");
+      }
+      actif = i;
+      if (i < 0) { champ.removeAttribute("aria-activedescendant"); return; }
+      items[i].classList.add("actif");
+      items[i].setAttribute("aria-selected", "true");
+      champ.setAttribute("aria-activedescendant", items[i].id);
+      items[i].scrollIntoView({ block: "nearest" });
+    }
+    function afficher() {
+      var q = normaliser(decouper()[1].trim());
+      visibles = base.concat(sites)
+        .map(function (item, n) { return { item: item, rang: rang(item, q), n: n }; })
+        .filter(function (x) { return x.rang >= 0; })
+        .sort(function (a, b) { return a.rang - b.rang || a.n - b.n; })
+        .map(function (x) { return x.item; });
+      liste.textContent = "";
+      actif = -1;
+      if (!visibles.length) { fermer(); return; }
+      visibles.forEach(function (item, i) {
+        var li = document.createElement("li");
+        li.id = "lieu-proposition-" + i;
+        li.setAttribute("role", "option");
+        var valeur = document.createElement("span");
+        valeur.className = "valeur";
+        texteAvecMarque(valeur, item.valeur, q);
+        if (item.detail) {
+          var detail = document.createElement("span");
+          detail.className = "detail";
+          detail.textContent = " " + item.detail;
+          valeur.appendChild(detail);
+        }
+        var type = document.createElement("span");
+        type.className = "type";
+        type.textContent = item.type;
+        li.append(valeur, type);
+        li.addEventListener("click", function () { choisir(i); });
+        liste.appendChild(li);
+      });
+      liste.hidden = false;
+      liste.scrollTop = 0;
+      champ.setAttribute("aria-expanded", "true");
+    }
+    function choisir(i) {
+      champ.value = decouper()[0] + visibles[i].valeur;
+      fermer();
+      champ.focus();
+    }
+    function chercherSites() {
       clearTimeout(attente);
-      var texte = champ.value.split(/,| et /).pop().trim();
-      if (texte.length < 2 || texte === derniere) return;
+      var texte = decouper()[1].trim();
+      if (!window.fetch || texte.length < 2 || texte === derniere) return;
       attente = setTimeout(function () {
         derniere = texte;
         fetch(form.dataset.suggestions + "?q=" + encodeURIComponent(texte), { headers: { "Accept": "application/json" } })
           .then(function (r) { return r.ok ? r.json() : { lieux: [] }; })
           .then(function (d) {
-            var options = d.lieux.filter(function (l) { return l.type === "site"; }).map(function (l) {
-              var o = document.createElement("option");
-              o.value = l.valeur;
-              o.textContent = l.libelle;
-              return o.outerHTML;
+            sites = d.lieux.filter(function (l) { return l.type === "site"; }).map(function (l) {
+              return { valeur: l.valeur, type: "Site", detail: l.libelle !== l.valeur ? l.libelle : "" };
             });
-            liste.innerHTML = base + options.join("");
+            if (document.activeElement === champ) afficher();
           })
           .catch(function () {});
       }, 200);
+    }
+
+    champ.addEventListener("focus", afficher);
+    champ.addEventListener("click", function () { if (liste.hidden) afficher(); });
+    champ.addEventListener("input", function () { afficher(); chercherSites(); });
+    champ.addEventListener("blur", fermer);
+    champ.addEventListener("keydown", function (e) {
+      var ouvert = !liste.hidden;
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (!ouvert) { afficher(); if (liste.hidden) return; }
+        var n = liste.children.length;
+        activer(e.key === "ArrowDown" ? (actif + 1) % n : (actif <= 0 ? n - 1 : actif - 1));
+      } else if (e.key === "Enter" && ouvert && actif >= 0) {
+        e.preventDefault();  // choisit la proposition sans envoyer le formulaire
+        choisir(actif);
+      } else if (e.key === "Escape" && ouvert) {
+        e.preventDefault();
+        fermer();
+      }
     });
   }
 
