@@ -153,9 +153,9 @@ input:hover, select:hover { border-color: var(--marine-600); }
   font-weight: 800; }
 .choix-rapport:has(input:focus-visible) { outline: 3px solid var(--marine-600); outline-offset: 2px; }
 details.sur-mesure { margin-top: .75rem; }
-details.sur-mesure > summary, details.options > summary { cursor: pointer; font-weight: 600; color: var(--marine);
+details.sur-mesure > summary, details.options-affichage > summary { cursor: pointer; font-weight: 600; color: var(--marine);
   padding: .35rem 0; }
-details.sur-mesure > summary .aide, details.options > summary .aide { font-weight: 400; margin-left: .35rem; }
+details.sur-mesure > summary .aide, details.options-affichage > summary .aide { font-weight: 400; margin-left: .35rem; }
 .sur-mesure .liste-kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: .5rem 1.5rem;
   margin-top: .5rem; padding: .75rem 1rem; border: 1px solid var(--bord); border-radius: var(--rayon-petit);
   max-height: 420px; overflow: auto; }
@@ -176,8 +176,38 @@ details.sur-mesure > summary .aide, details.options > summary .aide { font-weigh
 .choix-periode label:has(input:focus-visible) { outline: 3px solid var(--marine-600); outline-offset: 2px; }
 .dates-precises { margin-top: .6rem; }
 .js .dates-precises[hidden] { display: none; }
-details.options { margin-top: 1.25rem; border-top: 1px solid var(--bord); padding-top: .75rem; }
-details.options .grille { margin-top: .6rem; }
+/* Lieu : liste de propositions sous le champ (5 lignes visibles, défilement au-delà). */
+.combo-lieu { position: relative; }
+.combo-liste { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30; margin: 0; padding: .25rem;
+  list-style: none; background: var(--surface); border: 1px solid var(--bord); border-radius: var(--rayon-petit);
+  box-shadow: var(--ombre-forte); max-height: calc(2.5rem * 5.5 + .5rem); overflow-y: auto; overscroll-behavior: contain; }
+.combo-liste[hidden] { display: none; }
+.combo-liste li { display: flex; align-items: center; gap: .6rem; height: 2.5rem; padding: 0 .6rem; border-radius: 6px;
+  cursor: pointer; color: var(--texte); font-size: .9rem; }
+.combo-liste li.actif, .combo-liste li:hover { background: var(--marine-50); color: var(--marine); }
+.combo-liste .valeur { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.combo-liste .valeur mark { background: none; color: inherit; font-weight: 700; }
+.combo-liste .detail { color: var(--texte-3); font-size: .85em; }
+.combo-liste .type { flex: none; font-size: .75rem; color: var(--texte-3); background: var(--marine-50);
+  border-radius: 999px; padding: .1rem .5rem; }
+.combo-liste li.actif .type, .combo-liste li:hover .type { background: var(--surface); }
+/* Données lues : deux choix côte à côte. */
+.choix-donnees { margin-top: 1rem; }
+.choix-donnees > legend { font-weight: 600; font-size: .9rem; color: var(--texte-2); padding: 0; margin-bottom: .35rem; }
+.segments { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+.segments label { position: relative; display: flex; flex-direction: column; gap: .05rem; margin: 0; padding: .5rem .75rem;
+  border: 1.5px solid var(--bord); border-radius: var(--rayon-petit); background: #fff; cursor: pointer; font-weight: 400; }
+.segments input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.segments strong { color: var(--marine); font-size: .9rem; }
+.segments span { font-size: .8rem; color: var(--texte-3); }
+.segments label:hover { border-color: var(--marine-600); background: var(--marine-50); }
+.segments label:has(input:checked) { border-color: var(--marine); background: var(--marine-50); box-shadow: 0 0 0 3px rgba(44, 74, 126, .15); }
+.segments label:has(input:focus-visible) { outline: 3px solid var(--marine-600); outline-offset: 2px; }
+details.options-affichage { margin-top: 1.25rem; border-top: 1px solid var(--bord); padding-top: .75rem; }
+.options-grille { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem 1rem; margin-top: .6rem;
+  padding: .85rem 1rem; background: var(--marine-50); border-radius: var(--rayon-petit); }
+.options-grille label { margin-bottom: .25rem; }
+details.options-affichage > .aide { margin: .45rem 0 0; }
 .actions-constructeur { display: flex; justify-content: flex-end; margin-top: 1.25rem; }
 .bouton.grand { padding: .8rem 1.5rem; font-size: 1.05rem; }
 
@@ -507,6 +537,7 @@ footer.pied-page a:hover { color: var(--marine); }
   .graphique { height: 260px; }
   .deux-colonnes { grid-template-columns: 1fr; }
   .etapes-cote { grid-template-columns: 1fr; }
+  .options-grille { grid-template-columns: 1fr; }
   .constructeur { padding: 1rem; }
   .actions-constructeur .bouton { width: 100%; }
   .lien-admin span { display: none; }

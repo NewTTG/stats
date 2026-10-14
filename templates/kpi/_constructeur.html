@@ -41,11 +41,13 @@ période -> « periode » ou « debut » / « fin ». Les options vides ne sont 
     <fieldset class="etape">
       <legend><span class="numero" aria-hidden="true">2</span> Où&nbsp;?</legend>
       <label class="sr-only" for="lieu">Lieu</label>
-      <input id="lieu" name="q" list="lieux-accueil" autocomplete="off" spellcheck="false"
-             placeholder="Tout le réseau" aria-describedby="aide-lieu">
-      <datalist id="lieux-accueil">
-        {% for l in lieux %}<option value="{{ l.valeur }}">{{ l.type }}</option>{% endfor %}
-      </datalist>
+      <div class="combo-lieu" id="combo-lieu">
+        <input id="lieu" name="q" list="lieux-accueil" autocomplete="off" spellcheck="false"
+               placeholder="Tout le réseau" aria-describedby="aide-lieu">
+        <datalist id="lieux-accueil">
+          {% for l in lieux %}<option value="{{ l.valeur }}">{{ l.type }}</option>{% endfor %}
+        </datalist>
+      </div>
       <p class="aide" id="aide-lieu">Vide : tout le réseau. Sinon une ou plusieurs communes, une province, un site
         (code ou nom) ou un événement, par exemple « Nouméa », « Koné et Pouembout », « Province Nord ».</p>
     </fieldset>
@@ -62,28 +64,39 @@ période -> « periode » ou « debut » / « fin ». Les options vides ne sont 
         <div><label for="debut">Du</label><input id="debut" type="date" name="debut"></div>
         <div><label for="fin">Au</label><input id="fin" type="date" name="fin"></div>
       </div>
+      {% comment %}Aucune case cochée sans JavaScript : données choisies selon la période.{% endcomment %}
+      <fieldset class="choix-donnees" aria-describedby="aide-donnees">
+        <legend>Données</legend>
+        <div class="segments">
+          {% for code, libelle, detail in donnees %}
+          <label><input type="radio" name="donnees" value="{{ code }}"> <strong>{{ libelle }}</strong> <span>{{ detail }}</span></label>
+          {% endfor %}
+        </div>
+        <p class="aide" id="aide-donnees">Horaires : pour suivre la journée heure par heure ou garder une plage horaire.</p>
+      </fieldset>
     </fieldset>
   </div>
 
-  <details class="options">
+  <details class="options-affichage">
     <summary>Options d'affichage <span class="aide">détail temporel, regroupement, heures</span></summary>
-    <div class="grille">
-      <div><label for="o-temps">Détail temporel</label>
+    <div class="options-grille">
+      <div><label for="o-temps">Un point par</label>
         <select id="o-temps" name="granularite_temps">
           <option value="">Automatique (selon la période)</option>
-          {% for code, libelle in gran_temps %}<option value="{{ code }}">Par {{ libelle|lower }}</option>{% endfor %}
+          {% for code, libelle in gran_temps %}<option value="{{ code }}">{{ libelle|lower }}</option>{% endfor %}
         </select></div>
       <div><label for="o-espace">Regroupement</label>
         <select id="o-espace" name="granularite_espace">
           <option value="">Automatique</option>
           {% for code, libelle in gran_espace %}{% if code != "global" %}<option value="{{ code }}">Par {{ libelle|lower }}</option>{% endif %}{% endfor %}
         </select></div>
-      <div><label for="o-heures">Heures</label>
+      <div><label for="o-heures">Heures prises en compte</label>
         <select id="o-heures" name="fenetre_horaire">
           <option value="">Journée complète</option>
           {% for code, libelle in fenetres %}{% if code != "journee" %}<option value="{{ code }}">{{ libelle }}</option>{% endif %}{% endfor %}
         </select></div>
     </div>
+    <p class="aide">Un point par heure et les plages horaires se calculent sur les données horaires.</p>
   </details>
 
   <div class="actions-constructeur">

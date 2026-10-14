@@ -155,7 +155,7 @@ def test_cles_selection_courbes_et_causes(admin, base_recherche, espace):
 
 def test_puces_modifiables_sans_javascript(admin, base_recherche):
     html = _html(admin.get("/", {"q": "drop 3G à Nouméa la semaine dernière", "ia": "1"}))
-    assert html.count('<details class="puce') == 7
+    assert html.count('<details class="puce') == 8
     # Chaque puce est un formulaire GET qui conserve la demande et remplace son seul champ.
     assert '<input type="hidden" name="q" value="drop 3G à Nouméa la semaine dernière">' in html
     assert '<button class="bouton secondaire petit" type="submit" name="periode" value="mois_dernier">' in html

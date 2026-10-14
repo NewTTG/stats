@@ -81,6 +81,7 @@ def parametres(resultat: Resultat) -> list[tuple[str, str]]:
         ("Périmètre", f"{req.perimetre.type} : {', '.join(req.perimetre.valeurs) or 'tout le réseau'}"),
         ("Période", f"du {req.periode.debut:%d/%m/%Y} au {req.periode.fin:%d/%m/%Y}"),
         ("Fenêtre horaire", libelle_fenetre(req.fenetre_horaire)),
+        ("Données", "horaires" if req.resolution == "heure" else "journalières"),
         ("Granularité temporelle", LIBELLES_TEMPS.get(req.granularite_temps, req.granularite_temps)),
         ("Granularité spatiale", LIBELLES_ESPACE.get(req.granularite_espace, req.granularite_espace)),
     ]

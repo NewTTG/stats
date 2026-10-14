@@ -66,6 +66,12 @@
             <div><label for="pd-{{ forloop.counter }}">Du</label><input id="pd-{{ forloop.counter }}" type="date" name="debut" value="{{ edition.debut|date:'Y-m-d' }}"></div>
             <div><label for="pf-{{ forloop.counter }}">Au</label><input id="pf-{{ forloop.counter }}" type="date" name="fin" value="{{ edition.fin|date:'Y-m-d' }}"></div>
           </div>
+        {% elif p.puce.champ == "donnees" %}
+          <h3>Données</h3>
+          <div class="choix-puces">
+            {% for code, libelle in edition.donnees %}<label><input type="radio" name="donnees" value="{{ code }}"{% if code == edition.donnees_lues %} checked{% endif %}> {{ libelle }}</label>{% endfor %}
+          </div>
+          <p class="aide">Journalières : une valeur par jour. Horaires : heure par heure, nécessaires pour un détail par heure ou une plage horaire.</p>
         {% elif p.puce.champ == "granularite_temps" %}
           <h3>Détail temporel</h3>
           <div class="choix-puces">

@@ -35,9 +35,9 @@ from apps.rapports.models import RapportPlanifie
 
 from .catalogue import catalogue
 from .export_excel import construire as construire_excel
-from .forms import FENETRES, GRAN_ESPACE, GRAN_TEMPS, PERIMETRES, RequeteForm, champs_depuis_requete
+from .forms import DONNEES, FENETRES, GRAN_ESPACE, GRAN_TEMPS, PERIMETRES, RequeteForm, champs_depuis_requete
 from .recherche import Contexte, affichage, avec_parametres, interpreter
-from .recherche.construction import PARAMETRES, construire, parametres_explicites
+from .recherche.construction import PARAMETRES, construire, donnees_lues, parametres_explicites
 from .recherche.dates import PRESETS, libelle_fenetre
 from .recherche.ia import disponible as ia_disponible
 from .recherche.interpretation import Demande
@@ -52,22 +52,25 @@ FORMAT_PERIODE = {"heure": "%d/%m/%Y %Hh", "jour": "%d/%m/%Y", "semaine": "sem. 
 # Au-delà, une courbe par entité devient illisible : on garde les premières.
 SERIES_MAX = 12
 CHAMPS_FORMULAIRE = ("techno", "perimetre_type", "perimetre_valeurs", "debut", "fin", "granularite_temps",
-                     "granularite_espace", "fenetre_horaire", "kpis")
+                     "granularite_espace", "fenetre_horaire", "donnees", "kpis")
 # Paramètres remplacés par chaque éditeur de puce / réponse à une question.
 REMPLACES = {
     "techno": ("techno", "kpis"),
     "kpis": ("kpis", "intention", "techno"),
     "perimetre": ("perimetre_type", "perimetre_valeurs"),
     "periode": ("periode", "debut", "fin"),
+    # Changer de données remet à zéro ce qui dépend des heures (cohérent avec le choix).
+    "donnees": ("donnees", "granularite_temps", "fenetre_horaire"),
     "granularite_temps": ("granularite_temps",),
     "granularite_espace": ("granularite_espace",),
     "fenetre_horaire": ("fenetre_horaire",),
 }
 LIBELLES_CHAMP = {"techno": "Techno", "kpis": "Indicateurs", "perimetre": "Lieu", "periode": "Période",
-                  "granularite_temps": "Détail", "granularite_espace": "Regroupement", "fenetre_horaire": "Heures"}
+                  "donnees": "Données", "granularite_temps": "Détail", "granularite_espace": "Regroupement", "fenetre_horaire": "Heures"}
 # Périodes proposées sur l'accueil (la première est cochée par défaut).
 PERIODES_ACCUEIL = ("hier", "7j", "semaine_derniere", "mois_courant", "mois_dernier", "30j")
 PERIODE_DEFAUT = "7j"
+DONNEES_ACCUEIL = (("jour", "Journalières", "une valeur par jour"), ("heure", "Horaires", "heure par heure"))
 LIBELLES_CATEGORIE = {"debit": "Débit", "trafic": "Trafic", "accessibilite": "Accessibilité",
                       "retainability": "Coupures", "congestion": "Congestion", "mobilite": "Mobilité",
                       "disponibilite": "Disponibilité"}
@@ -184,7 +187,7 @@ def _parametres_resolus(q: str, params: dict):
     if params.get("periode"):
         get["debut"] = params["periode"]["debut"].isoformat()
         get["fin"] = params["periode"]["fin"].isoformat()
-    for cle in ("granularite_temps", "granularite_espace", "fenetre_horaire"):
+    for cle in ("granularite_temps", "granularite_espace", "fenetre_horaire", "donnees"):
         if params.get(cle):
             get[cle] = params[cle]
     return get
@@ -226,6 +229,8 @@ def _edition(get, interp, contexte: Contexte) -> dict:
             "gran_temps": GRAN_TEMPS,
             "gran_espace": GRAN_ESPACE,
             "fenetres": fenetres,
+            "donnees": DONNEES,
+            "donnees_lues": donnees_lues(params),
         },
     }
 
@@ -442,7 +447,9 @@ def requete(request):
         ctx["periodes"] = [(c, PRESETS[c]) for c in PERIODES_ACCUEIL]
         ctx["periode_defaut"] = PERIODE_DEFAUT
         ctx["kpis_sur_mesure"] = _kpis_par_techno(contexte.catalogue, set())
-        ctx["gran_temps"], ctx["gran_espace"], ctx["fenetres"] = GRAN_TEMPS, GRAN_ESPACE, FENETRES
+        ctx["gran_temps"] = sorted(GRAN_TEMPS, key=lambda g: ("heure", "jour", "semaine", "mois").index(g[0]))
+        ctx["gran_espace"], ctx["fenetres"] = GRAN_ESPACE, FENETRES
+        ctx["donnees"] = DONNEES_ACCUEIL
         ctx["recentes"] = _recherches_recentes(request.user)
         ctx["enregistres"] = _rapports_enregistres(request.user)
         ctx["exemples"] = _exemples(request.user, aujourdhui, contexte)
