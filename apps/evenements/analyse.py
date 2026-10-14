@@ -20,7 +20,7 @@ from apps.kpi.source import lire
 from apps.referentiel.models import Cellule
 from apps.referentiel.secteurs import secteurs_a_la_date
 
-from . import detection
+from . import detection, mobiles
 from .models import Evenement, ReglagesAnomalies
 
 NIVEAUX = {"secteur": "Secteur", "site": "Site"}
@@ -237,6 +237,10 @@ def analyser(evenement: Evenement, user, engine, niveau: str = "secteur", crenea
         premier_jour = min(debut for debut, _ in creneaux).date()
         entites = _entites(techno, niveau, cellules, premier_jour)
         sites = entites if niveau == "site" else _entites(techno, "site", cellules, premier_jour)
+        if evenement.deploiements:  # remorques : disposition déclarée dans l'événement
+            deploiements = evenement.deploiements
+            entites.update((c, e) for c, e in mobiles.entites(deploiements, techno, niveau).items() if c in entites)
+            sites.update((c, e) for c, e in mobiles.entites(deploiements, techno, "site").items() if c in sites)
         df = df.assign(entite=df["cellule"].map(entites))
 
         valeurs, reference, hebdo = _valeurs(df.assign(tout="Global"), kpis, ["tout"])

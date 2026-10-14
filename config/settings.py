@@ -70,6 +70,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "apps.kpi.views.contexte_global",
                 "apps.comptes.visiteurs.contexte_visiteur",
+                "apps.referentiel.acces.contexte_reseau",
             ],
         },
     },

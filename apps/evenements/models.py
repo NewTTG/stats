@@ -19,6 +19,8 @@ class Evenement(models.Model):
     sites = models.JSONField("codes site", default=list, blank=True)
     secteurs = models.JSONField(default=list, blank=True)
     cellules = models.JSONField(default=list, blank=True)
+    # Remorques : position, secteurs et cellules propres à l'événement (cf. ``mobiles``).
+    deploiements = models.JSONField("sites mobiles déployés", default=dict, blank=True)
     # Liste blanche de codes KPI ; vide = tous les KPI du catalogue.
     kpis = models.JSONField("KPI analysés", default=list, blank=True)
     semaines_reference = models.PositiveSmallIntegerField(
@@ -36,9 +38,16 @@ class Evenement(models.Model):
         return self.nom
 
     def noms_cellules(self, techno: str) -> list[str]:
-        """Cellules de l'événement pour une techno (sites + secteurs + cellules listés)."""
+        """Cellules de l'événement pour une techno (sites + secteurs + cellules listés, et cellules
+        déclarées sur les remorques déployées, connues du référentiel ou non)."""
         filtre = Q(secteur__site__code_site__in=self.sites) | Q(secteur__code__in=self.secteurs) | Q(nom__in=self.cellules)
-        return sorted(Cellule.objects.filter(filtre, techno=techno).values_list("nom", flat=True))
+        noms = set(Cellule.objects.filter(filtre, techno=techno).values_list("nom", flat=True))
+        return sorted(noms | set(self.cellules_deployees(techno)))
+
+    def cellules_deployees(self, techno: str | None = None) -> list[str]:
+        from .mobiles import cellules
+
+        return sorted(cellules(self.deploiements or {}, techno))
 
     def cellules_inconnues(self) -> list[str]:
         connues = set(Cellule.objects.filter(nom__in=self.cellules).values_list("nom", flat=True))

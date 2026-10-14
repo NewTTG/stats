@@ -1,13 +1,16 @@
 """Création / modification d'un événement (pages /evenements/nouveau/ et /<pk>/modifier/) : formulaire,
 données de la carte de sélection, KPI proposés. La période analysée se choisit à l'affichage (``periode``)."""
 
+import json
 import re
 
 from django import forms
+from django.db.models import Count
 
 from apps.kpi.catalogue import catalogue_yaml, kpis_principaux
 from apps.referentiel.models import Cellule, Secteur, Site
 
+from . import mobiles
 from .models import Evenement
 
 _SEPARATEURS = re.compile(r"[\s,;]+")
@@ -29,16 +32,30 @@ class ListeCodes(forms.CharField):
         return list(dict.fromkeys(v for v in _SEPARATEURS.split(value or "") if v))
 
 
+class Deploiements(forms.CharField):
+    """Remorques déployées (JSON en champ caché), tenues par la liste de la zone couverte."""
+
+    widget = forms.HiddenInput
+
+    def prepare_value(self, value):
+        return json.dumps(value, ensure_ascii=False, separators=(",", ":")) if isinstance(value, dict) else value
+
+    def to_python(self, value):
+        return mobiles.normaliser(value)
+
+
 class EvenementForm(forms.ModelForm):
     sites = ListeCodes(required=False)
     secteurs = ListeCodes(required=False)
     cellules = ListeCodes(required=False)
+    deploiements = Deploiements(required=False)
     kpis = forms.MultipleChoiceField(required=False, label="KPI analysés", widget=forms.CheckboxSelectMultiple)
     kpis_choisis = forms.BooleanField(required=False, label="Choisir les KPI analysés")
 
     class Meta:
         model = Evenement
-        fields = ["nom", "type", "description", "sites", "secteurs", "cellules", "semaines_reference", "kpis"]
+        fields = ["nom", "type", "description", "sites", "secteurs", "cellules", "deploiements", "semaines_reference",
+                  "kpis"]
         widgets = {
             "nom": forms.TextInput(attrs={"placeholder": "Ex. Foire de Bourail 2026", "autocomplete": "off"}),
             "type": forms.TextInput(attrs={"placeholder": "Concert, Foire, Journée…", "list": "types-evenement",
@@ -54,7 +71,15 @@ class EvenementForm(forms.ModelForm):
 
     def clean(self):
         donnees = super().clean()
-        if not any(donnees.get(champ) for champ in ("sites", "secteurs", "cellules")):
+        deployes = set(donnees.get("deploiements") or {})
+        if deployes:  # une remorque déployée ne compte que par sa disposition déclarée
+            secteurs = dict(Secteur.objects.filter(site__code_site__in=deployes).values_list("code", "site__code_site"))
+            hors = set(Cellule.objects.filter(nom__in=donnees.get("cellules") or [],
+                                              secteur__site__code_site__in=deployes).values_list("nom", flat=True))
+            donnees["sites"] = [c for c in donnees.get("sites") or [] if c not in deployes]
+            donnees["secteurs"] = [c for c in donnees.get("secteurs") or [] if c not in secteurs]
+            donnees["cellules"] = [c for c in donnees.get("cellules") or [] if c not in hors]
+        if not any(donnees.get(champ) for champ in ("sites", "secteurs", "cellules", "deploiements")):
             self.add_error("sites", "Choisissez au moins un site, un secteur ou une cellule.")
         if not donnees.get("kpis_choisis"):
             donnees["kpis"] = []  # liste vide : l'analyse retient les KPI principaux
@@ -64,10 +89,17 @@ class EvenementForm(forms.ModelForm):
 
 
 def reseau_pour_carte() -> dict:
-    """Sites (coordonnées), secteurs (azimut) et cellules du référentiel, pour la carte de sélection."""
+    """Sites (coordonnées), secteurs (azimut) et cellules du référentiel, pour la carte de sélection.
+
+    Sites mobiles : sans position (elle se déclare dans l'événement), même sans cellule connue."""
     sites = {s.pk: {"code": s.code_site, "nom": s.nom, "commune": s.commune, "trigramme": s.trigramme,
-                    "lat": s.latitude, "lon": s.longitude, "secteurs": []}
+                    "lat": None if s.mobile else s.latitude, "lon": None if s.mobile else s.longitude,
+                    "mobile": s.mobile, "secteurs": []}
              for s in Site.objects.order_by("code_site")}
+    for sect in Secteur.objects.filter(site__mobile=True, cellules__isnull=True).order_by("numero"):
+        # Secteur d'une remorque sans cellule : proposé quand même pour la déclaration.
+        sites[sect.site_id]["secteurs"].append({"code": sect.code, "numero": sect.numero, "azimut": sect.azimut,
+                                                "cellules": []})
     secteurs, libres = {}, []
     for c in Cellule.objects.select_related("secteur").order_by("secteur__numero", "techno", "porteuse", "nom"):
         if c.secteur is None or c.secteur.site_id not in sites:
@@ -78,30 +110,47 @@ def reseau_pour_carte() -> dict:
                                       "azimut": c.secteur.azimut, "cellules": []}
             sites[c.secteur.site_id]["secteurs"].append(secteurs[c.secteur_id])
         secteurs[c.secteur_id]["cellules"].append([c.nom, c.techno])
-    return {"sites": [s for s in sites.values() if s["secteurs"]], "libres": libres}
+    for site in sites.values():
+        site["secteurs"].sort(key=lambda sec: sec["numero"])
+    return {"sites": [s for s in sites.values() if s["secteurs"] or s["mobile"]], "libres": libres}
 
 
 def zone_pour_carte(evenement: Evenement) -> dict:
     """Sites de l'événement (coordonnées) et leurs seuls secteurs actifs, entiers ou en partie,
-    pour la carte de la page de l'événement."""
-    incluses = set(evenement.noms_cellules("LTE")) | set(evenement.noms_cellules("WCDMA"))
-    ids = set(Cellule.objects.filter(nom__in=incluses, secteur__isnull=False).values_list("secteur_id", flat=True))
+    pour la carte de la page de l'événement ; remorques à la position et selon la disposition déclarées.
+    ``nb_secteurs`` : secteurs du site (un seul à 0° : omni)."""
+    deploiements = evenement.deploiements or {}
+    deployees = set(evenement.cellules_deployees())
+    incluses = (set(evenement.noms_cellules("LTE")) | set(evenement.noms_cellules("WCDMA"))) - deployees
+    ids = set(Cellule.objects.filter(nom__in=incluses, secteur__isnull=False)
+              .exclude(secteur__site__code_site__in=list(deploiements)).values_list("secteur_id", flat=True))
     totaux = {}
     for secteur_id, nom in Cellule.objects.filter(secteur_id__in=ids).values_list("secteur_id", "nom"):
         totaux.setdefault(secteur_id, [0, 0])
         totaux[secteur_id][0] += 1
         totaux[secteur_id][1] += nom in incluses
     sites = {}
-    for sect in Secteur.objects.filter(pk__in=ids).select_related("site").order_by("site__code_site", "numero"):
-        site = sites.setdefault(sect.site_id, {"code": sect.site.code_site, "nom": sect.site.nom,
-                                               "lat": sect.site.latitude, "lon": sect.site.longitude, "secteurs": []})
+    secteurs = Secteur.objects.filter(pk__in=ids).select_related("site").annotate(nb=Count("site__secteurs"))
+    for sect in secteurs.order_by("site__code_site", "numero"):
+        site = sites.setdefault(sect.site.code_site, {
+            "code": sect.site.code_site, "nom": sect.site.nom, "lat": sect.site.latitude,
+            "lon": sect.site.longitude, "mobile": False, "nb_secteurs": sect.nb, "secteurs": []})
         total, actives = totaux.get(sect.pk, [0, 0])
         site["secteurs"].append({"code": sect.code, "numero": sect.numero, "azimut": sect.azimut,
                                  "etat": "choisi" if actives == total else "partiel",
                                  "cellules": f"{actives}/{total}"})
+    noms = dict(Site.objects.filter(code_site__in=list(deploiements)).values_list("code_site", "nom"))
+    nb_secteurs = len(ids)
+    for code, dep in sorted(deploiements.items()):
+        nb_secteurs += len(dep["secteurs"])
+        sites[code] = {"code": code, "nom": noms.get(code, code), "lat": dep.get("lat"), "lon": dep.get("lon"),
+                       "mobile": True, "nb_secteurs": len(dep["secteurs"]), "secteurs": [
+                           {"code": f"{code}{s['numero']}", "numero": s["numero"], "azimut": s["azimut"],
+                            "etat": "choisi", "cellules": f"{len(s['cellules'])}/{len(s['cellules'])}"}
+                           for s in dep["secteurs"]]}
     places = [s for s in sites.values() if s["lat"] is not None and s["lon"] is not None]
     return {"sites": places, "sans_position": len(sites) - len(places),
-            "nb_secteurs": len(ids), "nb_cellules": len(incluses)}
+            "nb_secteurs": nb_secteurs, "nb_cellules": len(incluses) + len(deployees)}
 
 
 def groupes_kpi(formulaire: EvenementForm) -> list[dict]:

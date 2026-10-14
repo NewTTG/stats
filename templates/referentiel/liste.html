@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load static %}
+{% block titre %}Réseau : Stats réseau{% endblock %}
+{% block entete %}<link rel="stylesheet" href="{% static 'css/reseau.css' %}">{% endblock %}
+{% block contenu %}
+<div class="entete-page">
+  <div>
+    <h1>Réseau</h1>
+    <p class="sous-titre">Sites, secteurs et cellules du référentiel. Les sites mobiles (remorques) n'ont pas de position fixe :
+      leur position, leurs azimuts et leurs cellules se déclarent dans chaque événement.</p>
+  </div>
+  {% if peut_declarer %}
+  <div class="boutons"><a class="bouton" href="{% url 'reseau:nouveau' %}">+ Déclarer un site</a></div>
+  {% endif %}
+</div>
+<form class="list-toolbar" method="get" role="search">
+  <div><label class="sr-only" for="reseau-recherche">Rechercher un site</label><input type="search" id="reseau-recherche" name="recherche" value="{{ recherche }}" placeholder="Code, nom, trigramme, commune ou cellule…"></div>
+  <div><label class="sr-only" for="reseau-filtre">Afficher</label><select id="reseau-filtre" name="filtre" onchange="this.form.requestSubmit()">
+    {% for cle, libelle in filtres.items %}<option value="{{ cle }}"{% if cle == filtre %} selected{% endif %}>{{ libelle }}{% if cle == "mobiles" %} ({{ nb_mobiles }}){% endif %}</option>{% endfor %}
+  </select></div>
+  <button class="bouton secondaire" type="submit">Rechercher</button>
+  {% if recherche or filtre != "tous" %}<a href="{% url 'reseau:liste' %}">Effacer le filtre</a>{% endif %}
+</form>
+<section class="carte">
+  {% if page.object_list %}
+  <div class="table-defil"><table class="liste-sites">
+    <thead><tr><th scope="col">Site</th><th scope="col">Commune</th><th scope="col" class="nombre">Secteurs</th><th scope="col" class="nombre">Cellules 4G</th><th scope="col" class="nombre">Cellules 3G</th><th scope="col">Marqueurs</th></tr></thead>
+    <tbody>{% for s in page.object_list %}
+      <tr><td><a href="{% url 'reseau:fiche' s.code_site %}"><strong>{{ s.nom|default:s.code_site }}</strong></a> <span class="aide">{{ s.code_site }}{% if s.trigramme %} · {{ s.trigramme }}{% endif %}</span></td>
+        <td>{{ s.commune|default:"—" }}</td>
+        <td class="nombre">{{ s.nb_secteurs_ref }}</td><td class="nombre">{{ s.nb_lte }}</td><td class="nombre">{{ s.nb_wcdma }}</td>
+        <td>{% if s.mobile %}<span class="marqueur-site mobile" title="Remorque : position déclarée dans chaque événement">Site mobile</span>{% endif %}
+          {% if s.manuel %}<span class="marqueur-site manuel" title="Absent du xlsx : conservé par les rechargements">Déclaré ici</span>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% if page.has_other_pages %}
+  <nav class="pagination-reseau" aria-label="Pages">
+    {% if page.has_previous %}<a href="?recherche={{ recherche|urlencode }}&amp;filtre={{ filtre }}&amp;page={{ page.previous_page_number }}">← Précédente</a>{% endif %}
+    <span>Page {{ page.number }} sur {{ page.paginator.num_pages }} · {{ page.paginator.count }} sites</span>
+    {% if page.has_next %}<a href="?recherche={{ recherche|urlencode }}&amp;filtre={{ filtre }}&amp;page={{ page.next_page_number }}">Suivante →</a>{% endif %}
+  </nav>
+  {% endif %}
+  {% else %}
+  <p class="vide">{% if recherche or filtre != "tous" %}Aucun site ne correspond.{% else %}Référentiel vide : chargez-le depuis l'administration.{% endif %}</p>
+  {% endif %}
+</section>
+{% endblock %}

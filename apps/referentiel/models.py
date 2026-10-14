@@ -2,7 +2,9 @@
 déduits des noms de cellules (rattachés aux sites par le trigramme).
 
 Le xlsx n'est jamais interrogé en direct : il est chargé ici par
-``manage.py import_referentiel`` (phase 1), chaque import étant versionné.
+``manage.py import_referentiel`` (phase 1), chaque import étant versionné. Des sites
+peuvent aussi être déclarés dans l'application (page Réseau, ``manuel``) : les imports
+les conservent avec leurs secteurs et cellules.
 """
 
 from django.conf import settings
@@ -45,6 +47,15 @@ class Site(models.Model):
     bascule_4_secteurs = models.DateField(
         "passage à 4 secteurs", null=True, blank=True,
         help_text="Premier jour en 4 secteurs (cf. manage.py detecter_bascules).")
+    # Remorque déplacée d'un événement à l'autre : position, secteurs et cellules se déclarent dans
+    # chaque événement (``Evenement.deploiements``) ; pas de position fixe sur les cartes de sélection.
+    mobile = models.BooleanField(
+        "site mobile", default=False,
+        help_text="Remorque déplacée lors des événements : position, azimuts et cellules se déclarent "
+                  "dans chaque événement.")
+    manuel = models.BooleanField(
+        "déclaré dans l'application", default=False,
+        help_text="Site absent du xlsx : conservé, avec ses secteurs et cellules, par les rechargements.")
 
     class Meta:
         ordering = ["code_site"]
@@ -65,6 +76,11 @@ class Secteur(models.Model):
 
     def __str__(self):
         return self.code
+
+
+def est_omni(azimut, nb_secteurs: int) -> bool:
+    """Seul secteur du site, azimut 0 : antenne omnidirectionnelle (360°)."""
+    return nb_secteurs == 1 and azimut == 0
 
 
 class Cellule(models.Model):

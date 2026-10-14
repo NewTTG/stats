@@ -1,0 +1,7 @@
+<tr class="ligne-site"{% if f.DELETE.value %} hidden{% endif %}>
+  <td>{{ f.nom }}{{ f.nom.errors }}</td>
+  <td>{{ f.techno }}{{ f.techno.errors }}</td>
+  <td>{{ f.secteur }}{{ f.secteur.errors }}</td>
+  <td>{{ f.porteuse }}{{ f.porteuse.errors }}</td>
+  <td class="retirer"><label title="Retirer la cellule">{{ f.DELETE }}<span class="sr-only">Retirer</span><span aria-hidden="true">×</span></label></td>
+</tr>

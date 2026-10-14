@@ -163,7 +163,8 @@ class ResolveurLieux:
         secteurs_visibles = {s.code for s in self.secteurs.values()}
         for e in Evenement.objects.all():
             if autorisees is not None and not (set(e.cellules) & autorisees or set(e.sites) & set(self.sites)
-                                               or set(e.secteurs) & secteurs_visibles):
+                                               or set(e.secteurs) & secteurs_visibles
+                                               or set(e.cellules_deployees()) & autorisees):
                 continue
             lieu = Lieu("evenement", (e.nom,), e.nom, detail=e.type)
             self.evenements.ajouter(e.nom, lieu)

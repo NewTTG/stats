@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+Déclaration / modification d'un site (referentiel.views.edition) : site, secteurs (azimut), cellules.
+Lignes ajoutées par static/js/reseau-site.js à partir des modèles <template> (formulaires vides des formsets).
+{% endcomment %}
+{% block titre %}{% if site.pk %}Modifier {{ site.nom }}{% else %}Déclarer un site{% endif %} : Stats réseau{% endblock %}
+{% block entete %}<link rel="stylesheet" href="{% static 'css/reseau.css' %}">{% endblock %}
+{% block contenu %}
+<p class="fil"><a href="{% if site.pk %}{% url 'reseau:fiche' site.code_site %}{% else %}{% url 'reseau:liste' %}{% endif %}">← {% if site.pk %}{{ site.nom|default:site.code_site }}{% else %}Tous les sites{% endif %}</a></p>
+<div class="entete-page">
+  <div>
+    <h1>{% if site.pk %}Modifier le site{% else %}Déclarer un site{% endif %}</h1>
+    <p class="sous-titre">{% if site.pk and not site.manuel %}Site lu dans le xlsx : ces modifications seront remplacées au prochain rechargement du référentiel (le marqueur « site mobile » est conservé).
+      {% elif site.pk %}Site déclaré dans l'application : conservé, avec ses secteurs et cellules, par les rechargements du référentiel.
+      {% else %}Site absent du xlsx (nouvelle remorque, site provisoire…) : il sera conservé par les rechargements du référentiel.{% endif %}</p>
+  </div>
+</div>
+
+<form method="post" class="edition-site" novalidate>{% csrf_token %}
+{% if erreurs %}<div class="erreur" role="alert">Corrigez les points signalés ci-dessous.</div>{% endif %}
+{{ site_form.non_field_errors }}
+<section class="carte" aria-labelledby="titre-site">
+  <h2 id="titre-site">Site</h2>
+  <div class="grille-site">
+    {% for champ in site_form %}{% if champ.name != "mobile" %}
+    <div class="champ-site{% if champ.name == 'nom' %} large{% endif %}">
+      <label for="{{ champ.id_for_label }}">{{ champ.label }}{% if not champ.field.required %} <span class="facultatif">facultatif</span>{% endif %}</label>
+      {{ champ }}{% if champ.help_text %}<small class="aide">{{ champ.help_text }}</small>{% endif %}{{ champ.errors }}
+    </div>
+    {% endif %}{% endfor %}
+  </div>
+  <label class="case-mobile">{{ site_form.mobile }} <span><strong>Site mobile (remorque)</strong>
+    <small>Pas de position fixe : position, azimuts et cellules se déclarent dans chaque événement, et le site n'est pas placé sur la carte de sélection.</small></span></label>
+</section>
+
+<section class="carte" aria-labelledby="titre-secteurs" data-formset="secteurs">
+  <h2 id="titre-secteurs">Secteurs</h2>
+  <p class="aide">Azimut en degrés (0 à 359), vide s'il est inconnu. Un seul secteur à 0° : antenne omnidirectionnelle (360°).</p>
+  {{ secteurs.management_form }}{{ secteurs.non_form_errors }}
+  <table class="lignes-site">
+    <thead><tr><th scope="col">N°</th><th scope="col">Azimut (°)</th><th scope="col"><span class="sr-only">Retirer</span></th></tr></thead>
+    <tbody data-lignes>{% for f in secteurs %}{% include "referentiel/_ligne_secteur.html" %}{% endfor %}</tbody>
+  </table>
+  <template data-modele>{% with f=secteurs.empty_form %}{% include "referentiel/_ligne_secteur.html" %}{% endwith %}</template>
+  <button type="button" class="bouton secondaire petit" data-ajouter>+ Ajouter un secteur</button>
+</section>
+
+<section class="carte" aria-labelledby="titre-cellules" data-formset="cellules">
+  <h2 id="titre-cellules">Cellules</h2>
+  <p class="aide">Nom tel qu'il apparaît dans les statistiques (ex. 1RMe1 en 4G, 1RM128A en 3G). Une cellule retirée reste connue, non rattachée.</p>
+  {{ cellules.management_form }}{{ cellules.non_form_errors }}
+  <table class="lignes-site">
+    <thead><tr><th scope="col">Cellule</th><th scope="col">Techno</th><th scope="col">Secteur</th><th scope="col">Porteuse</th><th scope="col"><span class="sr-only">Retirer</span></th></tr></thead>
+    <tbody data-lignes>{% for f in cellules %}{% include "referentiel/_ligne_cellule.html" %}{% endfor %}</tbody>
+  </table>
+  <template data-modele>{% with f=cellules.empty_form %}{% include "referentiel/_ligne_cellule.html" %}{% endwith %}</template>
+  <button type="button" class="bouton secondaire petit" data-ajouter>+ Ajouter une cellule</button>
+</section>
+
+<div class="actions-site">
+  <a class="bouton secondaire" href="{% if site.pk %}{% url 'reseau:fiche' site.code_site %}{% else %}{% url 'reseau:liste' %}{% endif %}">Annuler</a>
+  <button type="submit" class="bouton">Enregistrer le site</button>
+</div>
+</form>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/reseau-site.js' %}" defer></script>{% endblock %}
