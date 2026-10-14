@@ -293,9 +293,19 @@ L’accueil et l’autocomplétion ne créent pas de demandes.
 - **Échec** : validation, accès aux données, calcul ou génération en erreur.
 - **En cours** : traitement commencé, ou rapport en attente / en cours dans le worker.
 
-La fiche d’un parcours présente sa chronologie, les choix repris et les paramètres
-modifiés, le nombre de lignes, les avertissements et les fichiers associés. Les
-recherches sans résultat, les analyses d’événements, les rapports planifiés et les
+La fiche affiche d’abord **la demande sélectionnée**, même dans un parcours de plus
+de 30 étapes. Les autres étapes du même parcours sont dans un **historique replié**,
+avec un lien pour ouvrir chacune. Elle présente les choix repris, les paramètres
+modifiés, le nombre de lignes, les avertissements et les fichiers associés.
+Un encart **Pistes d’amélioration** signale les points à vérifier d’après la trace
+(mots non reconnus, précisions, erreur, absence de données). Ces pistes ne constituent
+pas un diagnostic confirmé. Le **texte à transmettre** reprend uniquement la demande
+sélectionnée, son interprétation et ses paramètres ; compléter le comportement attendu,
+puis utiliser le bouton de copie pour le transmettre à l’assistant. Sur HTTP, si le
+presse-papiers est indisponible, le texte est sélectionné pour une copie manuelle.
+L’édition de ce texte reste locale à la page et ne modifie pas la trace historique.
+Les corrections de reconnaissance ne réécrivent pas les anciennes interprétations.
+Les recherches sans résultat, les analyses d’événements, les rapports planifiés et les
 erreurs du worker sont aussi suivis. La liste se filtre par statut, type, date et suite
 du parcours ; la recherche porte sur la demande, l’utilisateur et le message d’erreur.
 Les compteurs comptent les **tentatives**, pas les utilisateurs ou les parcours uniques.

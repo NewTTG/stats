@@ -1,24 +1,30 @@
 {% extends 'admin/base_site.html' %}
+{% load static %}
 {% block bodyclass %}{{ block.super }} suivi-detail{% endblock %}
-{% block breadcrumbs %}<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Administration</a> › <a href="{% url 'admin:comptes_demandesuivie_changelist' %}">Suivi des demandes</a> › Parcours</div>{% endblock %}
+{% block extrahead %}{{ block.super }}<script src="{% static 'js/suivi-demandes.js' %}" defer></script>{% endblock %}
+{% block breadcrumbs %}<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Administration</a> › <a href="{% url 'admin:comptes_demandesuivie_changelist' %}">Suivi des demandes</a> › Demande sélectionnée</div>{% endblock %}
 {% block content %}
-<header class="admin-intro compact"><div><p class="admin-eyebrow">PARCOURS UTILISATEUR</p><h2>{{ original|truncatechars:160 }}</h2><p>{{ original.utilisateur|default:"Compte supprimé" }} · {{ etapes.paginator.count }} étape{{ etapes.paginator.count|pluralize }} · heure de Nouméa</p></div><a class="admin-button" href="{% url 'admin:comptes_demandesuivie_changelist' %}">← Toutes les demandes</a></header>
-<div class="suivi-layout"><section aria-label="Chronologie des demandes">
-{% for e in etapes %}<article class="suivi-etape{% if e.pk == original.pk %} selectionnee{% endif %}" id="etape-{{ e.pk }}">
-  <div class="admin-section-heading"><span class="admin-eyebrow">{{ e.get_nature_display }} · {{ e.creee_le|date:"d/m/Y H:i:s" }}</span><span class="etat etat-{{ e.statut }}">{{ e.get_statut_display }}</span></div>
-  <h2>{{ e.texte|default:"Demande composée avec les filtres" }}</h2>
-  {% if e.parent %}<p class="admin-muted">Suite de la demande du {{ e.parent.creee_le|date:"d/m H:i:s" }}{% if e.reponses %} · Choix repris : <strong>{{ e.reponses|join:", " }}</strong>{% else %} · Paramètres précisés ou modifiés{% endif %}</p>{% endif %}
-  {% if e.interpretation.compris %}<h3>Ce que l’app a compris</h3><ul class="suivi-puces">{% for puce in e.interpretation.compris %}<li>{{ puce.libelle }}{% if puce.defaut %}<small>par défaut</small>{% endif %}</li>{% endfor %}</ul>{% endif %}
-  {% if e.interpretation.non_compris %}<p class="suivi-message">Mots non reconnus : <strong>{{ e.interpretation.non_compris|join:", " }}</strong></p>{% endif %}
-  {% for note in e.interpretation.notes %}<p class="admin-muted">{{ note }}</p>{% endfor %}
-  {% if e.interpretation.questions %}<h3>Ce que l’app a proposé</h3>{% for q in e.interpretation.questions %}<div class="suivi-question"><strong>{{ q.texte }}</strong><ul>{% for o in q.options %}<li>{{ o.libelle }}{% if o.detail %}<small>{{ o.detail }}</small>{% endif %}</li>{% endfor %}</ul>{% if q.saisie != 'aucune' %}<p>Saisie libre proposée : {{ q.saisie }}</p>{% endif %}</div>{% endfor %}{% endif %}
-  {% if e.message %}<p class="suivi-message">{{ e.message }}</p>{% endif %}
-  {% if e.resultat.lignes != None %}<p><strong>{{ e.resultat.lignes }} ligne{{ e.resultat.lignes|pluralize }}</strong> de résultats.</p>{% endif %}
-  {% for avertissement in e.resultat.avertissements %}<p class="admin-muted">{{ avertissement }}</p>{% endfor %}
-  <footer class="suivi-footer"><span>{% if e.duree_ms != None %}{{ e.duree_ms }} ms{% else %}Traitement en cours{% endif %}{% if e.interpretation.source %} · Interprétation : {{ e.interpretation.source }}{% endif %}</span><details><summary>Paramètres et diagnostic</summary><pre>{{ e.diagnostic }}</pre><small>Identifiant : {{ e.pk }}</small></details></footer>
-</article>{% endfor %}
-{% if etapes.has_other_pages %}<nav class="admin-pagination" aria-label="Étapes du parcours">{% if etapes.has_previous %}<a href="?page={{ etapes.previous_page_number }}">← Précédentes</a>{% endif %}<span>Page {{ etapes.number }} / {{ etapes.paginator.num_pages }}</span>{% if etapes.has_next %}<a href="?page={{ etapes.next_page_number }}">Suivantes →</a>{% endif %}</nav>{% endif %}
-</section><aside class="suivi-aside"><section class="admin-panel"><p class="admin-eyebrow">ISSUE DU PARCOURS</p><h2>{% if aboutie %}Un résultat a été obtenu{% else %}Aucun succès enregistré{% endif %}</h2><p>Chaque étape conserve son propre résultat. Une question sans réponse enregistrée ne permet pas de conclure à un abandon.</p></section>
+<header class="admin-intro compact"><div><p class="admin-eyebrow">DÉTAIL DE LA DEMANDE</p><h2>{{ original|truncatechars:160 }}</h2><p>{{ original.utilisateur|default:"Compte supprimé" }} · {{ original.creee_le|date:"d/m/Y H:i:s" }} · heure de Nouméa</p><p class="admin-muted">Identifiant : {{ original.pk }}</p></div><a class="admin-button" href="{% url 'admin:comptes_demandesuivie_changelist' %}">← Toutes les demandes</a></header>
+<div class="suivi-layout"><section aria-label="Demande sélectionnée et historique">
+{% include 'admin/suivi/etape.html' with e=original %}
+<section class="admin-panel suivi-ameliorations" aria-labelledby="titre-ameliorations">
+  <h2 id="titre-ameliorations">Pistes d’amélioration</h2>
+  <p>Ces pistes reposent sur la trace enregistrée et restent à vérifier. Un traitement abouti ne garantit pas que la question a été bien comprise.</p>
+  <ul>{% for piste in pistes %}<li>{{ piste }}</li>{% empty %}<li>Aucune difficulté détectée automatiquement. Vous pouvez décrire ci-dessous le comportement attendu.</li>{% endfor %}</ul>
+  <label for="texte-transmission"><strong>Texte à transmettre pour améliorer cette demande</strong></label>
+  <p id="aide-transmission">Complétez le comportement attendu, puis copiez le texte dans votre échange avec l’assistant. Vos modifications restent dans cette page jusqu’à son rechargement.</p>
+  <textarea id="texte-transmission" rows="14" aria-describedby="aide-transmission">{{ texte_transmission }}</textarea>
+  <div class="suivi-actions"><button type="button" class="admin-button" data-copier-demande>Copier la demande et les pistes</button><span role="status" aria-live="polite" data-statut-copie></span></div>
+</section>
+{% if etapes.paginator.count %}
+<details class="suivi-historique"{% if historique_ouvert %} open{% endif %}>
+  <summary>Historique lié : {{ etapes.paginator.count }} autre{{ etapes.paginator.count|pluralize }} étape{{ etapes.paginator.count|pluralize }}</summary>
+  <p>Uniquement les étapes de ce parcours. La demande sélectionnée reste affichée au-dessus.</p>
+  {% for e in etapes %}{% include 'admin/suivi/etape.html' %}{% endfor %}
+  {% if etapes.has_other_pages %}<nav class="admin-pagination" aria-label="Étapes du parcours">{% if etapes.has_previous %}<a href="?page={{ etapes.previous_page_number }}">← Précédentes</a>{% endif %}<span>Page {{ etapes.number }} / {{ etapes.paginator.num_pages }}</span>{% if etapes.has_next %}<a href="?page={{ etapes.next_page_number }}">Suivantes →</a>{% endif %}</nav>{% endif %}
+</details>
+{% endif %}
+</section><aside class="suivi-aside"><section class="admin-panel"><p class="admin-eyebrow">ISSUE DU PARCOURS</p><h2>{% if aboutie %}Un résultat a été obtenu{% else %}Aucun succès enregistré{% endif %}</h2><p>{{ nombre_etapes }} étape{{ nombre_etapes|pluralize }} dans ce parcours. Chaque étape conserve son propre résultat. Une question sans réponse enregistrée ne permet pas de conclure à un abandon.</p><p>Cette page présente l’interprétation au moment de la demande ; les corrections du moteur ne réécrivent pas l’historique.</p></section>
 {% if peut_rapports %}<section class="admin-panel"><h2>Rapports du parcours</h2>{% for r in rapports %}<div class="suivi-rapport"><strong>{{ r.titre }}</strong><p>{{ r.get_format_display }} · {{ r.get_statut_display }}<br>{{ r.creee_le|date:"d/m/Y H:i" }}</p>{% if r.message %}<p>{{ r.message }}</p>{% endif %}{% if r.statut == 'termine' and r.fichier %}<a class="admin-button" href="{% url 'admin:rapports_rapport_telecharger' r.pk %}">Télécharger {{ r.get_format_display }}</a>{% endif %}<a href="{% url 'admin:rapports_rapport_change' r.pk %}">Détails du rapport →</a></div>{% empty %}<p>Aucun rapport généré pour ce parcours.</p>{% endfor %}</section>{% endif %}
 </aside></div>
 {% endblock %}

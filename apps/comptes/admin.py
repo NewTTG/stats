@@ -205,33 +205,28 @@ class DemandeSuivieAdmin(admin.ModelAdmin):
         return super().changelist_view(request, {'title': 'Suivi des demandes', **(extra_context or {})})
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
-        import json
+        from .diagnostic_demandes import preparer_etape, pistes_amelioration, texte_a_transmettre
         if not self.has_view_permission(request) or request.method not in ('GET', 'HEAD'):
             raise PermissionDenied
         obj = self.get_object(request, object_id)
         if obj is None:
             return self._get_obj_does_not_exist_redirect(request, self.opts, object_id)
-        etapes = DemandeSuivie.objects.filter(parcours=obj.parcours).select_related('utilisateur', 'parent').order_by('creee_le')
-        page = Paginator(etapes, 30).get_page(request.GET.get('page'))
+        etapes = DemandeSuivie.objects.filter(parcours=obj.parcours, utilisateur_id=obj.utilisateur_id).select_related(
+            'utilisateur', 'parent').order_by('creee_le', 'pk')
+        # La sélection reste visible, même si elle est au-delà de la première page.
+        preparer_etape(obj)
+        page = Paginator(etapes.exclude(pk=obj.pk), 30).get_page(request.GET.get('page'))
         for etape in page:
-            etape.diagnostic = json.dumps({'parametres': etape.parametres, 'interpretation': etape.interpretation,
-                                         'resultat': etape.resultat}, ensure_ascii=False, indent=2)
-            etape.reponses = []
-            if etape.parent and etape.parent.interpretation.get('questions'):
-                for question in etape.parent.interpretation['questions']:
-                    for option in question.get('options', []):
-                        def identique(cle, valeur):
-                            envoyees = etape.parametres.get(cle, [])
-                            attendues = valeur if isinstance(valeur, list) else [valeur]
-                            return [str(v) for v in envoyees] == [str(v) for v in attendues]
-                        if option.get('params') and all(identique(k, v) for k, v in option['params'].items()):
-                            etape.reponses.append(option['libelle'])
+            preparer_etape(etape)
+        pistes = pistes_amelioration(obj)
         from apps.rapports.models import Rapport
         peut_rapports = request.user.has_perm('rapports.view_rapport')
-        rapports = Rapport.objects.filter(demande__parcours=obj.parcours).select_related('utilisateur') if peut_rapports else []
+        rapports = Rapport.objects.filter(demande__in=etapes).select_related('utilisateur') if peut_rapports else []
         request.current_app = self.admin_site.name
         return TemplateResponse(request, 'admin/suivi/detail.html', {
-            **self.admin_site.each_context(request), 'title': 'Parcours de la demande', 'original': obj,
+            **self.admin_site.each_context(request), 'title': 'Détail de la demande', 'original': obj,
             'opts': self.model._meta, 'etapes': page, 'rapports': rapports, 'peut_rapports': peut_rapports,
-            'aboutie': etapes.filter(statut='reussie').exists(),
+            'aboutie': etapes.filter(statut='reussie').exists(), 'nombre_etapes': etapes.count(),
+            'pistes': pistes, 'texte_transmission': texte_a_transmettre(obj, pistes),
+            'historique_ouvert': 'page' in request.GET,
         })

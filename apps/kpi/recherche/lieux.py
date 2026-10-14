@@ -147,6 +147,14 @@ class ResolveurLieux:
                         self.noms_sites.ajouter(v, commune)
                     self.noms_sites.ajouter(v, lieu)
 
+        # Comparer les noms complets avant de consommer une commune incluse dans
+        # un nom de site (« La Foa Village », « Mont Coffyn »).
+        self.lieux_exacts = Correspondeur()
+        for source in (self.communes, self.noms_sites):
+            for k, lieux in source.entrees.items():
+                for lieu in lieux:
+                    self.lieux_exacts.ajouter(" ".join(k), lieu)
+
         # Événements : nom complet, et mots distinctifs (« carnaval », « diginova »).
         self.evenements = Correspondeur()
         self.mots_evenements = defaultdict(list)
@@ -263,13 +271,11 @@ class ResolveurLieux:
         lieux_regions, ambiguites_regions = self.resoudre_regions(texte)  # (déjà fait par les règles)
         lieux += lieux_regions
         ambiguites += ambiguites_regions
-        for indices, candidats in self.communes.trouver(texte):
+        for indices, candidats in self.lieux_exacts.trouver(texte):
             ajouter(indices, candidats)
         if self.restreint:  # commune hors périmètre : question, jamais de calcul en silence
             for indices, candidats in self.toutes_communes.trouver(texte):
                 hors_perimetre(self._avec_generique(texte, self._avec_article(texte, indices, candidats)))
-        for indices, candidats in self.noms_sites.trouver(texte):
-            ajouter(indices, candidats)
 
         # Mots d'événements : distinctifs (« carnaval »), ou génériques (« foire ») avec la
         # commune de l'événement citée (« la foire … à Koumac ») ; la commune départage.
@@ -465,7 +471,12 @@ class ResolveurLieux:
             return False
         precedent = texte.mots[j]
         majuscule = texte.origines[i][:1].isupper() and self._majuscules_significatives(texte)
-        return precedent in _AVANT_LIEU or (majuscule and precedent in _AVANT_LIEU_MAJUSCULE)
+        # « le site de mont inconnu » reste un lieu explicite, même en minuscules.
+        avant_nom = j
+        while avant_nom > 0 and texte.mots[avant_nom] in _ARTICLES | {"de", "du", "d", "des"}:
+            avant_nom -= 1
+        return (precedent in _AVANT_LIEU or (majuscule and precedent in _AVANT_LIEU_MAJUSCULE)
+                or texte.mots[avant_nom] in {"site", "commune", "secteur"})
 
     # ------------------------------------------------------------ combinaison
     def combiner(self, lieux: list[Lieu]) -> Lieu:
