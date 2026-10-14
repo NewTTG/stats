@@ -9,7 +9,7 @@ from pydantic import ValidationError
 
 from apps.comptes import suivi
 from apps.comptes.acces import kpis_autorises
-from apps.evenements import periode
+from apps.evenements import archives, periode
 from apps.evenements.analyse import NIVEAUX
 from apps.evenements.models import Evenement
 from apps.evenements.acces import evenements_visibles
@@ -73,6 +73,13 @@ def rapport_evenement(request, pk):
     # Période affichée sur la page de l'événement ; à défaut, ses créneaux mémorisés.
     try:
         creneaux = periode.lire(request.POST)[0] or periode.memorises(evenement)
+        archive = None
+        if request.POST.get("edition_id", "direct") != "direct":
+            identifiant = request.POST.get("edition_id", "")
+            archive = get_object_or_404(archives.visibles(evenement, request.user), pk=identifiant) if identifiant.isdecimal() else None
+            if archive is None:
+                raise periode.PeriodeInvalide("Édition inconnue.")
+        reference, archive_reference, origine = archives.choix_reference(evenement, request.user, request.POST, creneaux)
     except periode.PeriodeInvalide as e:
         messages.error(request, str(e))
         return redirect("evenements:detail", evenement.pk)
@@ -80,7 +87,11 @@ def rapport_evenement(request, pk):
     rapport = Rapport.objects.create(
         utilisateur=request.user, titre=f"{evenement.nom}{quand} : par {niveau}"[:200], nature="evenement", format=fmt,
         parametres={"evenement": evenement.pk, "niveau": niveau,
-                    "creneaux": [[d.isoformat(), f.isoformat()] for d, f in creneaux]})
+                    "creneaux": [[d.isoformat(), f.isoformat()] for d, f in creneaux],
+                    "reference": [[d.isoformat(), f.isoformat()] for d, f in reference] if reference is not None else None,
+                    "archive": archive.pk if archive else None,
+                    "archive_reference": archive_reference.pk if archive_reference else None,
+                    "origine_reference": origine})
     if lancer(rapport, parent=suivi.origine(request.user, request.POST.get("suivi"))):
         messages.success(request, f"Rapport {rapport.get_format_display()} en cours de génération.")
     else:

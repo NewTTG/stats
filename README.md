@@ -267,8 +267,8 @@ et redémarrer l’application et le worker. En déploiement, exécuter aussi
   *Données*, onglet *Définitions* des KPI. Chaque export est tracé dans le journal d'audit.
 - **Rapport PowerPoint d'une requête** (bouton sur l'écran de résultat) : titre,
   synthèse, un graphique commenté par KPI, annexe des cellules sans données.
-- **Événements** (/evenements) : pour chaque événement, comparaison des créneaux avec
-  les mêmes jours et heures des N semaines précédentes (4 par défaut) :
+- **Événements** (/evenements) : comparaison avec une édition enregistrée, une période libre,
+  les mêmes dates l'année précédente ou les N semaines précédentes :
   - synthèse par KPI (événement, référence, écart %, statut) ;
   - courbes horaires événement / référence avec la bande min–max des semaines ;
   - anomalies triées par gravité : seuil dépassé, écart significatif à la référence,
@@ -414,8 +414,37 @@ bilan complet ; un indicateur explicite reste prioritaire (« stats du débit »
 - Page de l'événement : carte de la zone couverte (seuls les sites et secteurs actifs, cadrée sur
   la zone), puis courbes horaires en trois vues : Global (événement, référence, bande min–max),
   Par site et Par cellule (une courbe par site / cellule, noms en légende).
-- Référence : moyenne des mêmes créneaux décalés de 1 à N semaines. Pour un KPI
-  additif (volume, trafic), c'est la moyenne des semaines, pas leur somme.
+- Référence : par défaut, édition enregistrée du même événement dont le début appartient à
+  l'année précédente (la plus récente s'il y en a plusieurs), sinon comparaison calendaire aux
+  mêmes dates de l'année précédente, explicitement signalée. Le choix « Dates et heures
+  personnalisées » permet, par exemple, le 12/08/2026 de 18 h à 22 h contre le 20/08/2025 de
+  18 h à 21 h, avec plusieurs jours possibles. Les deux durées peuvent différer : les volumes
+  restent des totaux bruts, un avertissement le précise ; les courbes sont alignées par rang
+  d'heure, avec des valeurs absentes plutôt qu'une prolongation artificielle. Les dates et heures
+  exactes sont affichées sur la page et dans tous les exports. Le choix historique « Moyenne
+  des N semaines précédentes » reste disponible : pour un volume, moyenne des semaines,
+  pas leur somme. Les sites mobiles sont exclus de toute référence calculée sans édition
+  enregistrée : leur présence actuelle ne prouve pas une affectation passée.
+- Éditions enregistrées : après la fin de l'événement et le chargement des données KPI,
+  « Enregistrer définitivement cette édition » conserve dans `EditionEvenement` (base
+  applicative, migration `0005`) les compteurs horaires, les cellules, les rattachements site /
+  secteur, les positions et déploiements de remorques, les définitions KPI (composants compris)
+  et les seuils. Il faut le droit de modifier l'événement et l'accès à tout le réseau, pour éviter
+  de créer une archive partielle selon les droits de son auteur. Les droits de consultation
+  actuels sont réappliqués à chaque lecture et export. Les données sont réagrégées depuis ces
+  compteurs conservés, sans relire la source KPI pour une comparaison entre deux archives.
+  Un déplacement ou une modification de la définition de l'événement ne modifie aucune
+  édition enregistrée. Un nom déjà utilisé n'est jamais écrasé ; une correction peut être
+  enregistrée sous un nouveau nom. La dernière édition enregistrée est proposée à l'ouverture ;
+  choisir « Nouvelle édition / données actuelles » pour l'édition suivante. Les archives sont
+  incluses dans les sauvegardes de la base applicative et sont supprimées si leur événement est
+  supprimé. Elles restent consultables si la source KPI est indisponible ; une référence vivante
+  indisponible passe alors en N/D.
+- Anciennes éditions : aucune affectation historique de remorque n'est inventée. L'utilisateur
+  peut recréer et enregistrer une édition passée après avoir vérifié sa période et son périmètre.
+  Sans cette saisie, la comparaison calendaire transparente suffit. L'enregistrement est explicite,
+  jamais déclenché par une simple consultation ; les périodes futures et les archives entièrement
+  sans données sont refusées.
 - KPI analysés : ceux de l'événement s'il en liste, sinon les KPI principaux du
   catalogue (sans les causes de coupure ni les composants des taux d'accès composites,
   qui restent sélectionnables explicitement).

@@ -65,6 +65,12 @@ def option(page, selector):
     return page.locator(selector).evaluate("e => echarts.getInstanceByDom(e).getOption()")
 
 
+def attendre_fermeture(page):
+    pw.expect(page.get_by_role("dialog")).not_to_be_visible()
+    # L'événement natif « close » détruit le canvas après la fermeture visuelle.
+    page.wait_for_function("!echarts.getInstanceByDom(document.querySelector('.graphique-popup-canvas'))")
+
+
 def clic_periode(page, selector, index):
     div = page.locator(selector)
     div.scroll_into_view_if_needed()
@@ -112,31 +118,32 @@ def test_selection_synchronisee_et_reset(page):
 
 
 def test_popup_clavier_fermeture_et_mobile(page):
-    bouton = page.get_by_role("button", name="Agrandir : Coupure data 3G", exact=True)
+    bouton = page.locator('.graphiques[data-source="courbes-a"] .graphique')
     bouton.focus()
     page.keyboard.press("Enter")
     dialog = page.get_by_role("dialog")
     pw.expect(dialog).to_be_visible()
     assert [d["value"] for d in option(page, ".graphique-popup-canvas")["series"][0]["data"]] == [.1, .2, .25]
-    page.locator("dialog select").select_option("1")
+    clic_periode(page, ".graphique-popup-canvas", 1)
     assert option(page, '.graphiques[data-source="courbes-a"] .graphique')["series"][0]["markPoint"]["data"]
     page.keyboard.press("Escape")
-    pw.expect(dialog).not_to_be_visible()
+    attendre_fermeture(page)
     pw.expect(bouton).to_be_focused()
-    bouton.click()
+    bouton.press("Enter")
     page.get_by_role("button", name="Fermer le graphique agrandi").click()
-    pw.expect(dialog).not_to_be_visible()
-    bouton.click()
+    attendre_fermeture(page)
+    bouton.press("Enter")
     page.mouse.click(2, 2)
-    pw.expect(dialog).not_to_be_visible()
+    attendre_fermeture(page)
     page.set_viewport_size({"width": 390, "height": 844})
-    bouton.click()
+    bouton.press("Enter")
     page.wait_for_timeout(160)
     bounds = dialog.bounding_box()
     assert bounds["x"] >= 0 and bounds["x"] + bounds["width"] <= 390
     assert page.locator(".graphique-popup-canvas canvas").bounding_box()["width"] > 300
     page.keyboard.press("Escape")
-    page.locator('.graphiques[data-source="courbes-a"] select').select_option("1")
+    attendre_fermeture(page)
+    clic_periode(page, '.graphiques[data-source="courbes-a"] .graphique', 1)
     assert option(page, '.graphiques[data-source="courbes-a"] .graphique')["series"][0]["markPoint"]["data"] == []
     # Un clic dans le fond du graphique donne aussi accès à l'agrandissement.
     div = page.locator('.graphiques[data-source="courbes-a"] .graphique')
@@ -145,16 +152,17 @@ def test_popup_clavier_fermeture_et_mobile(page):
 
 
 def test_evenement_et_entites(page):
-    page.locator(".courbes select").select_option("1")
+    clic_periode(page, ".courbes .graphique", 1)
     series = option(page, ".courbes .graphique")["series"]
     assert series[0]["lineStyle"]["opacity"] == series[1]["lineStyle"]["opacity"] == 0
     assert series[0]["markPoint"]["data"] == []
     assert series[3]["markPoint"]["data"][0]["coord"] == [1, 2]
-    page.get_by_role("button", name="Agrandir : Événement", exact=True).click()
-    page.get_by_role("button", name="Effacer la sélection", exact=True).last.click()
+    page.locator(".courbes .graphique").press("Enter")
+    clic_periode(page, ".graphique-popup-canvas", 1)
     assert option(page, ".courbes .graphique")["series"][3]["markPoint"]["data"] == []
     page.keyboard.press("Escape")
-    page.get_by_role("button", name="Agrandir : Sites · par entité", exact=True).click()
+    attendre_fermeture(page)
+    page.locator('.graphique-causes[data-source="spatial"]').press("Enter")
     pw.expect(page.get_by_role("dialog")).to_be_visible()
     assert option(page, ".graphique-popup-canvas")["series"][0]["data"] == [.1, .2]
 

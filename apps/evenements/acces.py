@@ -4,7 +4,7 @@ from apps.comptes.acces import cellules_autorisees, voit_tout_le_reseau
 from apps.referentiel.models import Cellule
 
 from . import mobiles
-from .models import Evenement
+from .models import EditionEvenement, Evenement
 
 
 def evenements_visibles(user, queryset=None):
@@ -23,4 +23,7 @@ def evenements_visibles(user, queryset=None):
     ids = [pk for pk, cs, ss, sc, dep in queryset.values_list("pk", "cellules", "sites", "secteurs", "deploiements")
            if noms.intersection(cs) or sites.intersection(ss) or secteurs.intersection(sc)
            or noms.intersection(mobiles.cellules(dep or {}))]
+    ids += [event_id for event_id, cellules in EditionEvenement.objects.filter(evenement__in=queryset)
+            .values_list("evenement_id", "cellules")
+            if any(noms.intersection(cs) for cs in cellules.values())]
     return queryset.filter(pk__in=ids)
