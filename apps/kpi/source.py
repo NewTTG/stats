@@ -172,20 +172,43 @@ def _dernieres_heures(engine, techno, cellules):
 
 
 def _chercher_heures(engine, techno, cellules):
-    table, col_cellule, col_temps = TABLES[(techno, "heure")]
-    temps = _citer(col_temps)
-    sql = f"SELECT DISTINCT {temps} FROM {_citer(table)} WHERE {temps} IS NOT NULL"
-    params = {}
-    if cellules is not None:
-        sql += f" AND {_citer(col_cellule)} IN :cellules"
-        params["cellules"] = list(cellules)
-    sql += f" ORDER BY {temps} DESC LIMIT 24"
-    requete = sa.text(sql)
-    if cellules is not None:
-        requete = requete.bindparams(sa.bindparam("cellules", expanding=True))
+    requete, params = sql_dernieres_heures(techno, cellules, engine.dialect.name)
     with engine.connect() as conn:
         heures = conn.execute(requete, params).scalars().all()
     return sorted(pd.Timestamp(h).to_pydatetime() for h in heures)
+
+
+def sql_dernieres_heures(techno, cellules=None, dialecte="postgresql"):
+    """SQL et paramètres : PostgreSQL saute d'une heure distincte à la précédente.
+
+    MAX sur DateHour bénéficie de l'index temporel. Le DISTINCT sans borne pouvait
+    parcourir tout l'historique malgré LIMIT 24. La récursion est bornée à 24 et
+    applique le même filtre de cellules à CHAQUE recherche, y compris la première.
+    SQLite (démo) conserve son parcours portable, couvert par les mêmes tests métier.
+    """
+    table, col_cellule, col_temps = TABLES[(techno, "heure")]
+    temps = _citer(col_temps)
+    filtre = f" AND {_citer(col_cellule)} IN :cellules" if cellules is not None else ""
+    params = {"cellules": list(cellules)} if cellules is not None else {}
+    if dialecte == "postgresql":
+        sql = f"""WITH RECURSIVE heures(heure, rang) AS (
+            SELECT MAX({temps}), 1 FROM {_citer(table)}
+            WHERE {temps} IS NOT NULL{filtre}
+            UNION ALL
+            SELECT (
+                SELECT MAX({temps}) FROM {_citer(table)}
+                WHERE {temps} < h.heure{filtre}
+            ), h.rang + 1
+            FROM heures h WHERE h.heure IS NOT NULL AND h.rang < 24
+        )
+        SELECT heure FROM heures WHERE heure IS NOT NULL"""
+    else:
+        sql = (f"SELECT DISTINCT {temps} FROM {_citer(table)} WHERE {temps} IS NOT NULL{filtre}"
+               f" ORDER BY {temps} DESC LIMIT 24")
+    requete = sa.text(sql)
+    if cellules is not None:
+        requete = requete.bindparams(sa.bindparam("cellules", expanding=True, type_=sa.String()))
+    return requete, params
 
 
 def lire(

@@ -169,8 +169,17 @@ de connexion ni valeurs KPI. L'onglet Réseau du navigateur expose aussi la dur�
 l'en-tête `Server-Timing` de `/dashboard/`. Les horodatages des lignes `GET ... 200` du
 serveur indiquent la fin des réponses, pas leur durée. Si `dernieres_heures` domine lors
 d'un premier chargement, faire vérifier par l'administrateur PostgreSQL le plan de
-`SELECT DISTINCT "DateHour" ... ORDER BY "DateHour" DESC LIMIT 24` et les index des tables
-horaires ; l'application ne modifie pas la base KPI en lecture seule.
+les index temporels des tables horaires et le plan de la découverte des heures.
+Sur PostgreSQL, cette découverte utilise désormais au plus 24 recherches `MAX("DateHour")`
+indexées, dans une CTE récursive, plutôt qu'un `DISTINCT` sans borne sur l'historique.
+Le même périmètre effectif filtre chaque recherche. Les trous, les bases anciennes et
+les fraîcheurs différentes de 3G et 4G restent pris en compte. La démo SQLite conserve
+la requête portable. L'application ne modifie pas la base KPI en lecture seule.
+
+Les anciennes requêtes, les nouvelles et les lectures de compteurs du dashboard sont
+comparables avec [`docs/sql/dashboard-performances.sql`](docs/sql/dashboard-performances.sql).
+Le diagnostic et les limites d'une synchronisation locale par heure sont expliqués dans
+[`docs/performance_dashboard.md`](docs/performance_dashboard.md).
 
 Après application du correctif sous Windows : arrêter le serveur, activer l'environnement
 existant avec `.venv\Scripts\Activate.ps1`, exécuter `python manage.py collectstatic --noinput`,
