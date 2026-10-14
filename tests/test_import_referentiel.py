@@ -1,4 +1,4 @@
-"""Import du référentiel sur un xlsx synthétique (Site_File seul ; Cell_File ignoré)."""
+"""Import du référentiel sur un xlsx synthétique (Site_File ; Cell_File ne crée aucun secteur)."""
 
 import pandas as pd
 import pytest
@@ -19,7 +19,7 @@ SITES = pd.DataFrame({
     "lonWgs84": [166.4, 166.3, 166.5, 164.8, 166.4, 166.3, 166.5],
     "nbSect": [3, 2, 1, 3, 2, 3, 4],
 })
-# Cell_File volontairement incohérent : il ne doit pas être lu.
+# Cell_File volontairement incohérent : il ne doit créer aucun secteur.
 CELL_FILE = pd.DataFrame({"cells": ["AAA1004", "ZZZ9991"], "codeSite": ["AAA100", "ZZZ999"]})
 LTE = ["AAAe1", "AAAe13", "AAAe4", "BBBe2", "DEPe4", "DEPe15", "LEBe1", "LEBe2", "LEBe3", "LEBe4", "LEBe14",
        "MDOe1", "MDOe4", "QUAe1", "QUAe4", "ZZZe1"]

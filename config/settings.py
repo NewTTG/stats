@@ -143,6 +143,11 @@ KPI_CATALOGUE_PATH = BASE_DIR / "config" / "kpi_catalogue.yaml"
 # sinon ce fichier.
 REFERENTIEL_XLSX = Path(env("REFERENTIEL_XLSX") or BASE_DIR / "OPT_Network_Database_V2.xlsx")
 
+# Fond de carte des événements (sélection des sites et secteurs). Vide : pas de fond, les sites
+# et secteurs restent dessinés. Les tuiles sont chargées par le navigateur de l'utilisateur.
+CARTE_TUILES_URL = env("CARTE_TUILES_URL", "https://tile.openstreetmap.org/{z}/{x}/{y}.png")
+CARTE_TUILES_ATTRIBUTION = env("CARTE_TUILES_ATTRIBUTION", "© contributeurs OpenStreetMap")
+
 # Modèle PowerPoint (charte) : utilisé s'il existe, sinon charte dessinée par le code.
 PPTX_MODELE = env("PPTX_MODELE") or BASE_DIR / "config" / "modele_rapport.pptx"
 # Dispositions du modèle par rôle (premier nom trouvé ; sinon dispositions standard).

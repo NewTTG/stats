@@ -1,8 +1,9 @@
 """Import versionné du référentiel (xlsx, onglet Site_File) et des cellules radio.
 
 Règles :
-- seuls les sites (Site_File) sont lus dans le xlsx : commune, nom unifié (``siteName``)… ;
-  l'onglet Cell_File n'est pas utilisé (numérotation des secteurs peu fiable) ;
+- les sites sont lus dans l'onglet Site_File : commune, nom unifié (``siteName``)… ;
+  l'onglet Cell_File ne sert qu'à l'azimut des secteurs (carte des événements), jamais à
+  créer un secteur (numérotation peu fiable) ;
 - secteurs et cellules sont déduits des noms de cellules (cf. ``nommage``) et rattachés
   au site par le trigramme ; en 3G, par le codeSite s'il existe, sinon par le trigramme ;
 - trigramme partagé par plusieurs sites : le premier site du fichier fait foi (provisoire) ;
@@ -20,7 +21,7 @@ from django.db import transaction
 
 from .models import Cellule, ImportReferentiel, Secteur, Site
 from .nommage import (decoder_lte, decoder_wcdma, lte_4_secteurs, lte_brut, prefixe_wcdma,
-                      sites_wcdma_4_secteurs)
+                      secteur_equivalent, sites_wcdma_4_secteurs)
 
 COLONNES_SITE = ["codeSite", "Trigramme", "siteName", "commune", "region"]
 
@@ -52,6 +53,34 @@ def lire_sites(chemin: Path, rapport: Rapport) -> pd.DataFrame:
     for code in sites.loc[sites["codeSite"].duplicated(), "codeSite"]:
         rapport.signaler(f"site {code} en double : première ligne conservée")
     return sites.drop_duplicates("codeSite")
+
+
+def lire_azimuts(chemin: Path) -> dict[tuple[str, int], int]:
+    """(code site, n° secteur tel qu'écrit dans Cell_File) -> azimut en degrés (0-359).
+
+    Onglet ou colonnes absents : aucun azimut (les secteurs sont alors dessinés à intervalles réguliers).
+    """
+    try:
+        cellules = pd.read_excel(chemin, sheet_name="Cell_File", dtype={"cells": str, "codeSite": str})
+    except ValueError:  # onglet absent
+        return {}
+    if not {"cells", "codeSite", "azimut"} <= set(cellules.columns):
+        return {}
+    azimuts = {}
+    for code, site, azimut in cellules[["cells", "codeSite", "azimut"]].itertuples(index=False):
+        code, site = _texte(code), _texte(site)
+        numero = code[len(site):] if site and code.startswith(site) else ""
+        if numero.isdigit() and not pd.isna(azimut):
+            azimuts.setdefault((site, int(numero)), int(round(float(azimut))) % 360)
+    return azimuts
+
+
+def _azimut(azimuts: dict[tuple[str, int], int], code_site: str, numero: int, quatre: bool) -> int | None:
+    """Azimut du secteur ; à défaut, celui d'un numéro équivalent (ACR5844 pour le secteur 1 d'ACR584)."""
+    if (code_site, numero) in azimuts:
+        return azimuts[(code_site, numero)]
+    return next((a for (site, n), a in sorted(azimuts.items())
+                 if site == code_site and secteur_equivalent(n, quatre) == numero), None)
 
 
 def lire_cellules(chemins: list[Path]) -> dict[str, list[str]]:
@@ -106,7 +135,10 @@ def importer(chemin: Path, fichiers_cellules: list[Path] = (), auteur=None,
     Site.objects.filter(code_site__in=supprimes_sites).delete()
 
     if fichiers_cellules or cellules:
-        _importer_cellules(fusionner_cellules(lire_cellules(list(fichiers_cellules)), cellules or {}), sites, rapport)
+        _importer_cellules(fusionner_cellules(lire_cellules(list(fichiers_cellules)), cellules or {}), sites, rapport,
+                           lire_azimuts(chemin))
+    else:
+        _mettre_a_jour_azimuts(lire_azimuts(chemin))
 
     apres_secteurs = set(Secteur.objects.values_list("code", flat=True))
     return ImportReferentiel.objects.create(
@@ -178,7 +210,17 @@ def _decoder(techno: str, nom: str, quatre_secteurs: bool):
     return decoder_wcdma(nom, quatre_secteurs)
 
 
-def _importer_cellules(cellules, sites: dict[str, Site], rapport: Rapport):
+def _mettre_a_jour_azimuts(azimuts: dict[tuple[str, int], int]):
+    """Import sans cellules : secteurs inchangés, azimuts relus."""
+    secteurs = list(Secteur.objects.select_related("site"))
+    quatre = {s.site_id for s in secteurs if s.numero == 4}
+    for s in secteurs:
+        s.azimut = _azimut(azimuts, s.site.code_site, s.numero, s.site_id in quatre)
+    Secteur.objects.bulk_update(secteurs, ["azimut"])
+
+
+def _importer_cellules(cellules, sites: dict[str, Site], rapport: Rapport, azimuts=None):
+    azimuts = azimuts or {}
     rattachement = _rattacher(cellules, sites, rapport)
     quatre = sites_a_4_secteurs(rattachement, sites)
     for code_site in sorted(quatre):
@@ -191,7 +233,9 @@ def _importer_cellules(cellules, sites: dict[str, Site], rapport: Rapport):
     def secteur(code_site: str, numero: int) -> Secteur:
         if (code_site, numero) not in secteurs:
             secteurs[(code_site, numero)], _ = Secteur.objects.update_or_create(
-                code=f"{code_site}{numero}", defaults={"site": sites[code_site], "numero": numero})
+                code=f"{code_site}{numero}",
+                defaults={"site": sites[code_site], "numero": numero,
+                          "azimut": _azimut(azimuts, code_site, numero, code_site in quatre)})
         return secteurs[(code_site, numero)]
 
     a_creer = []

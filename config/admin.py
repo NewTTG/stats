@@ -45,7 +45,7 @@ def _evenements_sans_creneau():
 # Raccourcis du tableau de bord : (titre, description, modèle, page, paramètres de la liste).
 # Un raccourci n'est affiché que si l'utilisateur a le droit correspondant.
 ACCES_RAPIDES = [
-    ("Créer un événement", "Cellules, créneaux et semaines de référence",
+    ("Créer un événement", "Sites et secteurs sur carte, créneaux, KPI",
      "evenements.Evenement", "add", {}),
     ("Seuils KPI", "Seuils d'alerte et critiques",
      "kpi.SeuilKpi", "changelist", {}),

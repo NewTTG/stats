@@ -366,10 +366,18 @@ bilan complet ; un indicateur explicite reste prioritaire (« stats du débit »
 
 ### Événements
 
+- Création et modification : administration → Événements. La zone couverte se choisit dans
+  la liste du référentiel (recherche par site, commune, secteur ou cellule) ou sur la carte :
+  le point central d'un site le sélectionne entier, chaque secteur est dessiné selon son
+  azimut avec une ouverture indicative de 60° et se sélectionne seul ; on peut aussi
+  cocher des cellules isolées. Retirer un secteur d'un site entier garde les autres.
 - Cellules : codes site (toutes leurs cellules), codes secteur et/ou noms de cellules
   LTE ou WCDMA. Elles sont enregistrées par leur nom : un nouvel import du référentiel
-  ne les perd pas.
-- Créneaux : autant que nécessaire (plusieurs jours, horaires différents chaque jour).
+  ne les perd pas (un code absent du référentiel est signalé sur la page d'édition).
+- Fond de carte : `CARTE_TUILES_URL` (OpenStreetMap par défaut, chargé par le navigateur) ;
+  vide, les sites et secteurs restent dessinés sans fond. Leaflet est servi localement.
+- Créneaux : autant que nécessaire (plusieurs jours, horaires différents chaque jour),
+  saisis en heure de Nouméa ; « Copier au lendemain » duplique un créneau.
 - Référence : moyenne des mêmes créneaux décalés de 1 à N semaines. Pour un KPI
   additif (volume, trafic), c'est la moyenne des semaines, pas leur somme.
 - KPI analysés : ceux de l'événement s'il en liste, sinon les KPI principaux du
@@ -589,8 +597,9 @@ rétablit la connexion obligatoire, avec les règles ci-dessous.
 - cellules : `--cellules-kpi` lit tous les noms des tables journalières de la base KPI (tout
   l'historique, y compris les cellules arrêtées, pour garder leurs statistiques passées) ;
   `--cellules` les lit dans des exports CSV ; les deux peuvent se combiner ;
-- seul l'onglet `Site_File` est lu (commune, nom de site unifié `siteName`…) ; `Cell_File`
-  est ignoré, sa numérotation des secteurs n'étant pas fiable ;
+- l'onglet `Site_File` donne les sites (commune, nom de site unifié `siteName`…) ; `Cell_File`
+  ne sert qu'à l'azimut des secteurs (carte des événements) et ne crée jamais de secteur, sa
+  numérotation n'étant pas fiable (un secteur 4 à 6 d'un site à 3 secteurs vaut 1 à 3) ;
 - les secteurs sont déduits des noms de cellules (`AIG1011` = secteur 1 d'AIG101 : AIG101A/D/J,
   AIGe1/e11/e21) et rattachés au site par le trigramme (en 3G : par le codeSite, sinon par
   le trigramme) ; trigramme partagé par plusieurs sites : le premier site du fichier fait foi ;
