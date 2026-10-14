@@ -105,6 +105,14 @@ def sites_wcdma_4_secteurs(noms: list[str]) -> set[str]:
     return {m["prefixe"] for m in map(_WCDMA.match, noms) if m and m["lettre"] == "M"}
 
 
+_MOBILE = re.compile(r"^(REMORQUE|MOBILE)", re.IGNORECASE)
+
+
+def semble_mobile(nom: str) -> bool:
+    """Nom de site de remorque (``REMORQUE_1bb``, ``MOBILE``) : marqué mobile à sa création."""
+    return bool(_MOBILE.match(nom or ""))
+
+
 def nom_site_normalise(nom: str) -> str:
     """Retire les suffixes ERBS ``bb`` / ``e`` (migration DUS -> Baseband)."""
     for suffixe in ("bb", "e"):

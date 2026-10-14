@@ -49,5 +49,7 @@
 .zone-coin.partiel { fill: rgba(27, 102, 82, .38); }
 .zone-coin.estime { stroke-dasharray: 3 2; }
 .zone-centre { fill: #1b6652; stroke: #fff; stroke-width: 2; }
+.zone-marqueur.mobile .zone-coin { fill: rgba(106, 75, 179, .75); stroke: #3a2770; }
+.zone-marqueur.mobile .zone-centre { fill: #6a4bb3; }
 .zone-nom { position: absolute; left: 50%; top: calc(100% - 4px); transform: translateX(-50%); padding: 1px 5px; border-radius: 4px;
   background: rgba(24, 60, 56, .88); color: #fff; font-size: 10px; font-weight: 600; white-space: nowrap; }

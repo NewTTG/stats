@@ -99,6 +99,40 @@
 .ev-groupe-libre .ev-cellules, .ev-inconnus .ev-cellules { padding-left: 0; }
 .ev-groupe-titre, .ev-inconnus p { margin: 0 0 6px; color: var(--texte-2); font-size: 11px; font-weight: 600; }
 
+/* Sites mobiles (remorques) : déclarés pour l'événement, couleur propre (--ev-mobile). */
+.edition-evenement { --ev-mobile: #6a4bb3; --ev-mobile-doux: #f1edfa; }
+.ev-mobile { border-color: #cfc3ea; }
+.ev-mobile > summary .ev-site-nom small { color: var(--ev-mobile); font-weight: 600; }
+.ev-mobile-bloc { margin: 8px 0 0; padding: 0; border: 0; min-width: 0; }
+.ev-mobile-bloc > legend { margin: 0 0 4px; padding: 0; color: var(--texte-2); font-size: 11px; font-weight: 650; }
+.ev-mobile-bloc .aide { margin: 4px 0 0; color: var(--texte-3); font-size: 11px; }
+.ev-mobile-position { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px; }
+.ev-mobile-position label { display: flex; flex-direction: column; gap: 2px; flex: 1 1 90px; min-width: 0; margin: 0; color: var(--texte-3); font-size: 10px; }
+.ev-mobile-position input { min-height: 28px; padding: 3px 7px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.ev-mobile-position .bouton.actif { border-color: var(--ev-mobile); background: var(--ev-mobile-doux); color: var(--ev-mobile); }
+.ev-mobile-etat { margin: 4px 0 0; color: var(--ok); font-size: 11px; }
+.ev-mobile-etat.a-faire { color: var(--alerte); }
+.ev-mobile-secteurs, .ev-mobile-cellules { margin: 0; padding: 0; list-style: none; }
+.ev-mobile-secteurs li { display: flex; align-items: center; gap: 7px; padding: 3px 0; }
+.ev-mobile-secteurs .ev-boussole path { fill: var(--ev-mobile); stroke: var(--ev-mobile); }
+.ev-mobile-num { min-width: 62px; color: var(--texte); font-size: 11px; font-weight: 600; }
+.ev-mobile-secteurs label { display: inline-flex; align-items: center; gap: 3px; margin: 0; color: var(--texte-3); font-size: 11px; }
+.ev-mobile-secteurs input { width: 74px; min-height: 26px; padding: 2px 6px; font-size: 12px; }
+.ev-mobile-omni { flex: 1; color: var(--texte-3); font-size: 10px; }
+.ev-mobile-cellules li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 0; }
+.ev-mobile-cellule { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; }
+.ev-mobile-cellule strong { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 11px; font-weight: 500; }
+.ev-mobile-cellule small { color: var(--texte-3); font-size: 9px; font-weight: 650; }
+.ev-mobile-cellules select, .ev-mobile-ajout select { width: auto; min-height: 26px; padding: 2px 6px; font-size: 11px; }
+.ev-mobile-ajout { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.ev-mobile-ajout label { flex: 1; min-width: 0; margin: 0; }
+.ev-mobile-ajout input { min-height: 26px; padding: 2px 7px; font-size: 11px; }
+.ev-mobiles-dispo { margin: 8px 0; padding: 10px; border-radius: 10px; border: 1px dashed #cfc3ea; background: #fff; }
+.ev-mobiles-dispo .ev-cellules { padding-left: 0; }
+.ev-puce-mobile { border-style: solid; border-color: #cfc3ea; color: var(--ev-mobile); font-family: var(--police); font-weight: 600; }
+.ev-puce-mobile:hover { border-color: var(--ev-mobile); background: var(--ev-mobile-doux); color: var(--ev-mobile); }
+.ev-sugg-type.mobile { border-color: #cfc3ea; background: var(--ev-mobile-doux); color: var(--ev-mobile); }
+
 /* Carte */
 .ev-carte-cadre { position: relative; min-width: 0; }
 .ev-carte { position: absolute; inset: 0; background: #eef2ef; font: inherit; }
@@ -111,6 +145,8 @@
 .ev-pastille.choisi { background: var(--ev-accent); border-color: var(--ev-accent-fort); }
 .ev-pastille.partiel { background: var(--ev-partiel); border-color: var(--ev-accent-fort); }
 .ev-pastille.estime { border-style: dashed; background: transparent; }
+.ev-pastille.mobile { background: var(--ev-mobile); border-color: #4a3482; }
+.ev-pointage, .ev-pointage .ev-marqueur svg * { cursor: crosshair !important; }
 .edition-evenement .ev-recentrer { position: absolute; right: 10px; top: 10px; z-index: 500; }
 
 /* Secteurs : toujours dessinés, seule la couleur change avec la sélection ; taille réduite en vue éloignée. */
@@ -127,6 +163,8 @@
 .ev-centre:hover { stroke: var(--ev-accent); stroke-width: 2.5; }
 .ev-centre.etat-choisi { fill: var(--ev-accent); stroke: #fff; stroke-width: 2; }
 .ev-centre.etat-partiel { fill: #fff; stroke: var(--ev-accent); stroke-width: 3; }
+.ev-coin.mobile, .ev-coin.mobile:hover { fill: rgba(106, 75, 179, .75); stroke: #3a2770; }
+.ev-centre-mobile { fill: var(--ev-mobile); stroke: #fff; stroke-width: 2; }
 .ev-z-moyen .ev-marqueur svg { transform: scale(.65); }
 .ev-z-loin .ev-marqueur svg { transform: scale(.4); }
 .ev-marqueur-nom { position: absolute; left: 50%; top: calc(100% - 4px); transform: translateX(-50%); display: none; padding: 1px 5px; border-radius: 4px;

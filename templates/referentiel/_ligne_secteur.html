@@ -1,0 +1,5 @@
+<tr class="ligne-site"{% if f.DELETE.value %} hidden{% endif %}>
+  <td>{{ f.numero }}{{ f.numero.errors }}</td>
+  <td>{{ f.azimut }}{{ f.azimut.errors }}</td>
+  <td class="retirer"><label title="Retirer le secteur">{{ f.DELETE }}<span class="sr-only">Retirer</span><span aria-hidden="true">×</span></label></td>
+</tr>

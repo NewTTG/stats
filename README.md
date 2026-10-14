@@ -283,6 +283,15 @@ et redémarrer l’application et le worker. En déploiement, exécuter aussi
 - **Mes rapports** (/rapports) : rapports enregistrés (afficher à l'écran sur leur période
   relative, générer le fichier, suspendre, supprimer ; les 5 premiers aussi sur l'accueil),
   historique et téléchargement des fichiers générés.
+- **Réseau** (/reseau) : sites du référentiel (recherche par code, nom, trigramme, commune ou
+  cellule ; filtres « Sites mobiles » et « Déclarés dans l'application »), fiche d'un site
+  (secteurs avec azimut ou « omni », cellules, carte, événements qui le couvrent). Avec les droits
+  `referentiel.add_site` / `change_site` : déclarer un site (nouvelle remorque, site provisoire)
+  ou modifier un site, ses secteurs et ses cellules sur une seule page, et cocher « site
+  mobile ». Un site déclaré ici est conservé par les rechargements du référentiel ; une
+  modification d'un site du xlsx est remplacée au rechargement suivant (sauf le marqueur
+  mobile). Une cellule retirée d'un site reste connue, non rattachée. Consultation : comptes
+  qui voient tout le réseau ou qui créent / modifient des événements.
 - **Administration** (/admin), à part des statistiques : lien « Administration » en haut à
   droite pour un compte administrateur, « Accès administrateur » (/connexion) en pied de page
   sinon ; les pages des statistiques n'affichent aucun détail technique à un utilisateur
@@ -373,6 +382,17 @@ bilan complet ; un indicateur explicite reste prioritaire (« stats du débit »
   dessinés selon leur azimut (ouverture indicative de 60°), la sélection ne change que leur
   couleur ; le point central d'un site le sélectionne entier, un secteur se sélectionne seul ;
   on peut aussi cocher des cellules isolées. Retirer un secteur d'un site entier garde les autres.
+  Un site à un seul secteur d'azimut 0° est une antenne omnidirectionnelle : dessinée en cercle
+  complet (360°) sur toutes les cartes.
+- Sites mobiles (remorques, marqueur « site mobile » du référentiel) : pas de position fixe, donc
+  absents de la carte de sélection. On les ajoute depuis la liste « Sites mobiles » de la zone
+  couverte (ou la recherche), puis on déclare **pour l'événement** leur position (saisie, ou
+  « Pointer sur la carte »), leurs secteurs avec azimut (un seul à 0° = omni) et le secteur de
+  chaque cellule (« Non utilisée » pour l'exclure ; une cellule absente du référentiel peut être
+  ajoutée par son nom). La disposition du référentiel sert de point de départ. Cette déclaration
+  est enregistrée avec l'événement (`deploiements`) : l'analyse regroupe les cellules par ces
+  secteurs, la page de l'événement dessine la remorque à cette position (violet, centre carré).
+  Sans position, l'analyse reste possible mais la remorque n'apparaît pas sur les cartes.
 - Cellules : codes site (toutes leurs cellules), codes secteur et/ou noms de cellules
   LTE ou WCDMA. Elles sont enregistrées par leur nom : un nouvel import du référentiel
   ne les perd pas (un code absent du référentiel est signalé sur la page d'édition).
@@ -624,7 +644,11 @@ rétablit la connexion obligatoire, avec les règles ci-dessous.
   secteur 4. S'il est passé de 3 à 4 secteurs, D et e4 comptaient avant dans le secteur 1 :
   la date de passage (admin → Sites, ou `manage.py detecter_bascules --enregistrer`, qui la
   lit dans la base KPI) est appliquée aux calculs par secteur ;
-- cellules dont le site est absent de `Site_File` : conservées sans rattachement et signalées.
+- cellules dont le site est absent de `Site_File` : conservées sans rattachement et signalées ;
+- sites déclarés dans l'application (page Réseau) et absents de `Site_File` : conservés avec leurs
+  secteurs et leurs cellules ; s'ils apparaissent dans `Site_File`, le fichier fait foi ensuite ;
+- marqueur « site mobile » : conservé d'un import à l'autre ; un nouveau site nommé
+  `REMORQUE…` ou `MOBILE…` est marqué mobile (modifiable dans la page Réseau ou l'admin → Sites).
 
 ## Exploration de la base KPI (phase 0)
 

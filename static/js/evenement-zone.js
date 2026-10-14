@@ -1,7 +1,8 @@
 "use strict";
 // Carte de la zone couverte par un événement (templates/evenements/detail.html) : seuls les sites de
 // l'événement et leurs secteurs actifs (vert plein : secteur entier, vert clair : en partie),
-// cadrée sur la zone. Le reste du réseau est masqué.
+// cadrée sur la zone. Le reste du réseau est masqué. Remorques (sites mobiles) : à la position et selon
+// les secteurs déclarés dans l'événement, centre carré.
 
 (() => {
   const cadre = document.querySelector("[data-zone]");
@@ -11,7 +12,8 @@
 
   const echapper = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
-  function chemin(cx, cy, r, az) {
+  function chemin(cx, cy, r, az, plein = false) {
+    if (plein) return `M${cx - r},${cy} a${r},${r} 0 1 0 ${2 * r},0 a${r},${r} 0 1 0 ${-2 * r},0 Z`;  // omni
     const point = (deg) => {
       const rad = (deg * Math.PI) / 180;
       return `${(cx + r * Math.sin(rad)).toFixed(2)},${(cy - r * Math.cos(rad)).toFixed(2)}`;
@@ -21,16 +23,21 @@
 
   function icone(site) {
     const t = RAYON + 4;
+    const nb = site.nb_secteurs || site.secteurs.length;
     const coins = site.secteurs.map((s) => {
-      // Azimut inconnu : secteurs répartis régulièrement (pointillés).
-      const az = s.azimut != null ? s.azimut : (s.numero - 1) * 120;
-      const titre = `${site.nom} · secteur ${s.numero}${s.azimut == null ? " (azimut inconnu)" : ` · ${s.azimut}°`} · ${s.cellules} cellules`;
-      return `<path class="zone-coin ${s.etat}${s.azimut == null ? " estime" : ""}" d="${chemin(t, t, RAYON, az)}"><title>${echapper(titre)}</title></path>`;
+      // Azimut inconnu : secteurs répartis régulièrement (pointillés). Seul secteur à 0° : omni (360°).
+      const omni = nb === 1 && s.azimut === 0;
+      const az = s.azimut != null ? s.azimut : ((s.numero - 1) * 360) / Math.max(nb, 1);
+      const azimut = s.azimut == null ? " (azimut inconnu)" : omni ? " · omni (360°)" : ` · ${s.azimut}°`;
+      const titre = `${site.nom}${site.mobile ? " (site mobile)" : ""} · secteur ${s.numero}${azimut} · ${s.cellules} cellules`;
+      return `<path class="zone-coin ${s.etat}${s.azimut == null ? " estime" : ""}" d="${chemin(t, t, RAYON, az, omni)}"><title>${echapper(titre)}</title></path>`;
     }).join("");
+    const centre = site.mobile ? `<rect class="zone-centre" x="${t - 5}" y="${t - 5}" width="10" height="10" rx="2"/>`
+      : `<circle class="zone-centre" cx="${t}" cy="${t}" r="5"/>`;
     return L.divIcon({
-      className: "zone-marqueur",
+      className: `zone-marqueur${site.mobile ? " mobile" : ""}`,
       html: `<svg width="${2 * t}" height="${2 * t}" viewBox="0 0 ${2 * t} ${2 * t}">${coins}`
-        + `<circle class="zone-centre" cx="${t}" cy="${t}" r="5"/></svg><span class="zone-nom">${echapper(site.nom)}</span>`,
+        + `${centre}</svg><span class="zone-nom">${echapper(site.nom)}</span>`,
       iconSize: [2 * t, 2 * t],
       iconAnchor: [t, t],
     });

@@ -10,6 +10,10 @@ Règles :
 - site à 4 secteurs : ``nbSect`` = 4, cellule 3G M, ou une porteuse LTE avec e1 à e4 ;
   les cellules qui changent de secteur à la bascule 3 -> 4 secteurs (D, e4…) gardent
   leur secteur d'avant dans ``secteur_avant`` ;
+- un site déclaré dans l'application (``Site.manuel``) et absent du xlsx est conservé avec
+  ses secteurs et ses cellules ; présent dans le xlsx, c'est le fichier qui fait foi ;
+- le marqueur « site mobile » est gardé d'un import à l'autre ; un nouveau site nommé
+  REMORQUE… ou MOBILE… est marqué mobile ;
 - chaque anomalie est consignée dans l'``ImportReferentiel`` créé.
 """
 
@@ -21,7 +25,7 @@ from django.db import transaction
 
 from .models import Cellule, ImportReferentiel, Secteur, Site
 from .nommage import (decoder_lte, decoder_wcdma, lte_4_secteurs, lte_brut, prefixe_wcdma,
-                      secteur_equivalent, sites_wcdma_4_secteurs)
+                      secteur_equivalent, semble_mobile, sites_wcdma_4_secteurs)
 
 COLONNES_SITE = ["codeSite", "Trigramme", "siteName", "commune", "region"]
 
@@ -111,27 +115,32 @@ def importer(chemin: Path, fichiers_cellules: list[Path] = (), auteur=None,
 
     avant_sites = set(Site.objects.values_list("code_site", flat=True))
     avant_secteurs = set(Secteur.objects.values_list("code", flat=True))
+    avant_manuels = set(Site.objects.filter(manuel=True).values_list("code_site", flat=True))
 
     sites = {}
     for ligne in df_sites.to_dict("records"):
+        valeurs = {
+            "trigramme": _texte(ligne.get("Trigramme")),
+            "nom": _texte(ligne.get("siteName")),
+            "commune": _texte(ligne.get("commune")),
+            "region": _texte(ligne.get("region")),
+            "nom_wcdma": _texte(ligne.get("siteNameWcdma")),
+            "nom_lte": _texte(ligne.get("siteNameLte")),
+            "latitude": _nombre(ligne.get("latWgs84")),
+            "longitude": _nombre(ligne.get("lonWgs84")),
+            "type_zone": _texte(ligne.get("bandType")),
+            "nb_secteurs": _nombre(ligne.get("nbSect")),
+            "manuel": False,
+        }
         site, _ = Site.objects.update_or_create(
-            code_site=ligne["codeSite"],
-            defaults={
-                "trigramme": _texte(ligne.get("Trigramme")),
-                "nom": _texte(ligne.get("siteName")),
-                "commune": _texte(ligne.get("commune")),
-                "region": _texte(ligne.get("region")),
-                "nom_wcdma": _texte(ligne.get("siteNameWcdma")),
-                "nom_lte": _texte(ligne.get("siteNameLte")),
-                "latitude": _nombre(ligne.get("latWgs84")),
-                "longitude": _nombre(ligne.get("lonWgs84")),
-                "type_zone": _texte(ligne.get("bandType")),
-                "nb_secteurs": _nombre(ligne.get("nbSect")),
-            },
-        )
+            code_site=ligne["codeSite"], defaults=valeurs,
+            create_defaults={**valeurs, "mobile": semble_mobile(valeurs["nom"])})
         sites[site.code_site] = site
+    for code in sorted(avant_manuels & set(sites)):
+        rapport.signaler(f"site {code} déclaré dans l'application : désormais lu dans le xlsx")
 
-    supprimes_sites = sorted(avant_sites - set(sites))
+    manuels = set(Site.objects.filter(manuel=True).values_list("code_site", flat=True))
+    supprimes_sites = sorted(avant_sites - set(sites) - manuels)
     Site.objects.filter(code_site__in=supprimes_sites).delete()
 
     if fichiers_cellules or cellules:
@@ -211,8 +220,8 @@ def _decoder(techno: str, nom: str, quatre_secteurs: bool):
 
 
 def _mettre_a_jour_azimuts(azimuts: dict[tuple[str, int], int]):
-    """Import sans cellules : secteurs inchangés, azimuts relus."""
-    secteurs = list(Secteur.objects.select_related("site"))
+    """Import sans cellules : secteurs inchangés, azimuts relus (sauf sites déclarés dans l'application)."""
+    secteurs = list(Secteur.objects.select_related("site").filter(site__manuel=False))
     quatre = {s.site_id for s in secteurs if s.numero == 4}
     for s in secteurs:
         s.azimut = _azimut(azimuts, s.site.code_site, s.numero, s.site_id in quatre)
@@ -238,8 +247,13 @@ def _importer_cellules(cellules, sites: dict[str, Site], rapport: Rapport, azimu
                           "azimut": _azimut(azimuts, code_site, numero, code_site in quatre)})
         return secteurs[(code_site, numero)]
 
+    # Sites déclarés dans l'application : secteurs et cellules conservés tels quels.
+    conservees = set(Cellule.objects.filter(secteur__site__manuel=True).values_list("techno", "nom"))
+    secteurs_conserves = list(Secteur.objects.filter(site__manuel=True).values_list("pk", flat=True))
     a_creer = []
     for (techno, nom), code_site in rattachement.items():
+        if (techno, nom) in conservees:
+            continue
         if code_site is None:
             if _decoder(techno, nom, False) is None:
                 rapport.signaler(f"cellule {techno} {nom} : nom non décodable")
@@ -260,6 +274,6 @@ def _importer_cellules(cellules, sites: dict[str, Site], rapport: Rapport, azimu
                                porteuse=actuel.porteuse,
                                secteur_avant=secteur(code_site, avant.secteur) if avant else None))
 
-    Cellule.objects.all().delete()
+    Cellule.objects.exclude(secteur__site__manuel=True).delete()
     Cellule.objects.bulk_create(a_creer)
-    Secteur.objects.exclude(pk__in=[s.pk for s in secteurs.values()]).delete()
+    Secteur.objects.exclude(pk__in=[s.pk for s in secteurs.values()] + secteurs_conserves).delete()

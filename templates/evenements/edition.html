@@ -49,12 +49,14 @@ la sélection enregistrée est conservée.
   <div class="ev-entete">
     <div>
       <h2 id="ev-titre-zone">Zone couverte</h2>
-      <p class="aide">Cliquez sur le point central d'un site pour le prendre en entier, ou sur un secteur pour ne prendre que lui (ouverture indicative de 60°).</p>
+      <p class="aide">Cliquez sur le point central d'un site pour le prendre en entier, ou sur un secteur pour ne prendre que lui (ouverture indicative de 60°, cercle complet pour un secteur omni).
+        Les sites mobiles (remorques) ne sont pas sur la carte : ajoutez-les depuis la liste, puis déclarez leur position, leurs secteurs et leurs cellules pour cet événement.</p>
     </div>
     <p class="ev-total" data-total aria-live="polite"></p>
   </div>
-  {{ f.sites }}{{ f.secteurs }}{{ f.cellules }}
+  {{ f.sites }}{{ f.secteurs }}{{ f.cellules }}{{ f.deploiements }}
   {% if f.sites.errors %}<div class="ev-erreur-zone">{{ f.sites.errors }}</div>{% endif %}
+  {% if f.deploiements.errors %}<div class="ev-erreur-zone">{{ f.deploiements.errors }}</div>{% endif %}
   <div class="ev-zone">
     <div class="ev-zone-panneau">
       <div class="ev-recherche">
@@ -75,6 +77,7 @@ la sélection enregistrée est conservée.
         <span><i class="ev-pastille partiel"></i>En partie</span>
         <span><i class="ev-pastille libre"></i>Non sélectionné</span>
         <span><i class="ev-pastille estime"></i>Azimut inconnu</span>
+        <span><i class="ev-pastille mobile"></i>Site mobile</span>
       </div>
       <button type="button" class="bouton secondaire petit ev-recentrer" data-recentrer>Recentrer sur la sélection</button>
     </div>

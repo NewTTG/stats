@@ -30,16 +30,23 @@ class RattachementFilter(admin.SimpleListFilter):
 
 @admin.register(Site)
 class SiteAdmin(admin.ModelAdmin):
-    list_display = ["code_site", "nom", "trigramme", "commune", "region", "nb_secteurs", "bascule_4_secteurs"]
-    list_filter = ["region", "commune"]
+    list_display = ["code_site", "nom", "trigramme", "commune", "region", "nb_secteurs", "mobile", "manuel",
+                    "bascule_4_secteurs", "page_reseau"]
+    list_editable = ["mobile"]
+    list_filter = ["mobile", "manuel", "region", "commune"]
     search_fields = ["code_site", "nom", "trigramme", "nom_lte", "nom_wcdma"]
     search_help_text = "Code site, nom, trigramme ou nom 3G / 4G."
     list_per_page = 50
 
+    @admin.display(description="secteurs et cellules")
+    def page_reseau(self, obj):
+        # Déclaration et modification complètes (secteurs, azimuts, cellules) : page Réseau de l'application.
+        return format_html('<a href="{}">Ouvrir</a>', reverse("reseau:fiche", args=[obj.code_site]))
+
 
 @admin.register(Secteur)
 class SecteurAdmin(admin.ModelAdmin):
-    list_display = ["code", "site", "numero", "nb_cellules"]
+    list_display = ["code", "site", "numero", "azimut", "nb_cellules"]
     list_select_related = ["site"]
     search_fields = ["code", "site__nom"]
     search_help_text = "Code secteur ou nom du site."

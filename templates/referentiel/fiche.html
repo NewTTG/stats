@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load static %}
+{% block titre %}{{ site.nom|default:site.code_site }} : Stats réseau{% endblock %}
+{% block entete %}{% if zone %}<link rel="stylesheet" href="{% static 'vendor/leaflet-1.9.4/leaflet.css' %}">
+<link rel="stylesheet" href="{% static 'css/evenement-periode.css' %}">{% endif %}
+<link rel="stylesheet" href="{% static 'css/reseau.css' %}">{% endblock %}
+{% block contenu %}
+<p class="fil"><a href="{% url 'reseau:liste' %}">← Tous les sites</a></p>
+<div class="entete-page">
+  <div>
+    <h1>{{ site.nom|default:site.code_site }}
+      {% if site.mobile %}<span class="marqueur-site mobile">Site mobile</span>{% endif %}
+      {% if site.manuel %}<span class="marqueur-site manuel">Déclaré dans l'application</span>{% endif %}</h1>
+    <p class="sous-titre">{{ site.code_site }}{% if site.trigramme %} · trigramme {{ site.trigramme }}{% endif %}{% if site.commune %} · {{ site.commune }}{% endif %}{% if site.region %} · {{ site.region }}{% endif %}</p>
+  </div>
+  {% if peut_modifier or peut_supprimer %}
+  <div class="boutons">
+    {% if peut_supprimer %}<form method="post" action="{% url 'reseau:supprimer' site.code_site %}" onsubmit="return confirm('Supprimer le site {{ site.code_site|escapejs }} ? Ses cellules resteront connues, non rattachées.')">{% csrf_token %}<button class="bouton secondaire danger" type="submit">Supprimer</button></form>{% endif %}
+    {% if peut_modifier %}<a class="bouton secondaire" href="{% url 'reseau:modifier' site.code_site %}">Modifier le site</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% if site.mobile %}
+<p class="note-reseau mobile">Remorque déplacée d'un événement à l'autre : elle n'est pas placée sur la carte de sélection des événements.
+  Dans chaque événement, ajoutez-la depuis « Sites mobiles », puis déclarez sa position, l'azimut de ses secteurs et ses cellules.
+  La disposition ci-dessous sert de point de départ.</p>
+{% elif not site.manuel %}
+<p class="note-reseau">Site lu dans le xlsx du référentiel : une modification faite ici sera remplacée au prochain rechargement
+  (le marqueur « site mobile » est conservé).</p>
+{% endif %}
+
+<div class="grille-fiche">
+  <section class="carte" aria-labelledby="titre-secteurs">
+    <h2 id="titre-secteurs">Secteurs et cellules</h2>
+    {% if lignes %}
+    <ul class="secteurs-fiche">
+      {% for l in lignes %}
+      <li>
+        <div class="secteur-entete"><strong>Secteur {{ l.secteur.numero }}</strong> <span class="aide">{{ l.secteur.code }}</span>
+          <span class="azimut">{% if l.omni %}Omni (360°){% elif l.secteur.azimut is None %}Azimut inconnu{% else %}{{ l.secteur.azimut }}°{% endif %}</span></div>
+        {% if l.cellules %}<div class="cellules-fiche">{% for c in l.cellules %}<span class="cellule-fiche">{{ c.nom }} <small>{% if c.techno == "LTE" %}4G{% else %}3G{% endif %}{% if c.porteuse > 1 %} · p{{ c.porteuse }}{% endif %}</small></span>{% endfor %}</div>
+        {% else %}<p class="aide">Aucune cellule.</p>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="aide">Un seul secteur à l'azimut 0° : antenne omnidirectionnelle (360°).</p>
+    {% else %}<p class="vide">Aucun secteur déclaré.</p>{% endif %}
+  </section>
+
+  <section class="carte" aria-labelledby="titre-position">
+    <h2 id="titre-position">{% if site.mobile %}Position de référence{% else %}Position{% endif %}</h2>
+    {% if site.latitude is not None %}<p class="aide">{{ site.latitude|floatformat:6 }}, {{ site.longitude|floatformat:6 }}{% if site.mobile %} · position du référentiel, sans valeur pendant un événement{% endif %}</p>{% endif %}
+    {% if zone %}
+    {{ zone|json_script:"zone-site" }}
+    <div class="zone-carte" data-zone="zone-site" data-tuiles="{{ carte_tuiles }}" data-attribution="{{ carte_attribution }}"
+      role="img" aria-label="Carte du site et de ses secteurs"></div>
+    {% elif site.latitude is None %}<p class="vide">Pas de coordonnées.</p>{% endif %}
+  </section>
+</div>
+
+<section class="carte" aria-labelledby="titre-evenements">
+  <h2 id="titre-evenements">Événements</h2>
+  {% if evenements %}
+  <ul class="evenements-fiche">{% for e, role in evenements %}<li><a href="{% url 'evenements:detail' e.pk %}">{{ e.nom }}</a>{% if e.type %} <span class="aide">{{ e.type }}</span>{% endif %} <span class="marqueur-site{% if role == 'déployé' %} mobile{% endif %}">{{ role }}</span></li>{% endfor %}</ul>
+  {% else %}<p class="vide">Aucun événement ne couvre ce site.</p>{% endif %}
+</section>
+{% endblock %}
+{% block scripts %}{% if zone %}
+<script src="{% static 'vendor/leaflet-1.9.4/leaflet.js' %}" defer></script>
+<script src="{% static 'js/evenement-zone.js' %}" defer></script>
+{% endif %}{% endblock %}
