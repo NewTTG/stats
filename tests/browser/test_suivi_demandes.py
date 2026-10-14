@@ -69,20 +69,36 @@ def test_detail_mobile_sans_debordement(page_suivi):
     assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
 
 
-@pytest.mark.parametrize('clipboard', [False, True])
-def test_copie_du_texte_edite_et_repli_http(page_suivi, clipboard):
+@pytest.mark.parametrize('mode', ['moderne', 'absent', 'refuse', 'echec'])
+def test_copie_du_texte_edite_et_repli_http(page_suivi, mode):
     page = page_suivi
-    page.evaluate('''disponible => {
-      Object.defineProperty(navigator, 'clipboard', {configurable: true, value: disponible
-        ? {writeText: async texte => {window.texteCopie = texte;}}
-        : undefined});
-    }''', clipboard)
+    page.evaluate('''mode => {
+      Object.defineProperty(navigator, 'clipboard', {configurable: true, value:
+        mode === 'absent' ? undefined : {writeText: async texte => {
+          if (mode !== 'moderne') throw new Error('Refus');
+          window.texteCopie = texte;
+        }}});
+      document.execCommand = commande => {
+        if (mode === 'echec') return false;
+        window.texteCopie = document.activeElement.value;
+        return commande === 'copy';
+      };
+    }''', mode)
     texte = 'Comportement attendu : reconnaître Mont Coffyn.'
     page.locator('#texte-transmission').fill(texte)
     page.locator('[data-copier-demande]').click()
-    if clipboard:
+    if mode != 'echec':
         assert page.evaluate('window.texteCopie') == texte
         assert 'Texte copié' in page.locator('[role="status"]').inner_text()
     else:
         assert 'Ctrl+C' in page.locator('[role="status"]').inner_text()
         assert page.locator('#texte-transmission').evaluate('(e) => e.selectionEnd - e.selectionStart') == len(texte)
+    assert page.locator('[data-copier-demande]').is_enabled()
+
+
+def test_copie_http_native(page_suivi):
+    page = page_suivi
+    page.evaluate("Object.defineProperty(navigator, 'clipboard', {value: undefined, configurable: true})")
+    page.locator('#texte-transmission').fill('Dro 3G Nouméa semaine dernière')
+    page.locator('[data-copier-demande]').click()
+    assert 'Texte copié' in page.locator('[data-statut-copie]').inner_text()

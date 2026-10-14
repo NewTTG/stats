@@ -233,6 +233,30 @@ def test_reponse_a_une_question_par_parametre(ctx, rf):
     assert i.params["granularite_temps"] == "jour"  # défaut recalculé sur la nouvelle période
 
 
+@pytest.mark.parametrize('expression', ['semine dernière', 'semaine dernière', 'la semine passée',
+                                         'dernière semine'])
+def test_semaine_derniere_avec_faute(ctx, expression):
+    i = interpreter(f'Drop 3G Nouméa {expression}', date(2026, 10, 14), ctx)
+    assert i.complete and not i.non_compris
+    assert i.params['periode'] == {'debut': date(2026, 10, 5), 'fin': date(2026, 10, 11)}
+    assert i.params['techno'] == ['WCDMA']
+    assert i.params['kpis'] == ['wcdma_cs_drop', 'wcdma_ps_drop']
+    assert i.params['perimetre'] == {'type': 'commune', 'valeurs': ['NOUMEA']}
+    assert i.params['granularite_temps'] == 'jour'
+    assert i.params['granularite_espace'] == 'global'
+    assert i.params['fenetre_horaire'] == 'journee'
+
+
+def test_choix_periode_conserve_drop_3g_noumea(ctx, rf):
+    i = interpreter('Drop 3G Nouméa', J, ctx)
+    option = next(o for o in i.questions[0].options if o.libelle == 'Semaine dernière')
+    avant = {k: i.params[k] for k in ('techno', 'kpis', 'perimetre', 'granularite_espace', 'fenetre_horaire')}
+    i = avec_parametres(i, rf.get('/', option.params).GET, ctx, J)
+    assert i.complete
+    assert all(i.params[k] == v for k, v in avant.items())
+    assert i.params['periode'] == {'debut': date(2026, 9, 28), 'fin': date(2026, 10, 4)}
+
+
 def test_parametres_explicites_priment(ctx, rf):
     i = interpreter("drop 3G à Nouméa la semaine dernière", J, ctx)
     get = rf.get("/", {"techno": "LTE", "debut": "2026-09-01", "fin": "2026-09-02", "perimetre_type": "commune",

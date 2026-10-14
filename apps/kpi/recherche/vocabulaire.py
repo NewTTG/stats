@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from functools import lru_cache
+from itertools import product
 from pathlib import Path
 
 import yaml
@@ -47,6 +48,8 @@ class Vocabulaire:
     pas_trigrammes: set[str]
     exemples: list[str]
     qualificatifs: dict[str, list[str]] = field(default_factory=dict)
+    variantes_saisie: dict[str, list[str]] = field(default_factory=dict)
+    aliases_saisie: set[str] = field(default_factory=set)
     # Sigles (« HSDPA », « PRB »…) : jamais un lieu ; mots normalisés (un ou plusieurs mots).
     termes_techniques: set[str] = field(default_factory=set)
     # Mots courants jamais rapprochés d'un lieu (« marché » ≠ Maré, « contre » ≠ Contrôle…).
@@ -103,9 +106,24 @@ def charger_vocabulaire(chemin: Path) -> Vocabulaire:
         pas_trigrammes={normaliser(str(m)) for m in brut.get("pas_trigrammes", [])},
         exemples=list(brut.get("exemples", [])),
         qualificatifs={k: [str(m) for m in v] for k, v in (brut.get("qualificatifs") or {}).items()},
+        variantes_saisie={normaliser(k): list(dict.fromkeys(normaliser(str(m)) for m in v))
+                         for k, v in (brut.get("variantes_saisie") or {}).items()},
         termes_techniques={normaliser(str(m)) for m in brut.get("termes_techniques") or []},
         mots_courants={normaliser(str(m)) for m in brut.get("mots_courants") or []},
     )
+    proprietaires = {}
+    for canonique, variantes in voc.variantes_saisie.items():
+        if len(canonique.split()) != 1:
+            raise ValueError(f'variante de saisie : mot attendu, {canonique!r}')
+        for variante in variantes:
+            if len(variante.split()) != 1:
+                raise ValueError(f'variante de saisie : mot attendu, {variante!r}')
+            if variante == canonique:
+                continue  # accents déjà normalisés
+            if variante in voc.variantes_saisie or proprietaires.get(variante, canonique) != canonique:
+                raise ValueError(f'variante de saisie ambiguë : {variante!r}')
+            proprietaires[variante] = canonique
+    voc.aliases_saisie = set(proprietaires)
     for mot, d in (brut.get("indisponibles") or {}).items():
         voc.indisponibles.ajouter(str(mot), (str(d["libelle"]), bool(d.get("techno"))))
     for techno, mots in (brut.get("technos_ajoutees") or {}).items():
@@ -140,6 +158,17 @@ def charger_vocabulaire(chemin: Path) -> Vocabulaire:
     for mot in voc.termes_techniques:  # sigles sans intention propre : reconnus, sans effet
         if mot not in voc.mots:
             voc.mots.ajouter(mot, ("neutre", None))
+    mots_existants = {mot for expression in voc.mots.entrees for mot in expression}
+    for variante in voc.aliases_saisie:
+        if variante in mots_existants:
+            raise ValueError(f'variante de saisie ambiguë : {variante!r} existe déjà dans le vocabulaire')
+    # Étendre les expressions déjà construites, y compris leurs qualificatifs.
+    # Le texte original et les codes/lieux restent intacts ; la plus longue clé gagne.
+    for expression, valeurs in list(voc.mots.entrees.items()):
+        choix = [[mot, *[v for v in voc.variantes_saisie.get(mot, []) if v != mot]] for mot in expression]
+        for variante in product(*choix):
+            for valeur in valeurs:
+                voc.mots.ajouter(' '.join(variante), valeur)
     return voc
 
 

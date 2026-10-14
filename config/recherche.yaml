@@ -13,6 +13,34 @@ technos:
   LTE: [4g, lte, eutran, e utran]
   WCDMA: [3g, umts, wcdma, hspa, hsdpa, hsupa, utran]
 
+# Fautes usuelles acceptées dans le vocabulaire KPI. Elles s'appliquent aussi
+# aux expressions composées (« dro voix », « taux de coupre », « debti ul »).
+# Liste explicite : les sigles et les noms de lieux ne sont pas corrigés ici.
+variantes_saisie:
+  drop: [dro, drp, dorp, dropp]
+  drops: [dros, drps, dorps]
+  coupure: [coupre, couprue, coupuer, coupur, couppure]
+  coupures: [coupres, couprues, coupuers, coupurs, couppures]
+  acces: [aces, accces, accee]
+  accessibilite: [accesibilite, accessibilit, accessibilitee]
+  debit: [debi, debti, deibt, debitt]
+  debits: [debis, debtis, deibts]
+  trafic: [traffic, trafc, trafi, traffc]
+  disponibilite: [disponibilit, disponiblite, disponbilite, disponibilitee]
+  indisponibilite: [indisponibilit, indisponiblite, indisponbilite]
+  congestion: [congetion, congeston, congsetion, congestoin]
+  saturation: [saturaton, saturatoin]
+  handover: [handovr, handvoer, handoer]
+  appel: [apel, appe]
+  appels: [apels, appls, appelss]
+  utilisateurs: [utilisaters, utilsateurs, utilisaturs]
+  connectes: [conectes, connctes]
+  donnees: [donees, donnes]
+  duree: [dure, durree]
+  volume: [volum, volmue]
+  connexion: [connextion, connecion, conneixon]
+  connexions: [connextions, connecions, conneixons]
+
 # Termes qui désignent une techno sans la nommer : appliqués seulement si la demande ne
 # cite aucune techno (« drop E-RAB » = 4G, « CSSR » = 3G ; « 3G » ou « 4G » explicite prime).
 technos_implicites:
@@ -130,7 +158,9 @@ intentions:
     famille: true
     mots: [drop, drops, dropped, dropes, coupure, coupures, chute, chutes, coupe, coupes, coupee, coupees,
            retainability, retenabilite, decroche, decroches, decrochage, perte de connexion, pertes de connexion,
-           call drop, taux de coupure]
+           call drop, call drops, taux de coupure, taux de coupures, taux de drop, taux de drops,
+           taux de chute, taux de chutes, taux de deconnexion, deconnexion intempestive,
+           deconnexions intempestives, interruption de communication, interruptions de communication]
     kpis:
       LTE: [lte_erab_drop]
       WCDMA: [wcdma_cs_drop, wcdma_ps_drop]
@@ -140,7 +170,8 @@ intentions:
     absorbe: {voix: drop_voix, data: drop_data}
     mots: [appels coupes, appel coupe, appels interrompus, coupure d appel, coupures d appel, coupures d appels,
            coupure des appels, coupures des appels, drop voix, drop des appels, drop appel, drop appels, drop cs,
-           coupure voix, coupures voix, chute d appel, chutes d appel]
+           coupure voix, coupures voix, chute d appel, chutes d appel, taux de coupure voix,
+           taux de coupure des appels, taux de coupures des appels, taux de drop voix, call drop rate]
     technos_defaut: [WCDMA]
     kpis:
       WCDMA: [wcdma_cs_drop]
@@ -149,7 +180,9 @@ intentions:
     libelle: Drop data
     absorbe: {data: drop_data, voix: drop_voix}
     mots: [drop data, drop ps, coupure data, coupures data, coupure internet, coupures internet, drop internet,
-           coupures de session, drop des donnees, coupures donnees, coupure donnees]
+           coupures de session, drop des donnees, coupures donnees, coupure donnees, taux de coupure data,
+           taux de coupures data, taux de drop data, taux de coupure internet, taux de coupure ps,
+           taux de drop ps, interruption de session, interruptions de session]
     kpis:
       LTE: [lte_erab_drop]
       WCDMA: [wcdma_ps_drop]
