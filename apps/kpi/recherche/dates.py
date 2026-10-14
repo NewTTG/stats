@@ -332,8 +332,13 @@ def _motifs(aujourdhui: date):
         (r"avant hier", avant_hier),
         (r"aujourd hui|aujourdhui|auj|ajd|ce jour", relatif("aujourdhui")),
         (r"(?:d )?hier", relatif("hier")),
-        (r"(?:cette annee|l annee en cours|depuis le debut de l annee|depuis janvier)", cette_annee),
-        (r"(?:l )?annee (?:derniere|passee|precedente)", annee_derniere),
+        # Année précisée et année passée avant le raccourci « dans l'année ».
+        (r"(?:(?:dans|sur|pour|pendant|durant|au cours de) )?(?:l |cette )?annee (20\d\d)", annee),
+        (r"(?:(?:dans|sur|pour|pendant|durant|au cours de) )?(?:l |cette )?annee (?:derniere|passee|precedente)",
+         annee_derniere),
+        (r"(?:cette annee|l annee en cours|depuis le debut de l annee|depuis janvier|"
+         r"(?:dans|sur|pour|pendant|durant|au cours de) (?:l |cette )annee(?: en cours| courante)?)"
+         r"(?! (?:20\d\d|derniere|passee|precedente|prochaine|suivante))", cette_annee),
         (rf"(?:en |de |du mois d |du mois de |mois de |le mois de |sur |pour )?({_MOIS})", mois_seul),
         (r"(?:en |sur |pour |annee )?(20\d\d)", annee),
     ]
