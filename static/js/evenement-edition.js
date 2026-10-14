@@ -276,6 +276,10 @@
       if (!etat.deploiements[site.code]) etat.deploiements[site.code] = deploiementParDefaut(site);
       replies.delete(`mobile:${site.code}`);
       apresChangementMobile(site.code);
+      // Amène la remorque à l'écran et place le curseur sur sa position, première chose à déclarer.
+      const carte = panneau.querySelector(`[data-mobile="${CSS.escape(site.code)}"]`);
+      carte?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      carte?.querySelector("[data-dep-lat]")?.focus({ preventScroll: true });
     }
 
     function retirerDeploiement(code) {
@@ -317,6 +321,16 @@
       const enfants = [];
       const inconnus = [...etat.sites, ...etat.secteurs, ...etat.cellules].filter((code) => !siteDe(code) && !cellules.has(code));
       const libres = [...etat.cellules].filter((nom) => cellules.has(nom) && !cellules.get(nom).secteur);
+      // Remorques disponibles en tête : celle qu'on ajoute apparaît juste en dessous, sans défilement.
+      const disponibles = [...mobiles.values()].filter((m) => !etat.deploiements[m.code]);
+      if (disponibles.length) {
+        enfants.push(el("div", { class: "ev-mobiles-dispo" },
+          el("p", { class: "ev-groupe-titre", text: "Sites mobiles (remorques), hors carte" }),
+          el("div", { class: "ev-cellules" }, ...disponibles.map((m) => el("button", {
+            type: "button", class: "ev-puce ev-puce-mobile", "data-deployer": m.code,
+            title: `Ajouter ${m.nom} et déclarer sa position, ses secteurs et ses cellules`,
+          }, `+ ${m.nom}`, el("small", { text: m.code }))))));
+      }
       for (const code of Object.keys(etat.deploiements)) enfants.push(carteMobile(code));
       for (const code of ordre) enfants.push(carteSite(sites.get(code)));
       if (libres.length) {
@@ -335,15 +349,6 @@
         enfants.push(el("div", { class: "ev-vide" },
           el("strong", { text: "Aucun site sélectionné." }),
           el("span", { text: "Recherchez un site ci-dessus, ou cliquez sur un site de la carte." })));
-      }
-      const disponibles = [...mobiles.values()].filter((m) => !etat.deploiements[m.code]);
-      if (disponibles.length) {
-        enfants.push(el("div", { class: "ev-mobiles-dispo" },
-          el("p", { class: "ev-groupe-titre", text: "Sites mobiles (remorques), hors carte" }),
-          el("div", { class: "ev-cellules" }, ...disponibles.map((m) => el("button", {
-            type: "button", class: "ev-puce ev-puce-mobile", "data-deployer": m.code,
-            title: `Ajouter ${m.nom} et déclarer sa position, ses secteurs et ses cellules`,
-          }, `+ ${m.nom}`, el("small", { text: m.code }))))));
       }
       const focus = document.activeElement;
       const cleFocus = panneau.contains(focus) ? focus.dataset.focus : null;
@@ -709,7 +714,7 @@
       }
       recherche.value = "";
       fermerSuggestions();
-      recherche.focus();
+      if (r.type !== "mobile") recherche.focus();
     }
 
     recherche.addEventListener("input", afficherSuggestions);
