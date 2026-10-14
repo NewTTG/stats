@@ -366,16 +366,19 @@ bilan complet ; un indicateur explicite reste prioritaire (« stats du débit »
 
 ### Événements
 
-- Création et modification : administration → Événements. La zone couverte se choisit dans
-  la liste du référentiel (recherche par site, commune, secteur ou cellule) ou sur la carte :
-  le point central d'un site le sélectionne entier, chaque secteur est dessiné selon son
-  azimut avec une ouverture indicative de 60° et se sélectionne seul ; on peut aussi
-  cocher des cellules isolées. Retirer un secteur d'un site entier garde les autres.
+- Création et modification : page Événements de l'application (« Nouvel événement », puis
+  « Modifier l'événement » sur sa page), pour les comptes ayant les droits `evenements.*` ;
+  l'administration y renvoie. La zone couverte se choisit dans la liste du référentiel
+  (recherche par site, commune, secteur ou cellule) ou sur la carte : tous les secteurs sont
+  dessinés selon leur azimut (ouverture indicative de 60°), la sélection ne change que leur
+  couleur ; le point central d'un site le sélectionne entier, un secteur se sélectionne seul ;
+  on peut aussi cocher des cellules isolées. Retirer un secteur d'un site entier garde les autres.
 - Cellules : codes site (toutes leurs cellules), codes secteur et/ou noms de cellules
   LTE ou WCDMA. Elles sont enregistrées par leur nom : un nouvel import du référentiel
   ne les perd pas (un code absent du référentiel est signalé sur la page d'édition).
-- Fond de carte : `CARTE_TUILES_URL` (OpenStreetMap par défaut, chargé par le navigateur) ;
-  vide, les sites et secteurs restent dessinés sans fond. Leaflet est servi localement.
+- Fond de carte : `CARTE_TUILES_URL` (OpenStreetMap par défaut, chargé par le navigateur, qui
+  envoie l'origine du site en Referer comme l'exige OpenStreetMap) ; vide, les sites et secteurs
+  restent dessinés sans fond. Leaflet est servi localement.
 - Créneaux : autant que nécessaire (plusieurs jours, horaires différents chaque jour),
   saisis en heure de Nouméa ; « Copier au lendemain » duplique un créneau.
 - Référence : moyenne des mêmes créneaux décalés de 1 à N semaines. Pour un KPI

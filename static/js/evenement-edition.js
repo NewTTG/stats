@@ -33,6 +33,11 @@
   const pluriel = (n, mot, motPluriel = `${mot}s`) => `${n.toLocaleString("fr-FR")} ${n > 1 ? motPluriel : mot}`;
   const TECHNO = { LTE: "4G", WCDMA: "3G" };
 
+  document.querySelectorAll("form[data-confirmer]").forEach((f) => f.addEventListener("submit", (event) => {
+    if (!window.confirm(f.dataset.confirmer)) event.preventDefault();
+    else modifie = false;
+  }));
+
   // ------------------------------------------------------------------ zone couverte
   const zone = document.getElementById("ev-zone");
   if (zone) initialiserZone(zone);
@@ -446,7 +451,8 @@
     // ---------------------------------------------------------------- carte
     const OUVERTURE = 60;  // ouverture indicative d'un secteur, en degrés
     const RAYON = 30;      // rayon des secteurs dessinés, en pixels
-    const ZOOM_SECTEURS = 12;  // en dessous : les sites non sélectionnés ne sont que des points
+    // Secteurs toujours dessinés ; réduits en vue éloignée pour rester lisibles.
+    const ZOOM_MOYEN = 13, ZOOM_LOIN = 10;
 
     function angle(azimut, numero, nb) {
       return azimut != null ? azimut : ((numero - 1) * 360) / Math.max(nb, 1);
@@ -495,7 +501,10 @@
       }
       carte = L.map(cadreCarte, { zoomSnap: 0.5, minZoom: 6, maxZoom: 18, worldCopyJump: false });
       if (zone.dataset.tuiles) {
-        L.tileLayer(zone.dataset.tuiles, { maxZoom: 19, attribution: zone.dataset.attribution || "" }).addTo(carte);
+        // Le serveur OpenStreetMap refuse les tuiles demandées sans Referer : la page en envoie (same-origin,
+        // réglage de Django), les tuiles reçoivent au moins l'origine du site.
+        L.tileLayer(zone.dataset.tuiles, { maxZoom: 19, attribution: zone.dataset.attribution || "",
+                                           referrerPolicy: "strict-origin-when-cross-origin" }).addTo(carte);
       }
       carte.attributionControl.setPrefix(false);
       const points = [];
@@ -515,7 +524,11 @@
         marqueurs.set(site.code, marqueur);
         points.push([site.lat, site.lon]);
       }
-      const ajusterZoom = () => cadreCarte.classList.toggle("ev-loin", carte.getZoom() < ZOOM_SECTEURS);
+      const ajusterZoom = () => {
+        const zoom = carte.getZoom();
+        cadreCarte.classList.toggle("ev-z-loin", zoom < ZOOM_LOIN);
+        cadreCarte.classList.toggle("ev-z-moyen", zoom >= ZOOM_LOIN && zoom < ZOOM_MOYEN);
+      };
       carte.on("zoomend", ajusterZoom);
       if (!recentrer(false) && points.length) carte.fitBounds(points, { padding: [20, 20] });
       ajusterZoom();

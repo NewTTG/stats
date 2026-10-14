@@ -8,10 +8,7 @@
       jours et heures des semaines précédentes.</p>
   </div>
   {% if perms.evenements.add_evenement %}
-  <div class="boutons">
-    <a class="bouton secondaire" href="{% url 'admin:evenements_evenement_changelist' %}">Gérer les événements</a>
-    <a class="bouton" href="{% url 'admin:evenements_evenement_add' %}">Nouvel événement</a>
-  </div>
+  <div class="boutons"><a class="bouton" href="{% url 'evenements:nouveau' %}">+ Nouvel événement</a></div>
   {% endif %}
 </div>
 <form class="list-toolbar" method="get" role="search"><div><label class="sr-only" for="event-search">Rechercher un événement</label><input type="search" id="event-search" name="recherche" value="{{ recherche }}" placeholder="Rechercher un événement…"></div><button class="bouton secondaire" type="submit">Rechercher</button>{% if recherche %}<a href="{% url 'evenements:liste' %}">Effacer le filtre</a>{% endif %}</form>
@@ -31,8 +28,8 @@
 </section>
 {% if sans_date and perms.evenements.change_evenement %}
 <details class="repliable">
-  <summary>{{ sans_date|length }} événement{{ sans_date|length|pluralize }} sans créneau, à compléter dans l'administration</summary>
-  <div class="contenu"><p class="liste-cellules">{% for e in sans_date %}<a href="{% url 'admin:evenements_evenement_change' e.pk %}">{{ e.nom }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p></div>
+  <summary>{{ sans_date|length }} événement{{ sans_date|length|pluralize }} sans créneau, à compléter</summary>
+  <div class="contenu"><p class="liste-cellules">{% for e in sans_date %}<a href="{% url 'evenements:modifier' e.pk %}">{{ e.nom }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p></div>
 </details>
 {% endif %}
 {% endblock %}
