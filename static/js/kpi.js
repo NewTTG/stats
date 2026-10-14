@@ -34,7 +34,6 @@
     });
     vue.g.setOption({ series: series });
     vue.etat.textContent = actif ? "Période sélectionnée : " + vue.periodes[index] : "";
-    vue.reset.hidden = !periodeSelectionnee;
   }
 
   function selectionner(vue, index) {
@@ -45,6 +44,7 @@
     if (vuePopup) mettreEnAvant(vuePopup);
   }
 
+  /* Sélection d'une période : clic sur le graphique (nouveau clic sur la même période pour l'effacer). */
   function commandes(vue, parent) {
     var barre = document.createElement("div");
     barre.className = "graphique-commandes";
@@ -52,41 +52,7 @@
     vue.etat.className = "graphique-selection";
     vue.etat.setAttribute("role", "status");
     barre.appendChild(vue.etat);
-    vue.reset = document.createElement("button");
-    vue.reset.type = "button";
-    vue.reset.className = "graphique-action";
-    vue.reset.textContent = "Effacer la sélection";
-    vue.reset.hidden = true;
-    vue.reset.addEventListener("click", function () {
-      periodeSelectionnee = null;
-      vues.forEach(mettreEnAvant);
-      if (vuePopup) mettreEnAvant(vuePopup);
-    });
-    barre.appendChild(vue.reset);
     parent.appendChild(barre);
-    if (vue.cles.length) {
-      var label = document.createElement("label");
-      label.className = "graphique-periode";
-      label.appendChild(document.createTextNode("Mettre en avant une période "));
-      var select = document.createElement("select");
-      var vide = document.createElement("option");
-      vide.value = "";
-      vide.textContent = "Choisir…";
-      select.appendChild(vide);
-      vue.periodes.forEach(function (p, i) {
-        var o = document.createElement("option");
-        o.value = i;
-        o.textContent = p;
-        select.appendChild(o);
-      });
-      select.addEventListener("change", function () {
-        if (select.value !== "") selectionner(vue, Number(select.value));
-        select.value = "";
-      });
-      label.appendChild(select);
-      // Même interaction accessible au clavier, sans ouvrir la popup.
-      parent.appendChild(label);
-    }
     return barre;
   }
 
@@ -115,7 +81,7 @@
       popup.setAttribute("aria-labelledby", "titre-graphique-popup");
       popup.innerHTML = '<div class="graphique-popup-entete"><h2 id="titre-graphique-popup"></h2>' +
         '<button type="button" class="graphique-action" autofocus aria-label="Fermer le graphique agrandi">Fermer ×</button></div>' +
-        '<p class="aide">Cliquez sur une période pour la mettre en avant sur les graphiques.</p>' +
+        '<p class="aide">Cliquez sur une période pour la mettre en avant sur les graphiques ; un nouveau clic l\'efface.</p>' +
         '<div class="graphique-popup-canvas" role="img"></div><div class="graphique-popup-pied"></div>';
       document.body.appendChild(popup);
       popup.querySelector("button").addEventListener("click", function () { popup.close(); });
@@ -143,7 +109,7 @@
     popup.showModal();
     var g = echarts.init(div, null, { renderer: "canvas" });
     g.setOption(vue.g.getOption());
-    vuePopup = { g: g, option: vue.option, cles: vue.cles, periodes: vue.periodes, titre: vue.titre, retour: vue.bouton };
+    vuePopup = { g: g, option: vue.option, cles: vue.cles, periodes: vue.periodes, titre: vue.titre, retour: vue.retour };
     commandes(vuePopup, pied);
     interactions(vuePopup, false);
     mettreEnAvant(vuePopup);
@@ -180,21 +146,22 @@
   function initialiser(div, option, cles, titre) {
     option.animation = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     option.xAxis.triggerEvent = true;
+    if (option.title) option.title.triggerEvent = true;
     var g = echarts.init(div, null, { renderer: "canvas" });
     g.setOption(option);
     graphiques.push(g);
     var vue = { g: g, option: option, cles: cles || [], periodes: option.xAxis.data, titre: titre || div.getAttribute("aria-label") };
     vues.push(vue);
-    var barre = commandes(vue, div.parentNode);
-    var bouton = document.createElement("button");
-    bouton.type = "button";
-    bouton.className = "graphique-action graphique-agrandir";
-    bouton.textContent = "Agrandir ↗";
-    bouton.setAttribute("aria-label", "Agrandir : " + vue.titre);
-    bouton.setAttribute("aria-haspopup", "dialog");
-    bouton.addEventListener("click", function () { ouvrirGraphique(vue); });
-    barre.appendChild(bouton);
-    vue.bouton = bouton;
+    commandes(vue, div.parentNode);
+    // Agrandir : clic hors de la zone tracée ; au clavier, Entrée ou Espace sur le graphique.
+    div.tabIndex = 0;
+    div.setAttribute("aria-haspopup", "dialog");
+    div.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      ouvrirGraphique(vue);
+    });
+    vue.retour = div;
     interactions(vue, true);
     return g;
   }
@@ -342,6 +309,56 @@
     }, g.periodes_cles, g.titre + " · par " + g.par);
   }
 
+  /* Tableau détaillé : 13 lignes visibles, défilement vertical sous des en-têtes figés
+     (hauteur mesurée : les lignes passent à la ligne sur mobile). */
+  var LIGNES_VISIBLES = 13;
+  function limiterHauteur(defil) {
+    var lignes = defil.querySelectorAll("tbody tr");
+    if (!defil.offsetParent) return;  // panneau masqué : mesuré à l'affichage
+    if (lignes.length <= LIGNES_VISIBLES) { defil.style.maxHeight = ""; return; }
+    // offsetTop (relatif au tableau) = en-tête + 13 lignes ; s'y ajoutent bordures et barre horizontale.
+    defil.style.maxHeight = (lignes[LIGNES_VISIBLES].offsetTop + defil.offsetHeight - defil.clientHeight) + "px";
+  }
+
+  function texteCellule(cellule) {
+    var copie = cellule.cloneNode(true);
+    copie.querySelectorAll(".sur-mobile").forEach(function (e) { e.remove(); });
+    var texte = copie.textContent.replace(/\s+/g, " ").trim();
+    // Nombres sans séparateur de milliers : lus comme valeurs par Excel (virgule décimale).
+    if (cellule.classList.contains("nombre")) texte = texte.replace(/[\s\u00a0\u202f]/g, "");
+    return /[";\n]/.test(texte) ? '"' + texte.replace(/"/g, '""') + '"' : texte;
+  }
+
+  function exporterTableau(defil) {
+    var lignes = Array.prototype.map.call(defil.querySelectorAll("tr"), function (tr) {
+      return Array.prototype.map.call(tr.children, texteCellule).join(";");
+    });
+    var bloc = defil.closest("section.bloc-techno");
+    var nom = "tableau-detaille" + (bloc && bloc.id ? "-" + bloc.id.replace(/^bloc-/, "") : "") + ".csv";
+    var lien = document.createElement("a");
+    lien.href = URL.createObjectURL(new Blob(["\ufeff" + lignes.join("\r\n")], { type: "text/csv;charset=utf-8" }));
+    lien.download = nom;
+    document.body.appendChild(lien);
+    lien.click();
+    lien.remove();
+    setTimeout(function () { URL.revokeObjectURL(lien.href); }, 0);
+  }
+
+  function tableauDetaille(defil) {
+    var outils = document.createElement("div");
+    outils.className = "tableau-outils";
+    var bouton = document.createElement("button");
+    bouton.type = "button";
+    bouton.className = "graphique-action";
+    bouton.textContent = "Exporter le tableau (CSV)";
+    bouton.addEventListener("click", function () { exporterTableau(defil); });
+    outils.appendChild(bouton);
+    defil.parentNode.insertBefore(outils, defil);
+    var repliable = defil.closest("details");
+    if (repliable) repliable.addEventListener("toggle", function () { limiterHauteur(defil); });
+    limiterHauteur(defil);
+  }
+
   /* Un seul espace pour lire une évolution : le contrôle remplace le graphique par le
      tableau, sans dupliquer deux blocs ouverts dans la page. */
   function basculeVisualisation(zone) {
@@ -354,6 +371,7 @@
       });
       panneaux.forEach(function (panneau) { panneau.hidden = panneau.dataset.vuePanneau !== vue; });
       if (vue === "graphique") setTimeout(function () { graphiques.forEach(function (g) { g.resize(); }); }, 0);
+      else zone.querySelectorAll(".tableau-detaille").forEach(limiterHauteur);
     }
     boutons.forEach(function (bouton) { bouton.addEventListener("click", function () { afficher(bouton.dataset.vue); }); });
     afficher(window.echarts ? "graphique" : "tableau");
@@ -517,6 +535,9 @@
         }, 120);
       });
     }
+    var tableaux = document.querySelectorAll(".tableau-detaille");
+    tableaux.forEach(tableauDetaille);
+    window.addEventListener("resize", function () { tableaux.forEach(limiterHauteur); });
     document.querySelectorAll("[data-visualisation]").forEach(basculeVisualisation);
 
     // Puces : une seule ouverte à la fois ; Échap ou clic à l'extérieur pour fermer.
