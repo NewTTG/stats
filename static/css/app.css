@@ -149,7 +149,7 @@ input:hover, select:hover { border-color: var(--marine-600); }
 .choix-rapport:has(input:checked) { border-color: var(--marine); background: var(--marine-50);
   box-shadow: 0 0 0 3px rgba(44, 74, 126, .15); }
 .choix-rapport:has(input:checked) .icone { background: var(--marine); color: var(--ambre); }
-.choix-rapport:has(input:checked)::after { content: "✓"; position: absolute; top: .55rem; right: .7rem; color: var(--marine);
+.choix-rapport:has(input:checked)::after { content: "\2713"; position: absolute; top: .55rem; right: .7rem; color: var(--marine);
   font-weight: 800; }
 .choix-rapport:has(input:focus-visible) { outline: 3px solid var(--marine-600); outline-offset: 2px; }
 details.sur-mesure { margin-top: .75rem; }
