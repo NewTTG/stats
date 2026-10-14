@@ -1,8 +1,8 @@
 """Édition d'un événement : remorques disponibles en tête, la remorque ajoutée prend le focus."""
-from pathlib import Path
 import mimetypes
 import re
 import shutil
+from pathlib import Path
 from urllib.parse import urlsplit
 
 import pytest
