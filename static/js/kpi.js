@@ -433,27 +433,78 @@
     });
   }
 
+  function graphiquesDashboard() {
+    if (!window.echarts) return;
+    var dashboardData = document.getElementById("dashboard-data");
+    if (dashboardData) {
+      var metrics = JSON.parse(dashboardData.textContent);
+      document.querySelectorAll(".dashboard-chart").forEach(function (div) {
+        var g = metrics[Number(div.dataset.index)], color = ["#347956", "#859cbd", "#ac9667", "#4b908c"][Number(div.dataset.index) % 4];
+        initialiser(div, {
+          animation: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+          aria: { enabled: true },
+          tooltip: { trigger: "axis", valueFormatter: function (v) { return nombre(v, g.unite); } },
+          grid: { top: 18, left: 8, right: 12, bottom: 10, containLabel: true },
+          xAxis: { type: "category", data: g.periodes, boundaryGap: false, axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: "#86968a", fontSize: 10, hideOverlap: true } },
+          yAxis: { type: "value", min: g.unite === "%" ? function (range) { return Math.max(0, Math.floor(range.min - Math.max(1, range.max - range.min) * .2)); } : 0, max: g.unite === "%" ? 100 : null, axisLabel: { color: "#86968a", fontSize: 10, formatter: function (v) { return nombre(v); } }, splitLine: { lineStyle: { color: "#edf2ed", type: "dashed" } } },
+          series: [{ type: "line", data: g.valeurs, connectNulls: false, showSymbol: false, lineStyle: { color: color, width: 2.5 }, itemStyle: { color: color }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: color + "32" }, { offset: 1, color: color + "02" }]) } }]
+        }, g.periodes_cles, g.titre);
+      });
+    }
+  }
+
+  function chargerDashboard() {
+    var zone = document.getElementById("dashboard-charge");
+    if (!zone) return;
+    var message = zone.querySelector('[role="status"]');
+    var bouton = zone.querySelector("[data-reessayer]");
+    var enCours = false;
+    function charger() {
+      if (enCours) return;
+      enCours = true;
+      zone.setAttribute("aria-busy", "true");
+      bouton.hidden = true;
+      message.textContent = "Chargement des indicateurs… Vous pouvez continuer à naviguer.";
+      var controle = new AbortController();
+      var delai = setTimeout(function () { controle.abort(); }, 90000);
+      fetch(zone.dataset.url, { signal: controle.signal, credentials: "same-origin",
+        headers: { "Accept": "application/json" } })
+        .then(function (r) {
+          if (!r.ok || r.redirected) throw new Error("Indicateurs indisponibles");
+          return r.json();
+        })
+        .then(function (donnees) {
+          if (typeof donnees.html !== "string") throw new Error("Réponse invalide");
+          zone.innerHTML = donnees.html;
+          document.querySelectorAll(".quick-reports a").forEach(function (lien) {
+            var url = new URL(lien.href);
+            url.searchParams.set("debut", donnees.debut);
+            url.searchParams.set("fin", donnees.fin);
+            lien.href = url.href;
+          });
+          graphiquesDashboard();
+        })
+        .catch(function () {
+          message.textContent = "Le chargement des indicateurs n’a pas abouti. Réessayez dans un instant ; les autres pages restent accessibles.";
+          bouton.hidden = false;
+        })
+        .finally(function () {
+          clearTimeout(delai);
+          enCours = false;
+          zone.setAttribute("aria-busy", "false");
+        });
+    }
+    bouton.addEventListener("click", charger);
+    charger();
+  }
+
   function demarrer() {
     document.documentElement.classList.add("js");
     var form = document.getElementById("constructeur");
     if (form) constructeur(form);
+    chargerDashboard();
     if (window.echarts) {
-      var dashboardData = document.getElementById("dashboard-data");
-      if (dashboardData) {
-        var metrics = JSON.parse(dashboardData.textContent);
-        document.querySelectorAll(".dashboard-chart").forEach(function (div) {
-          var g = metrics[Number(div.dataset.index)], color = ["#347956", "#859cbd", "#ac9667", "#4b908c"][Number(div.dataset.index) % 4];
-          initialiser(div, {
-            animation: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-            aria: { enabled: true },
-            tooltip: { trigger: "axis", valueFormatter: function (v) { return nombre(v, g.unite); } },
-            grid: { top: 18, left: 8, right: 12, bottom: 10, containLabel: true },
-            xAxis: { type: "category", data: g.periodes, boundaryGap: false, axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: "#86968a", fontSize: 10, hideOverlap: true } },
-            yAxis: { type: "value", min: g.unite === "%" ? function (range) { return Math.max(0, Math.floor(range.min - Math.max(1, range.max - range.min) * .2)); } : 0, max: g.unite === "%" ? 100 : null, axisLabel: { color: "#86968a", fontSize: 10, formatter: function (v) { return nombre(v); } }, splitLine: { lineStyle: { color: "#edf2ed", type: "dashed" } } },
-            series: [{ type: "line", data: g.valeurs, connectNulls: false, showSymbol: false, lineStyle: { color: color, width: 2.5 }, itemStyle: { color: color }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: color + "32" }, { offset: 1, color: color + "02" }]) } }]
-          }, g.periodes_cles, g.titre);
-        });
-      }
+      graphiquesDashboard();
       document.querySelectorAll(".graphiques[data-source]:not(.courbes)").forEach(courbes);
       document.querySelectorAll(".graphique-causes[data-source]").forEach(causes);
       document.querySelectorAll(".courbes[data-source]").forEach(courbesEvenement);

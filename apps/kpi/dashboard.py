@@ -31,7 +31,8 @@ INDICATEURS = [
 ]
 
 
-def construire(user, aujourd_hui, selection="24h"):
+def preparer(aujourd_hui, selection="24h"):
+    """Contexte léger : aucune lecture des tables KPI pour ouvrir la page."""
     selection = selection if selection in ("24h", "hier", "aujourdhui", "7j") else "24h"
     fin = aujourd_hui if selection == "aujourdhui" else aujourd_hui - timedelta(days=1)
     derniere = infos_demo().get("fin") if selection != "24h" and est_demo() else None
@@ -39,9 +40,14 @@ def construire(user, aujourd_hui, selection="24h"):
     if ancienne:
         fin = derniere
     debut = fin - timedelta(days=6) if selection == "7j" else fin
-    ctx = {"selection": selection, "debut": debut, "fin": fin, "ancienne": ancienne,
+    return {"selection": selection, "debut": debut, "fin": fin, "ancienne": ancienne,
            "partielle": selection == "aujourdhui" and not ancienne,
            "cartes": [], "graphiques": [], "avertissements": [], "periodes": []}
+
+
+def construire(user, aujourd_hui, selection="24h"):
+    ctx = preparer(aujourd_hui, selection)
+    selection, debut, fin = ctx["selection"], ctx["debut"], ctx["fin"]
     cat = catalogue()
     visibles = kpis_autorises(user, set(cat))
     indicateurs = [i for i in INDICATEURS if i[0] in visibles]

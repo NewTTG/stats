@@ -157,3 +157,56 @@ def test_evenement_et_entites(page):
     page.get_by_role("button", name="Agrandir : Sites · par entité", exact=True).click()
     pw.expect(page.get_by_role("dialog")).to_be_visible()
     assert option(page, ".graphique-popup-canvas")["series"][0]["data"] == [.1, .2]
+
+
+@pytest.mark.parametrize('echec', [None, 503, 'interrompu'])
+def test_dashboard_differe_navigation_et_reessai(navigateur, echec):
+    page = navigateur.new_page(viewport={"width": 1440, "height": 1000})
+    erreurs, demandes = [], []
+    page.on('pageerror', lambda e: erreurs.append(str(e)))
+    html = '''<!doctype html><meta charset="utf-8"><body><a href="/rapports/">Mes rapports</a><form id="rapport"><input name="lieu"></form>
+      <div class="quick-reports"><a href="/?q=&intention=trafic&debut=2026-10-12&fin=2026-10-12">Trafic</a></div>
+      <div id="dashboard-charge" data-url="/dashboard/?vue=24h" aria-busy="true">
+        <p role="status">Chargement</p><button data-reessayer hidden>Réessayer</button>
+      </div>
+      <script src="/static/vendor/echarts-5.6.0.min.js" defer></script>
+      <script src="/static/js/kpi.js" defer></script></body>'''
+    def route(r):
+        chemin = r.request.url.split('http://stats.test', 1)[-1]
+        if chemin.startswith('/dashboard/'):
+            demandes.append(r)  # la base reste en attente pendant l'utilisation de la page
+        elif chemin.startswith('/static/'):
+            r.fulfill(path=str(RACINE / chemin.lstrip('/')), content_type='application/javascript')
+        else:
+            r.fulfill(body=html, content_type='text/html')
+    page.route('http://stats.test/**', route)
+    try:
+        page.goto('http://stats.test/', wait_until='domcontentloaded')
+        page.locator('input[name="lieu"]').fill('Nouméa')
+        pw.expect(page.get_by_role('link', name='Mes rapports')).to_be_visible()
+        pw.expect(page.locator('#dashboard-charge')).to_have_attribute('aria-busy', 'true')
+        assert len(demandes) == 1
+        if echec:
+            if echec == 'interrompu':
+                demandes[0].abort()
+            else:
+                demandes[0].fulfill(status=echec, body='Indisponible')
+            pw.expect(page.get_by_role('button', name='Réessayer')).to_be_visible()
+            pw.expect(page.locator('#dashboard-charge')).to_have_attribute('aria-busy', 'false')
+            with page.expect_request('**/dashboard/**'):
+                page.get_by_role('button', name='Réessayer').click()
+            pw.expect(page.locator('#dashboard-charge')).to_have_attribute('aria-busy', 'true')
+            assert len(demandes) == 2
+        data = [{'titre': 'Trafic', 'unite': 'Go', 'periodes': ['00h', '01h'],
+                 'periodes_cles': ['2026-10-10T00:00:00', '2026-10-10T01:00:00'], 'valeurs': [1, 2]}]
+        fragment = '<div><div class="dashboard-chart" data-index="0" style="height:200px;width:600px"></div></div>'
+        fragment += '<script id="dashboard-data" type="application/json">' + json.dumps(data) + '</script>'
+        demandes[-1].fulfill(json={'html': fragment, 'debut': '2026-10-09', 'fin': '2026-10-10'})
+        pw.expect(page.locator('.dashboard-chart canvas')).to_have_count(1)
+        pw.expect(page.locator('#dashboard-charge')).to_have_attribute('aria-busy', 'false')
+        assert option(page, '.dashboard-chart')['series'][0]['data'] == [1, 2]
+        assert 'debut=2026-10-09' in page.locator('.quick-reports a').get_attribute('href')
+        assert 'fin=2026-10-10' in page.locator('.quick-reports a').get_attribute('href')
+        assert not erreurs
+    finally:
+        page.close()

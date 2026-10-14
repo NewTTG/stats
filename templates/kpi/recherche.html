@@ -28,7 +28,16 @@
   <div class="exemples" aria-label="Exemples de questions">{% for e in exemples %}<a class="exemple" href="?q={{ e|urlencode }}">{{ e }}</a>{% endfor %}</div>
   <div class="quick-reports" aria-label="Rapports en accès direct"><span>Ouvrir un rapport</span>{% for r in rapports_types|slice:':3' %}<a href="?q=&amp;intention={{ r.code|urlencode }}&amp;debut={{ dashboard.debut|date:'Y-m-d' }}&amp;fin={{ dashboard.fin|date:'Y-m-d' }}">{% include 'kpi/_icone.html' with nom=r.icone %}{{ r.titre }}</a>{% endfor %}</div>
 </section>
-{% include "kpi/_dashboard.html" %}
+{% if dashboard_differe %}
+<div id="dashboard-charge" data-url="{% url 'kpi:dashboard' %}?vue={{ dashboard.selection|urlencode }}" aria-busy="true">
+  <section class="dashboard-overview" aria-labelledby="titre-indicateurs">
+    <h2 id="titre-indicateurs">Performance du réseau</h2>
+    <p class="aide" role="status">Chargement des indicateurs · {% if dashboard.selection == '24h' %}24 dernières heures disponibles{% elif dashboard.selection == '7j' %}7 derniers jours{% elif dashboard.selection == 'hier' %}Hier{% else %}Aujourd’hui{% endif %}… Vous pouvez déjà explorer les KPI et préparer un rapport.</p>
+    <button type="button" class="bouton" data-reessayer hidden>Réessayer</button>
+    <noscript><p><a href="?vue={{ dashboard.selection|urlencode }}&amp;indicateurs=1">Afficher les indicateurs sans JavaScript</a></p></noscript>
+  </section>
+</div>
+{% else %}{% include "kpi/_dashboard.html" %}{% endif %}
 <section id="composer" class="composer-section" aria-labelledby="titre-composer">
   <div class="section-heading"><div><p class="eyebrow">PASSER À L’ANALYSE</p><h2 id="titre-composer">Un rapport, en quelques clics</h2></div><span class="aide">Choisissez un rapport, un lieu et une période.</span></div>
   {% include "kpi/_constructeur.html" %}
@@ -109,6 +118,6 @@
 {% endblock %}
 
 {% block scripts %}
-{% if blocs or dashboard.graphiques %}<script src="{% static 'vendor/echarts-5.6.0.min.js' %}"></script>{% endif %}
+{% if blocs or dashboard.graphiques or dashboard_differe %}<script src="{% static 'vendor/echarts-5.6.0.min.js' %}" defer></script>{% endif %}
 <script src="{% static 'js/kpi.js' %}" defer></script>
 {% endblock %}
