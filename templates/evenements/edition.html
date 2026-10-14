@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% load static %}
 {% comment %}
-Création / modification d'un événement (views.edition) : événement, zone couverte sur carte, créneaux, analyse.
+Création / modification d'un événement (views.edition) : événement, zone couverte sur carte, analyse.
+La période (créneaux) se choisit sur la page de l'événement (detail.html).
 Sites, secteurs et cellules sont des champs cachés tenus par static/js/evenement-edition.js ; sans JavaScript,
 la sélection enregistrée est conservée.
 {% endcomment %}
@@ -16,7 +17,7 @@ la sélection enregistrée est conservée.
   <div>
     <h1>{% if evenement.pk %}Modifier l'événement{% else %}Nouvel événement{% endif %}</h1>
     <p class="sous-titre">{% if evenement.pk %}Créé{% if evenement.cree_par %} par {{ evenement.cree_par }}{% endif %} le {{ evenement.cree_le|date:"j F Y" }}.
-      {% else %}Nommez l'événement, choisissez les sites ou secteurs concernés sur la carte, puis indiquez ses créneaux.{% endif %}</p>
+      {% else %}Nommez l'événement et choisissez les sites ou secteurs concernés : la période se choisit ensuite, à l'affichage de l'analyse.{% endif %}</p>
   </div>
 </div>
 
@@ -82,25 +83,10 @@ la sélection enregistrée est conservée.
 </section>
 {% endwith %}
 
-{% with fs=creneaux %}
-<section class="carte ev-bloc" aria-labelledby="ev-titre-creneaux">
-  <h2 id="ev-titre-creneaux">Créneaux</h2>
-  <p class="aide">Heure de Nouméa. Plusieurs jours : un créneau par jour.</p>
-  {{ fs.management_form }}
-  {% if fs.non_form_errors %}<div class="erreur">{{ fs.non_form_errors }}</div>{% endif %}
-  <div class="ev-creneaux" data-creneaux data-prefix="{{ fs.prefix }}">
-    {% for form in fs.forms %}{% include "evenements/_creneau.html" %}{% endfor %}
-  </div>
-  <p class="ev-sans-creneau" data-sans-creneau{% if fs.forms %} hidden{% endif %}>Aucun créneau : l'événement ne pourra pas être analysé.</p>
-  <template data-modele-creneau>{% include "evenements/_creneau.html" with form=fs.empty_form %}</template>
-  <button type="button" class="bouton secondaire petit ev-ajouter" data-ajouter-creneau>+ Ajouter un créneau</button>
-</section>
-{% endwith %}
-
 {% with f=formulaire %}
 <section class="carte ev-bloc" aria-labelledby="ev-titre-analyse">
   <h2 id="ev-titre-analyse">Analyse</h2>
-  <p class="aide">Chaque créneau est comparé aux mêmes jour et heures des semaines précédentes.</p>
+  <p class="aide">La période choisie à l'affichage est comparée aux mêmes jours et heures des semaines précédentes.</p>
   <div class="ev-champ ev-semaines">
     <label for="{{ f.semaines_reference.id_for_label }}">Période de référence</label>
     <div class="ev-en-ligne">{{ f.semaines_reference }}<span>semaines précédentes</span></div>

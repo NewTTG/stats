@@ -43,7 +43,7 @@ python manage.py import_referentiel OPT_Network_Database_V2.xlsx --cellules lte_
 # 4 bis. Avec la base KPI : date de passage de 3 à 4 secteurs des sites concernés (DTS009, MDO355…)
 python manage.py detecter_bascules --enregistrer
 
-# 5. (une fois) Événements initiaux depuis l'onglet Cluster : créneaux à renseigner ensuite dans l'admin
+# 5. (une fois) Événements initiaux depuis l'onglet Cluster : la période se choisit à l'affichage
 python manage.py import_clusters OPT_Network_Database_V2.xlsx
 
 # 5 bis. Sans accès à la base KPI : données de démonstration (≈ 20 s, ≈ 650 Mo dans data/)
@@ -291,7 +291,7 @@ et redémarrer l’application et le worker. En déploiement, exécuter aussi
   système), barre supérieure avec fil d'Ariane, « ← Retour aux statistiques » et menu du
   compte ; listes compactes avec recherche et filtres en menus déroulants au-dessus du
   tableau ; thèmes clair et sombre. Le tableau de bord réunit les indicateurs des demandes,
-  les dernières demandes, les points **à traiter** (événements sans créneau, précisions sans
+  les dernières demandes, les points **à traiter** (précisions sans
   réponse, échecs, rapports et tâches en erreur), l'état du référentiel et des accès rapides.
   La liste des utilisateurs masque par défaut les sessions visiteur (filtre « Type de compte »).
 - **Recharger le référentiel** (Référentiel réseau › Chargement et imports) : volumes actuels
@@ -379,8 +379,13 @@ bilan complet ; un indicateur explicite reste prioritaire (« stats du débit »
 - Fond de carte : `CARTE_TUILES_URL` (OpenStreetMap par défaut, chargé par le navigateur, qui
   envoie l'origine du site en Referer comme l'exige OpenStreetMap) ; vide, les sites et secteurs
   restent dessinés sans fond. Leaflet est servi localement.
-- Créneaux : autant que nécessaire (plusieurs jours, horaires différents chaque jour),
-  saisis en heure de Nouméa ; « Copier au lendemain » duplique un créneau.
+- Période : choisie sur la page de l'événement, pas dans sa définition (un même lieu sert d'une
+  édition à l'autre). Autant de créneaux que nécessaire (plusieurs jours, horaires différents),
+  en heure de Nouméa, 31 jours cumulés au plus ; « Copier au lendemain » duplique un créneau et
+  les raccourcis −1 an / −1 mois / ±1 semaine / +1 mois / +1 an décalent toute la période. La
+  période est dans l'adresse de la page (lien partageable) et suit les rapports PDF / Excel /
+  PowerPoint. « Proposer cette période à la prochaine ouverture » la mémorise avec l'événement
+  (droit de modification) ; sans période mémorisée, la page demande d'en choisir une.
 - Référence : moyenne des mêmes créneaux décalés de 1 à N semaines. Pour un KPI
   additif (volume, trafic), c'est la moyenne des semaines, pas leur somme.
 - KPI analysés : ceux de l'événement s'il en liste, sinon les KPI principaux du

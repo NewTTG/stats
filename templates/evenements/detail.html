@@ -12,32 +12,63 @@
   <div class="boutons"><a class="bouton secondaire" href="{% url 'evenements:modifier' evenement.pk %}">Modifier l'événement</a></div>
   {% endif %}
 </div>
-<section class="carte">
-  {% if evenement.description %}<p>{{ evenement.description }}</p>{% endif %}
-  {% if analyse %}
-  <p class="aide">
-    Créneaux : {% for d, f in analyse.creneaux %}{{ d|date:"D d/m/Y H:i" }} → {{ f|date:"H:i" }}{% if f|date:"Ymd" != d|date:"Ymd" %} ({{ f|date:"d/m" }}){% endif %}{% if not forloop.last %} ; {% endif %}{% endfor %}<br>
-    Référence : mêmes jours et heures des {{ analyse.semaines }} semaines précédentes.
-  </p>
+{% if evenement.description %}<p class="description-evenement">{{ evenement.description }}</p>{% endif %}
+
+<section class="carte periode-evenement" aria-labelledby="titre-periode">
+  <div class="periode-entete">
+    <h2 id="titre-periode">Période analysée</h2>
+    <p class="aide">Heure de Nouméa ; plusieurs jours : un créneau par jour. Comparée aux mêmes jours et heures des
+      {{ evenement.semaines_reference }} semaines précédentes.</p>
+  </div>
+  {% if erreur_periode %}<div class="erreur" role="alert">{{ erreur_periode }}</div>{% endif %}
+  <form method="get" data-periode>
+    <input type="hidden" name="niveau" value="{{ niveau }}">
+    <div class="periode-creneaux" data-creneaux>
+      {% for debut, fin in lignes_periode %}
+      <div class="periode-creneau" data-creneau>
+        <label><span>Début</span><input type="datetime-local" name="debut" value="{{ debut }}" step="60"></label>
+        <span class="periode-fleche" aria-hidden="true">→</span>
+        <label><span>Fin</span><input type="datetime-local" name="fin" value="{{ fin }}" step="60"></label>
+        <span class="periode-duree" data-duree></span>
+        <span class="periode-outils">
+          <button type="button" class="lien-discret" data-jour-suivant title="Ajouter le même créneau le lendemain">Copier au lendemain</button>
+          <button type="button" class="periode-retirer" data-retirer aria-label="Retirer ce créneau" title="Retirer ce créneau">×</button>
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="periode-actions">
+      <button type="button" class="bouton secondaire petit" data-ajouter>+ Ajouter un créneau</button>
+      {% if decalages %}<nav class="periode-decalages" aria-label="Même période décalée">{% for libelle, lien in decalages %}<a href="{{ lien }}">{{ libelle }}</a>{% endfor %}</nav>{% endif %}
+      <button type="submit" class="bouton">{% if creneaux %}Analyser cette période{% else %}Analyser{% endif %}</button>
+    </div>
+  </form>
+  {% if peut_memoriser %}
+  <form method="post" action="{% url 'evenements:memoriser_periode' evenement.pk %}" class="periode-memoriser">{% csrf_token %}
+    {% for nom, valeur in parametres_periode %}<input type="hidden" name="{{ nom }}" value="{{ valeur }}">{% endfor %}
+    <button type="submit" class="lien-discret">Proposer cette période à la prochaine ouverture</button>
+  </form>
   {% endif %}
 </section>
+
+{% if not creneaux and not erreur_periode %}<p class="vide">Choisissez la période à analyser : par exemple le jour et les heures de la dernière édition.</p>{% endif %}
 
 {% if erreur %}<div class="erreur">{{ erreur }}</div>{% endif %}
 
 {% if analyse %}
 <div class="barre-evenement">
-  <nav class="onglets" aria-label="Niveau d'analyse">{% for code, libelle in niveaux.items %}<a href="?niveau={{ code }}" class="{% if code == niveau %}actif{% endif %}"{% if code == niveau %} aria-current="page"{% endif %}>Par {{ libelle|lower }}</a>{% endfor %}</nav>
+  <nav class="onglets" aria-label="Niveau d'analyse">{% for code, libelle in niveaux.items %}<a href="?{% if periode_url %}{{ periode_url }}&amp;{% endif %}niveau={{ code }}" class="{% if code == niveau %}actif{% endif %}"{% if code == niveau %} aria-current="page"{% endif %}>Par {{ libelle|lower }}</a>{% endfor %}</nav>
   <div class="boutons">
     <form method="post" action="{% url 'rapports:evenement' evenement.pk %}">{% csrf_token %}<input type="hidden" name="suivi" value="{{ suivi }}">
-      <input type="hidden" name="niveau" value="{{ niveau }}"><input type="hidden" name="format" value="pdf">
+      <input type="hidden" name="niveau" value="{{ niveau }}">{% for nom, valeur in parametres_periode %}<input type="hidden" name="{{ nom }}" value="{{ valeur }}">{% endfor %}<input type="hidden" name="format" value="pdf">
       <button class="bouton secondaire" type="submit">Rapport PDF</button>
     </form>
     <form method="post" action="{% url 'rapports:evenement' evenement.pk %}">{% csrf_token %}<input type="hidden" name="suivi" value="{{ suivi }}">
-      <input type="hidden" name="niveau" value="{{ niveau }}"><input type="hidden" name="format" value="xlsx">
+      <input type="hidden" name="niveau" value="{{ niveau }}">{% for nom, valeur in parametres_periode %}<input type="hidden" name="{{ nom }}" value="{{ valeur }}">{% endfor %}<input type="hidden" name="format" value="xlsx">
       <button class="bouton secondaire" type="submit">Rapport Excel</button>
     </form>
     <form method="post" action="{% url 'rapports:evenement' evenement.pk %}">{% csrf_token %}<input type="hidden" name="suivi" value="{{ suivi }}">
-      <input type="hidden" name="niveau" value="{{ niveau }}"><input type="hidden" name="format" value="pptx">
+      <input type="hidden" name="niveau" value="{{ niveau }}">{% for nom, valeur in parametres_periode %}<input type="hidden" name="{{ nom }}" value="{{ valeur }}">{% endfor %}<input type="hidden" name="format" value="pptx">
       <button class="bouton" type="submit">Rapport PowerPoint</button>
     </form>
   </div>
@@ -104,7 +135,9 @@
 {% endif %}
 {% endblock %}
 
+{% block entete %}<link rel="stylesheet" href="{% static 'css/evenement-periode.css' %}">{% endblock %}
 {% block scripts %}
+<script src="{% static 'js/evenement-periode.js' %}" defer></script>
 {% if blocs %}
 <script src="{% static 'vendor/echarts-5.6.0.min.js' %}"></script>
 <script src="{% static 'js/kpi.js' %}"></script>

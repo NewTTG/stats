@@ -1,16 +1,13 @@
 """Création / modification d'un événement dans l'application (/evenements/nouveau/, /<pk>/modifier/) :
-zone couverte sur carte, créneaux date + heure, KPI, suppression, données de la carte, azimut des secteurs ;
-l'administration renvoie vers ces pages."""
-
-from datetime import datetime
+zone couverte sur carte, KPI, suppression, données de la carte, azimut des secteurs ; l'administration
+renvoie vers ces pages. La période se choisit sur la page de l'événement (tests/test_evenement_periode.py)."""
 
 import pandas as pd
 import pytest
 from django.contrib.auth.models import Permission, User
 from django.urls import reverse
-from django.utils import timezone
 
-from apps.evenements.models import Creneau, Evenement
+from apps.evenements.models import Evenement
 from apps.referentiel.importation import importer
 from apps.referentiel.models import Secteur
 
@@ -31,9 +28,6 @@ def _donnees(**modifs):
         "nom": "Foire de Bourail", "type": "Foire", "description": "",
         "sites": "AAA100", "secteurs": "BBB2002", "cellules": "BBBe1",
         "semaines_reference": "4", "kpis_choisis": "false",
-        "creneaux-TOTAL_FORMS": "1", "creneaux-INITIAL_FORMS": "0",
-        "creneaux-MIN_NUM_FORMS": "0", "creneaux-MAX_NUM_FORMS": "1000",
-        "creneaux-0-debut": "2026-08-15T18:00", "creneaux-0-fin": "2026-08-15T23:00",
         "_enregistrer": "1",
     }
     donnees.update(modifs)
@@ -44,9 +38,9 @@ def test_page_d_edition(client_admin, referentiel):  # noqa: F811
     html = client_admin.get(reverse(URL_AJOUT)).content.decode()
     assert 'class="workspace' in html  # gabarit de l'application, pas de l'administration
     assert 'id="ev-zone"' in html and reverse("evenements:reseau") in html
-    assert 'type="datetime-local"' in html and "vendor/leaflet-1.9.4/leaflet.js" in html
-    # Plus de widgets date / heure de Django ni de saisie libre des cellules.
-    assert "vDateField" not in html and "<textarea name=\"cellules\"" not in html
+    assert "vendor/leaflet-1.9.4/leaflet.js" in html
+    # Ni créneaux (choisis à l'affichage), ni saisie libre des cellules.
+    assert 'type="datetime-local"' not in html and "<textarea name=\"cellules\"" not in html
     assert 'type="hidden" name="cellules"' in html
 
 
@@ -57,8 +51,7 @@ def test_creation(client_admin, referentiel):  # noqa: F811
     assert reponse["Location"] == reverse("evenements:detail", args=[e.pk])
     assert (e.sites, e.secteurs, e.cellules, e.kpis) == (["AAA100"], ["BBB2002"], ["BBBe1"], [])
     assert e.cree_par.username == "admin"
-    creneau = e.creneaux.get()
-    assert timezone.localtime(creneau.debut).replace(tzinfo=None) == datetime(2026, 8, 15, 18)  # heure de Nouméa
+    assert not e.creneaux.exists()
     assert e.noms_cellules("LTE") == ["AAAe1", "AAAe2", "BBBe1", "BBBe2"]
 
 
@@ -71,31 +64,19 @@ def test_kpi_choisis_et_continuer(client_admin, referentiel):  # noqa: F811
     assert reponse.status_code == 302 and reponse["Location"] == url
     assert e.kpis == ["lte_rrc_setup_sr", "lte_erab_drop"]
     # Retour aux KPI principaux : la liste enregistrée est vidée.
-    client_admin.post(url, _donnees(kpis=["lte_rrc_setup_sr"], **{"creneaux-0-debut": "", "creneaux-0-fin": ""}))
+    client_admin.post(url, _donnees(kpis=["lte_rrc_setup_sr"]))
     e.refresh_from_db()
     assert e.kpis == []
 
 
 def test_erreurs(client_admin, referentiel):  # noqa: F811
     reponse = client_admin.post(reverse(URL_AJOUT), _donnees(
-        sites="", secteurs="", cellules="", kpis_choisis="true",
-        **{"creneaux-0-fin": "2026-08-15T17:00"}))
+        sites="", secteurs="", cellules="", kpis_choisis="true"))
     assert reponse.status_code == 200
     html = reponse.content.decode()
     assert html.count("Choisissez au moins un site, un secteur ou une cellule.") == 1
     assert "Cochez au moins un KPI" in html
-    assert "La fin doit suivre le début." in html
     assert not Evenement.objects.exists()
-
-
-def test_retrait_d_un_creneau(client_admin, referentiel):  # noqa: F811
-    e = Evenement.objects.create(nom="Concert", sites=["AAA100"])
-    c = Creneau.objects.create(evenement=e, debut=timezone.now(), fin=timezone.now() + timezone.timedelta(hours=2))
-    reponse = client_admin.post(reverse("evenements:modifier", args=[e.pk]), _donnees(
-        nom="Concert", **{"creneaux-INITIAL_FORMS": "1", "creneaux-0-id": str(c.pk), "creneaux-0-evenement": str(e.pk),
-                          "creneaux-0-DELETE": "on"}))
-    assert reponse.status_code == 302
-    assert not e.creneaux.exists()
 
 
 def test_donnees_de_la_carte(client_admin, referentiel):  # noqa: F811

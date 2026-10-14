@@ -66,15 +66,15 @@ def test_tableau_de_bord(client_admin):
     assert 'id="nav-sidebar"' in html
     rubriques = [r["titre"] for r in client_admin.get("/admin/").context["navigation"]]
     assert rubriques == ["Pilotage", "Analyse", "Référentiel réseau", "Comptes et accès", "Système"]
-    # raccourcis et points à traiter (événement sans créneau : compteur et lien filtré)
+    # raccourcis et points à traiter ; un événement sans période mémorisée n'est plus « à compléter »
+    # (la période se choisit à l'affichage)
     for titre in ["Accès rapides", "À traiter", "Créer un événement", "Seuils KPI", "Périmètres d&#x27;accès",
-                  "Comptes utilisateurs", "Journal d&#x27;audit", "Événements sans créneau"]:
+                  "Comptes utilisateurs", "Journal d&#x27;audit"]:
         assert titre in html
+    assert "Événements sans créneau" not in html and "admin-pastille" not in html
     assert f'href="{reverse("admin:evenements_evenement_add")}"' in html
-    assert f'href="{reverse("admin:evenements_evenement_changelist")}?creneaux=sans"' in html
     assert f'href="{reverse("admin:kpi_seuilkpi_changelist")}"' in html
     assert f'href="{reverse("admin:auth_user_changelist")}"' in html
-    assert '<span class="admin-pastille" title="1 à compléter">1</span>' in html
     # référentiel : volumes et accès au rechargement
     assert "Référentiel réseau" in html and "Recharger le référentiel" in html
     # rappel des opérations en ligne de commande : réservé à l'administration

@@ -12,13 +12,13 @@ class CreneauInline(admin.TabularInline):
 
 
 class CreneauxFilter(admin.SimpleListFilter):
-    """« Sans créneau » : événements à compléter (lien du tableau de bord de l'administration)."""
+    """Événements avec ou sans période mémorisée (la période se choisit aussi à l'affichage)."""
 
     title = "créneaux"
     parameter_name = "creneaux"
 
     def lookups(self, request, model_admin):
-        return [("avec", "Avec créneau"), ("sans", "Sans créneau (à compléter)")]
+        return [("avec", "Avec période mémorisée"), ("sans", "Sans période mémorisée")]
 
     def queryset(self, request, queryset):
         a_un_creneau = Exists(Creneau.objects.filter(evenement=OuterRef("pk")))
@@ -55,7 +55,7 @@ class EvenementAdmin(admin.ModelAdmin):
     @admin.display(description="premier créneau")
     def premier_creneau(self, obj):
         creneaux = list(obj.creneaux.all())
-        return creneaux[0] if creneaux else "À compléter"
+        return creneaux[0] if creneaux else "À choisir à l'ouverture"
 
     @admin.display(description="créneaux")
     def nb_creneaux(self, obj):

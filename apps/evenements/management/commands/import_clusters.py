@@ -18,6 +18,6 @@ class Command(BaseCommand):
             crees, ignores = importer_clusters(fichier)
         except ValueError as e:
             raise CommandError(str(e)) from e
-        self.stdout.write(self.style.SUCCESS(f"{len(crees)} événement(s) créé(s), créneaux à renseigner dans l'admin."))
+        self.stdout.write(self.style.SUCCESS(f"{len(crees)} événement(s) créé(s), période à choisir à l'affichage."))
         if ignores:
             self.stdout.write(f"{len(ignores)} déjà présent(s), non modifié(s) : {', '.join(ignores)}")

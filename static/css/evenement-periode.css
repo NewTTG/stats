@@ -1,0 +1,32 @@
+/* Période analysée d'un événement (templates/evenements/detail.html). Jetons de app.css / workspace.css. */
+
+.description-evenement { margin: -10px 0 18px; max-width: 820px; color: var(--texte-2); font-size: 13px; }
+.periode-entete { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; margin-bottom: 14px; }
+.workspace .periode-evenement .periode-entete h2 { margin: 0; }
+.periode-entete .aide { margin: 0; color: var(--texte-3); }
+.periode-evenement .erreur { margin: 0 0 12px; }
+.periode-creneaux { display: flex; flex-direction: column; gap: 8px; }
+.periode-creneau { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; padding: 10px 12px; border: 1px solid var(--bord); border-radius: 10px; background: #fbfcfb; }
+.workspace .periode-creneau label { display: flex; flex-direction: column; gap: 4px; margin: 0; color: var(--texte-3); font-size: 11px; font-weight: 600; }
+.periode-creneau input { width: 220px; background: #fff; }
+.periode-fleche { padding-bottom: 10px; color: var(--texte-3); }
+.periode-duree { min-width: 70px; padding-bottom: 10px; color: var(--texte-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.periode-duree.erreur { color: var(--critique); background: none; border: 0; padding: 0 0 10px; }
+.periode-outils { display: flex; align-items: center; gap: 10px; margin-left: auto; padding-bottom: 6px; }
+.periode-retirer { display: inline-grid; place-items: center; width: 26px; height: 26px; min-height: 0; padding: 0; border: 0; border-radius: 6px;
+  background: transparent; color: var(--texte-3); font-size: 18px; line-height: 1; cursor: pointer; }
+.periode-retirer:hover { background: #f2f6f3; color: var(--critique); }
+.lien-discret { width: auto; min-height: 0; padding: 0; border: 0; background: none; color: #1b6652; font: inherit; font-size: 11px; font-weight: 550; cursor: pointer; }
+.lien-discret:hover { text-decoration: underline; }
+.periode-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
+.periode-actions > .bouton[type="submit"] { margin-left: auto; }
+.periode-decalages { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px; border: 1px solid var(--bord); border-radius: 8px; background: #fff; }
+.periode-decalages a { padding: 5px 9px; border-radius: 5px; color: #426052; font-size: 11px; text-decoration: none; white-space: nowrap; }
+.periode-decalages a:hover { background: #eaf3ec; color: #1b6652; }
+.periode-memoriser { margin-top: 10px; }
+
+@media (max-width: 700px) {
+  .periode-creneau label, .periode-creneau input { width: 100%; }
+  .periode-fleche { display: none; }
+  .periode-actions > .bouton[type="submit"] { width: 100%; margin-left: 0; }
+}
