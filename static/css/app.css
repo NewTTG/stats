@@ -570,3 +570,14 @@ footer.pied-page a:hover { color: var(--marine); }
   .tableau-outils { display: none; }
   .tableau-detaille { max-height: none !important; overflow: visible; }
 }
+
+/* Requête longue (static/js/attente.js) : barre en haut de l'écran et encart après 3 s d'attente. */
+.attente[hidden] { display: none; }
+.attente-barre { position: fixed; inset: 0 0 auto 0; z-index: 3000; height: 3px; overflow: hidden; background: rgba(27, 102, 82, .15); }
+.attente-barre span { position: absolute; top: 0; bottom: 0; width: 35%; background: #1b6652; animation: attente-glisse 1.4s ease-in-out infinite; }
+@keyframes attente-glisse { from { left: -35%; } to { left: 100%; } }
+.attente-boite { position: fixed; right: 20px; bottom: 20px; z-index: 3000; max-width: 340px; padding: 14px 16px; border: 1px solid var(--bord);
+  border-left: 3px solid #1b6652; border-radius: 10px; background: #fff; box-shadow: var(--ombre-forte); font-size: 12px; }
+.attente-boite strong { display: block; color: var(--texte); font-size: 13px; font-variant-numeric: tabular-nums; }
+.attente-boite small { display: block; margin-top: 4px; color: var(--texte-3); line-height: 1.5; }
+@media (prefers-reduced-motion: reduce) { .attente-barre span { animation: none; left: 0; width: 100%; opacity: .6; } }

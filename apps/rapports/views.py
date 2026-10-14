@@ -72,7 +72,7 @@ def rapport_evenement(request, pk):
         raise Http404
     # Période affichée sur la page de l'événement ; à défaut, ses créneaux mémorisés.
     try:
-        creneaux = periode.lire(request.POST.getlist("debut"), request.POST.getlist("fin")) or periode.memorises(evenement)
+        creneaux = periode.lire(request.POST)[0] or periode.memorises(evenement)
     except periode.PeriodeInvalide as e:
         messages.error(request, str(e))
         return redirect("evenements:detail", evenement.pk)

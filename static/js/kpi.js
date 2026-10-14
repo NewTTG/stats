@@ -246,9 +246,60 @@
     });
   }
 
+  /* Courbes d'un événement : Global (événement, référence, bande min–max des semaines de référence),
+     Par site ou Par cellule (valeurs de l'événement, une courbe par site / cellule, noms en légende). */
+  var VUES_EVENEMENT = [["global", "Global"], ["site", "Par site"], ["cellule", "Par cellule"]];
+
+  function optionEvenement(g, instants, vue) {
+    var axeY = { type: "value", scale: true,
+                 max: g.unite === "%" ? function (v) { return Math.min(100, Math.ceil(v.max)); } : null,
+                 axisLabel: { formatter: function (v) { return (Math.round(v * 1e6) / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 6 }); } } };
+    var base = {
+      animation: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      aria: { enabled: true },
+      title: { text: g.titre, textStyle: { fontSize: 13, color: "#256b51" } },
+      xAxis: { type: "category", data: instants, triggerEvent: true, axisLabel: { hideOverlap: true } },
+      yAxis: axeY
+    };
+    if (vue !== "global") {
+      var detail = vue === "site" ? g.sites : g.cellules;
+      return Object.assign(base, {
+        color: PALETTE,
+        tooltip: { trigger: "axis", confine: true, valueFormatter: function (v) { return nombre(v, g.unite); } },
+        legend: { type: "scroll", bottom: 0, textStyle: { fontSize: 11 } },
+        grid: { left: 8, right: 16, top: 40, bottom: 44, containLabel: true },
+        series: detail.map(function (s) {
+          return { name: s.nom, type: "line", data: s.valeurs, symbolSize: 4, showSymbol: instants.length < 40,
+                   lineStyle: { width: 1.8 }, emphasis: { focus: "series" } };
+        })
+      });
+    }
+    var ecart = g.max.map(function (v, i) { return v === null || g.min[i] === null ? null : v - g.min[i]; });
+    return Object.assign(base, {
+      tooltip: { trigger: "axis", confine: true, formatter: function (p) {
+        var lignes = [p[0].axisValue], i = p[0].dataIndex;
+        lignes.push("Événement : " + (g.evenement[i] === null ? "N/D" : g.evenement[i]));
+        lignes.push("Référence : " + (g.reference[i] === null ? "N/D" : g.reference[i]));
+        if (g.min[i] !== null) lignes.push("Réf. min – max : " + g.min[i] + " – " + g.max[i]);
+        return lignes.join("<br>");
+      } },
+      legend: { bottom: 0, data: ["Événement", "Référence"] },
+      grid: { left: 8, right: 16, top: 40, bottom: 40, containLabel: true },
+      series: [
+        { name: "min", type: "line", data: g.min, stack: "bande", symbol: "none", lineStyle: { opacity: 0 }, silent: true },
+        { name: "bande", type: "line", data: ecart, stack: "bande", symbol: "none", lineStyle: { opacity: 0 },
+          areaStyle: { color: "rgba(138,148,166,.25)" }, silent: true },
+        { name: "Référence", type: "line", data: g.reference, color: "#c59542", lineStyle: { type: "dashed" } },
+        { name: "Événement", type: "line", data: g.evenement, color: "#256b51", lineStyle: { width: 3 } }
+      ]
+    });
+  }
+
   function courbesEvenement(zone) {
     var donnees = JSON.parse(document.getElementById(zone.dataset.source).textContent);
-    donnees.kpis.forEach(function (g) {
+    // Tous les conteneurs d'abord : la grille connaît sa largeur finale avant le premier graphique
+    // (sinon le premier, dessiné seul sur toute la largeur, déborde sur son voisin).
+    var cibles = donnees.kpis.map(function (g) {
       var carte = document.createElement("figure");
       carte.className = "carte-graphique";
       carte.style.margin = "0";
@@ -258,33 +309,40 @@
       div.setAttribute("aria-label", g.titre + " : événement et référence");
       carte.appendChild(div);
       zone.appendChild(carte);
-      var ecart = g.max.map(function (v, i) { return v === null || g.min[i] === null ? null : v - g.min[i]; });
-      initialiser(div, {
-        animation: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-        aria: { enabled: true },
-        title: { text: g.titre, textStyle: { fontSize: 13, color: "#256b51" } },
-        tooltip: { trigger: "axis", formatter: function (p) {
-          var lignes = [p[0].axisValue], i = p[0].dataIndex;
-          lignes.push("Événement : " + (g.evenement[i] === null ? "N/D" : g.evenement[i]));
-          lignes.push("Référence : " + (g.reference[i] === null ? "N/D" : g.reference[i]));
-          if (g.min[i] !== null) lignes.push("Réf. min – max : " + g.min[i] + " – " + g.max[i]);
-          return lignes.join("<br>");
-        } },
-        legend: { bottom: 0, data: ["Événement", "Référence"] },
-        grid: { left: 8, right: 16, top: 40, bottom: 40, containLabel: true },
-        xAxis: { type: "category", data: donnees.instants },
-        yAxis: { type: "value", scale: true,
-                 max: g.unite === "%" ? function (v) { return Math.min(100, Math.ceil(v.max)); } : null,
-                 axisLabel: { formatter: function (v) { return (Math.round(v * 1e6) / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 6 }); } } },
-        series: [
-          { name: "min", type: "line", data: g.min, stack: "bande", symbol: "none", lineStyle: { opacity: 0 }, silent: true },
-          { name: "bande", type: "line", data: ecart, stack: "bande", symbol: "none", lineStyle: { opacity: 0 },
-            areaStyle: { color: "rgba(138,148,166,.25)" }, silent: true },
-          { name: "Référence", type: "line", data: g.reference, color: "#c59542", lineStyle: { type: "dashed" } },
-          { name: "Événement", type: "line", data: g.evenement, color: "#256b51", lineStyle: { width: 3 } }
-        ]
-      }, donnees.instants, g.titre);
+      return div;
     });
+    var instances = donnees.kpis.map(function (g, n) {
+      var g2 = initialiser(cibles[n], optionEvenement(g, donnees.instants, "global"), donnees.instants, g.titre);
+      return vues.filter(function (v) { return v.g === g2; })[0];
+    });
+
+    var barre = document.createElement("div");
+    barre.className = "selecteur-vue courbes-vue";
+    barre.setAttribute("role", "group");
+    barre.setAttribute("aria-label", "Détail des courbes");
+    var legende = zone.parentNode.querySelector("[data-legende-courbes]");
+    var textes = { global: legende ? legende.textContent : "",
+                   site: "Une courbe par site : valeurs pendant l'événement.",
+                   cellule: "Une courbe par cellule : valeurs pendant l'événement." };
+    VUES_EVENEMENT.forEach(function (v) {
+      var bouton = document.createElement("button");
+      bouton.type = "button";
+      bouton.textContent = v[1];
+      bouton.dataset.vue = v[0];
+      bouton.setAttribute("aria-pressed", String(v[0] === "global"));
+      bouton.addEventListener("click", function () {
+        barre.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", String(b === bouton)); });
+        if (legende) legende.textContent = textes[v[0]];
+        donnees.kpis.forEach(function (g, n) {
+          var vue = instances[n], option = optionEvenement(g, donnees.instants, v[0]);
+          vue.option = option;
+          vue.g.setOption(option, true);
+          if (periodeSelectionnee) mettreEnAvant(vue);
+        });
+      });
+      barre.appendChild(bouton);
+    });
+    zone.parentNode.insertBefore(barre, zone);
   }
 
   function causes(div) {

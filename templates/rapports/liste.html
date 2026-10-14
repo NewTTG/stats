@@ -50,7 +50,7 @@
         <td>{% if r.statut == "termine" %}<span class="etiquette ok">Prêt</span>
             {% elif r.statut == "erreur" %}<span class="etiquette critique" title="{{ r.message }}">Erreur</span> <span class="aide">{{ r.message }}</span>
             {% else %}<span class="etiquette alerte">{{ r.get_statut_display }}…</span>{% endif %}</td>
-        <td>{% if r.statut == "termine" %}<a class="bouton secondaire petit" href="{% url 'rapports:telecharger' r.pk %}">Télécharger</a>{% endif %}</td></tr>
+        <td>{% if r.statut == "termine" %}<a class="bouton secondaire petit" href="{% url 'rapports:telecharger' r.pk %}" data-sans-attente>Télécharger</a>{% endif %}</td></tr>
     {% endfor %}</tbody>
   </table></div>
   {% if rafraichir %}<p class="aide">Génération en cours : la page s'actualise toute seule toutes les 5 secondes.</p>{% endif %}

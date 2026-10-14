@@ -56,6 +56,9 @@ class Courbe:
     reference: list
     ref_min: list
     ref_max: list
+    # Valeurs de l'événement par site et par cellule (courbes « par site » / « par cellule »).
+    par_site: dict[str, list] = field(default_factory=dict)
+    par_cellule: dict[str, list] = field(default_factory=dict)
 
 
 @dataclass
@@ -156,10 +159,27 @@ def _liste(serie: pd.Series) -> list:
     return [None if pd.isna(v) else round(float(v), 4) for v in serie]
 
 
-def _courbes(df, kpis, instants) -> list[Courbe]:
+def _detail(evt, kpis, par: str, instants) -> dict[str, dict[str, list]]:
+    """KPI -> {site ou cellule -> valeurs horaires de l'événement}."""
+    if evt.empty:
+        return {}
+    valeurs = agreger(evt, kpis, [par, "instant"])
+    resultat = {}
+    for k in kpis:
+        if k.code not in valeurs:
+            continue
+        tableau = valeurs[k.code].unstack(par).reindex(instants)
+        resultat[k.code] = {str(nom): _liste(tableau[nom]) for nom in sorted(tableau.columns, key=str)}
+    return resultat
+
+
+def _courbes(df, kpis, instants, sites: dict[str, str]) -> list[Courbe]:
     if df.empty:
         return []
     valeurs, reference, hebdo = _valeurs(df, kpis, ["instant"])
+    evt = df[df["semaine"] == 0]
+    par_site = _detail(evt.assign(site=evt["cellule"].map(sites)), kpis, "site", instants)
+    par_cellule = _detail(evt, kpis, "cellule", instants)
     courbes = []
     for k in kpis:
         semaines = hebdo[k.code].unstack("semaine") if len(hebdo) else pd.DataFrame(index=instants)
@@ -169,6 +189,8 @@ def _courbes(df, kpis, instants) -> list[Courbe]:
             reference=_liste(reference[k.code].reindex(instants)) if k.code in reference else [None] * len(instants),
             ref_min=_liste(semaines.min(axis=1).reindex(instants)),
             ref_max=_liste(semaines.max(axis=1).reindex(instants)),
+            par_site=par_site.get(k.code, {}),
+            par_cellule=par_cellule.get(k.code, {}),
         ))
     return courbes
 
@@ -212,7 +234,9 @@ def analyser(evenement: Evenement, user, engine, niveau: str = "secteur", crenea
 
         colonnes = colonnes_utilisees(kpis)
         df = _lire_fenetres(engine, techno, colonnes, cellules, fenetres)
-        entites = _entites(techno, niveau, cellules, min(debut for debut, _ in creneaux).date())
+        premier_jour = min(debut for debut, _ in creneaux).date()
+        entites = _entites(techno, niveau, cellules, premier_jour)
+        sites = entites if niveau == "site" else _entites(techno, "site", cellules, premier_jour)
         df = df.assign(entite=df["cellule"].map(entites))
 
         valeurs, reference, hebdo = _valeurs(df.assign(tout="Global"), kpis, ["tout"])
@@ -242,7 +266,7 @@ def analyser(evenement: Evenement, user, engine, niveau: str = "secteur", crenea
         analyse.par_techno.append(AnalyseTechno(
             techno=techno, kpis=kpis, nb_cellules=len(cellules), synthese=synthese,
             instants=[i.strftime(FORMAT_INSTANT) for i in instants],
-            courbes=_courbes(df, kpis, instants),
+            courbes=_courbes(df, kpis, instants, sites),
             cellules_sans_donnees=sorted(c for c in cellules if c not in set(evt["cellule"])),
         ))
 

@@ -14,31 +14,53 @@
 </div>
 {% if evenement.description %}<p class="description-evenement">{{ evenement.description }}</p>{% endif %}
 
+<section class="carte zone-evenement" aria-labelledby="titre-zone">
+  <div class="periode-entete">
+    <h2 id="titre-zone">Zone couverte</h2>
+    <p class="aide">{{ zone.sites|length }} site{{ zone.sites|length|pluralize }} · {{ zone.nb_secteurs }} secteur{{ zone.nb_secteurs|pluralize }} actif{{ zone.nb_secteurs|pluralize }} · {{ zone.nb_cellules }} cellule{{ zone.nb_cellules|pluralize }}{% if zone.sans_position %} · {{ zone.sans_position }} site{{ zone.sans_position|pluralize }} sans coordonnées{% endif %}</p>
+  </div>
+  {% if zone.sites %}
+  {{ zone|json_script:"zone-evenement" }}
+  <div class="zone-carte" data-zone="zone-evenement" data-tuiles="{{ carte_tuiles }}" data-attribution="{{ carte_attribution }}"
+    role="img" aria-label="Carte des sites et secteurs actifs de l'événement"></div>
+  {% else %}<p class="vide">Aucun site positionné : la zone se règle dans « Modifier l'événement ».</p>{% endif %}
+</section>
+
 <section class="carte periode-evenement" aria-labelledby="titre-periode">
   <div class="periode-entete">
     <h2 id="titre-periode">Période analysée</h2>
-    <p class="aide">Heure de Nouméa ; plusieurs jours : un créneau par jour. Comparée aux mêmes jours et heures des
-      {{ evenement.semaines_reference }} semaines précédentes.</p>
+    <p class="aide">Heure de Nouméa, heures pleines. Comparée aux mêmes jours et heures des {{ evenement.semaines_reference }} semaines précédentes.</p>
   </div>
   {% if erreur_periode %}<div class="erreur" role="alert">{{ erreur_periode }}</div>{% endif %}
   <form method="get" data-periode>
     <input type="hidden" name="niveau" value="{{ niveau }}">
-    <div class="periode-creneaux" data-creneaux>
-      {% for debut, fin in lignes_periode %}
-      <div class="periode-creneau" data-creneau>
-        <label><span>Début</span><input type="datetime-local" name="debut" value="{{ debut }}" step="60"></label>
-        <span class="periode-fleche" aria-hidden="true">→</span>
-        <label><span>Fin</span><input type="datetime-local" name="fin" value="{{ fin }}" step="60"></label>
-        <span class="periode-duree" data-duree></span>
-        <span class="periode-outils">
-          <button type="button" class="lien-discret" data-jour-suivant title="Ajouter le même créneau le lendemain">Copier au lendemain</button>
-          <button type="button" class="periode-retirer" data-retirer aria-label="Retirer ce créneau" title="Retirer ce créneau">×</button>
-        </span>
+    <fieldset class="periode-simple" data-mode-simple{% if saisie.detail %} hidden disabled{% endif %}>
+      <legend class="sr-only">Jours consécutifs, même plage horaire</legend>
+      <label><span>Du</span><input type="date" name="du" value="{{ saisie.du }}" data-du></label>
+      <label><span>Au <small>facultatif</small></span><input type="date" name="au" value="{{ saisie.au }}" data-au></label>
+      <span class="periode-sep" aria-hidden="true"></span>
+      <label><span>De</span><select name="de" data-de>{% include "evenements/_heures.html" with heures=heures_debut valeur=saisie.de %}</select></label>
+      <label><span>À</span><select name="a" data-a>{% include "evenements/_heures.html" with heures=heures_fin valeur=saisie.a %}</select></label>
+      <span class="periode-duree" data-duree></span>
+    </fieldset>
+    <fieldset class="periode-detail" data-mode-detail{% if not saisie.detail %} hidden disabled{% endif %}>
+      <legend class="sr-only">Heures différentes selon les jours</legend>
+      <input type="hidden" name="detail" value="1">
+      <div class="periode-lignes" data-lignes>
+        {% for jour, de, a in lignes_detail %}
+        <div class="periode-ligne" data-ligne>
+          <label><span>Jour</span><input type="date" name="jour" value="{{ jour }}"></label>
+          <label><span>De</span><select name="de">{% include "evenements/_heures.html" with heures=heures_debut valeur=de %}</select></label>
+          <label><span>À</span><select name="a">{% include "evenements/_heures.html" with heures=heures_fin valeur=a %}</select></label>
+          <span class="periode-duree" data-duree></span>
+          <button type="button" class="periode-retirer" data-retirer aria-label="Retirer ce jour" title="Retirer ce jour">×</button>
+        </div>
+        {% endfor %}
       </div>
-      {% endfor %}
-    </div>
+      <button type="button" class="bouton secondaire petit" data-ajouter>+ Ajouter un jour</button>
+    </fieldset>
     <div class="periode-actions">
-      <button type="button" class="bouton secondaire petit" data-ajouter>+ Ajouter un créneau</button>
+      <label class="periode-bascule"><input type="checkbox" data-bascule-detail{% if saisie.detail %} checked{% endif %}> Heures différentes selon les jours</label>
       {% if decalages %}<nav class="periode-decalages" aria-label="Même période décalée">{% for libelle, lien in decalages %}<a href="{{ lien }}">{{ libelle }}</a>{% endfor %}</nav>{% endif %}
       <button type="submit" class="bouton">{% if creneaux %}Analyser cette période{% else %}Analyser{% endif %}</button>
     </div>
@@ -92,7 +114,7 @@
   </table></div>
   {% if bloc.res.instants %}
   <h3>Courbes horaires</h3>
-  <p class="aide">Vert : événement · ocre : référence · zone grise : min–max des semaines de référence.</p>
+  <p class="aide" data-legende-courbes>Vert : événement · ocre : référence · zone grise : min–max des semaines de référence.</p>
   {{ bloc.graphiques|json_script:bloc.id }}
   <div class="graphiques courbes" data-source="{{ bloc.id }}"></div>
   {% endif %}
@@ -135,8 +157,11 @@
 {% endif %}
 {% endblock %}
 
-{% block entete %}<link rel="stylesheet" href="{% static 'css/evenement-periode.css' %}">{% endblock %}
+{% block entete %}<link rel="stylesheet" href="{% static 'vendor/leaflet-1.9.4/leaflet.css' %}">
+<link rel="stylesheet" href="{% static 'css/evenement-periode.css' %}">{% endblock %}
 {% block scripts %}
+<script src="{% static 'vendor/leaflet-1.9.4/leaflet.js' %}" defer></script>
+<script src="{% static 'js/evenement-zone.js' %}" defer></script>
 <script src="{% static 'js/evenement-periode.js' %}" defer></script>
 {% if blocs %}
 <script src="{% static 'vendor/echarts-5.6.0.min.js' %}"></script>
