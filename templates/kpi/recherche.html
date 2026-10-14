@@ -88,7 +88,7 @@
       <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
     </summary>
     <div class="menu-actions-panneau">
-      <a href="{{ lien_export }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></svg><span><strong>Exporter Excel</strong><small>Données et tableaux</small></span></a>
+      <a href="{{ lien_export }}" data-sans-attente><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></svg><span><strong>Exporter Excel</strong><small>Données et tableaux</small></span></a>
       <form method="post" action="{% url 'rapports:requete' %}">{% csrf_token %}
         {% for cle, valeurs in requete_params %}{% for v in valeurs %}<input type="hidden" name="{{ cle }}" value="{{ v }}">{% endfor %}{% endfor %}
         <button type="submit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span><strong>Rapport PowerPoint</strong><small>Présentation modifiable</small></span></button>

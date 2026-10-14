@@ -6,7 +6,7 @@ import re
 from django import forms
 
 from apps.kpi.catalogue import catalogue_yaml, kpis_principaux
-from apps.referentiel.models import Cellule, Site
+from apps.referentiel.models import Cellule, Secteur, Site
 
 from .models import Evenement
 
@@ -79,6 +79,29 @@ def reseau_pour_carte() -> dict:
             sites[c.secteur.site_id]["secteurs"].append(secteurs[c.secteur_id])
         secteurs[c.secteur_id]["cellules"].append([c.nom, c.techno])
     return {"sites": [s for s in sites.values() if s["secteurs"]], "libres": libres}
+
+
+def zone_pour_carte(evenement: Evenement) -> dict:
+    """Sites de l'événement (coordonnées) et leurs seuls secteurs actifs, entiers ou en partie,
+    pour la carte de la page de l'événement."""
+    incluses = set(evenement.noms_cellules("LTE")) | set(evenement.noms_cellules("WCDMA"))
+    ids = set(Cellule.objects.filter(nom__in=incluses, secteur__isnull=False).values_list("secteur_id", flat=True))
+    totaux = {}
+    for secteur_id, nom in Cellule.objects.filter(secteur_id__in=ids).values_list("secteur_id", "nom"):
+        totaux.setdefault(secteur_id, [0, 0])
+        totaux[secteur_id][0] += 1
+        totaux[secteur_id][1] += nom in incluses
+    sites = {}
+    for sect in Secteur.objects.filter(pk__in=ids).select_related("site").order_by("site__code_site", "numero"):
+        site = sites.setdefault(sect.site_id, {"code": sect.site.code_site, "nom": sect.site.nom,
+                                               "lat": sect.site.latitude, "lon": sect.site.longitude, "secteurs": []})
+        total, actives = totaux.get(sect.pk, [0, 0])
+        site["secteurs"].append({"code": sect.code, "numero": sect.numero, "azimut": sect.azimut,
+                                 "etat": "choisi" if actives == total else "partiel",
+                                 "cellules": f"{actives}/{total}"})
+    places = [s for s in sites.values() if s["lat"] is not None and s["lon"] is not None]
+    return {"sites": places, "sans_position": len(sites) - len(places),
+            "nb_secteurs": len(ids), "nb_cellules": len(incluses)}
 
 
 def groupes_kpi(formulaire: EvenementForm) -> list[dict]:

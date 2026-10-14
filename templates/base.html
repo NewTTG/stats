@@ -40,5 +40,6 @@
   <main id="contenu"><div class="conteneur">{% for m in messages %}<div class="message {% if m.tags == 'error' %}erreur{% else %}succes{% endif %}" role="status">{{ m }}</div>{% endfor %}{% block contenu %}{% endblock %}</div></main>
   <footer class="pied-page"><div class="conteneur"><span>Stats réseau · OPT</span><span>Heure de Nouméa · Usage interne</span></div></footer>
 </div>
+<script src="{% static 'js/attente.js' %}" defer></script>
 {% block scripts %}{% endblock %}
 </body></html>

@@ -44,6 +44,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "config.chronometre.DureeRequeteMiddleware",  # durée de chaque requête (journal, pied de page)
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -142,6 +143,18 @@ KPI_CATALOGUE_PATH = BASE_DIR / "config" / "kpi_catalogue.yaml"
 # Référentiel réseau rechargé depuis l'administration : dernier xlsx déposé (MEDIA_ROOT/referentiel/),
 # sinon ce fichier.
 REFERENTIEL_XLSX = Path(env("REFERENTIEL_XLSX") or BASE_DIR / "OPT_Network_Database_V2.xlsx")
+
+# Durée des requêtes (config/chronometre.py) : chaque page est journalisée avec sa durée,
+# en avertissement au-delà de ce seuil (secondes).
+REQUETE_LENTE_S = float(env("REQUETE_LENTE_S") or 10)
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"horodate": {"format": "[{asctime}] {levelname} {name} : {message}", "style": "{"}},
+    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "horodate"}},
+    "loggers": {"stats.requetes": {"handlers": ["console"], "level": env("REQUETE_LOG_NIVEAU", "INFO"),
+                                   "propagate": False}},
+}
 
 # Fond de carte des événements (sélection des sites et secteurs). Vide : pas de fond, les sites
 # et secteurs restent dessinés. Les tuiles sont chargées par le navigateur de l'utilisateur.

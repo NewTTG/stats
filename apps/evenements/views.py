@@ -1,4 +1,5 @@
 import logging
+from itertools import zip_longest
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -22,7 +23,7 @@ from apps.rapports.contenu import LIBELLES_REGLE
 from .acces import evenements_visibles
 from .analyse import NIVEAUX, AnalyseImpossible, analyser
 from . import periode
-from .edition import EvenementForm, groupes_kpi, nb_kpis_principaux, reseau_pour_carte
+from .edition import EvenementForm, groupes_kpi, nb_kpis_principaux, reseau_pour_carte, zone_pour_carte
 from .models import Creneau, Evenement
 
 journal = logging.getLogger(__name__)
@@ -43,29 +44,31 @@ def liste(request):
 def _graphiques(res):
     return {"instants": res.instants, "kpis": [
         {"titre": f"{c.kpi.libelle} ({c.kpi.unite})", "unite": c.kpi.unite, "seuils": c.kpi.seuils.model_dump(),
-         "evenement": c.evenement, "reference": c.reference, "min": c.ref_min, "max": c.ref_max}
+         "evenement": c.evenement, "reference": c.reference, "min": c.ref_min, "max": c.ref_max,
+         "sites": [{"nom": n, "valeurs": v} for n, v in c.par_site.items()],
+         "cellules": [{"nom": n, "valeurs": v} for n, v in c.par_cellule.items()]}
         for c in res.courbes]}
 
 
 def _periode_demandee(request, evenement):
-    """(créneaux, lignes du formulaire, erreur) : période de l'URL, sinon créneaux mémorisés."""
-    debuts, fins = request.GET.getlist("debut"), request.GET.getlist("fin")
-    if not (debuts or fins):
-        creneaux = periode.memorises(evenement)
-        return creneaux, periode.parametres(creneaux), None
-    lignes = [p for d, f in zip(debuts, fins) for p in (("debut", d), ("fin", f))]
+    """(créneaux, saisie à afficher, erreur) : période de l'adresse, sinon créneaux mémorisés."""
     try:
-        creneaux = periode.lire(debuts, fins)
+        creneaux, saisie = periode.lire(request.GET)
     except periode.PeriodeInvalide as e:
-        return [], lignes, str(e)
-    return creneaux, periode.parametres(creneaux), None
+        return [], _saisie_brute(request.GET), str(e)
+    if not creneaux and not saisie.du and not saisie.detail:
+        creneaux = periode.memorises(evenement)
+        saisie = periode.saisie(creneaux)
+    return creneaux, saisie, None
 
 
-def _lignes_formulaire(parametres):
-    """[(début, fin)] au format du champ date + heure ; une ligne vide si aucune."""
-    valeurs = [v for _, v in parametres]
-    lignes = list(zip(valeurs[0::2], valeurs[1::2]))
-    return lignes or [("", "")]
+def _saisie_brute(donnees):
+    """Saisie erronée réaffichée telle quelle."""
+    if donnees.get("detail"):
+        return periode.Saisie(detail=True, lignes=list(zip_longest(
+            donnees.getlist("jour"), donnees.getlist("de"), donnees.getlist("a"), fillvalue="")))
+    return periode.Saisie(du=donnees.get("du", ""), au=donnees.get("au", ""), de=donnees.get("de", ""),
+                          a=donnees.get("a", ""))
 
 
 @login_required
@@ -76,13 +79,18 @@ def detail(request, pk):
     niveau = request.GET.get("niveau", "secteur")
     if niveau not in NIVEAUX:
         niveau = "secteur"
-    creneaux, parametres, erreur_periode = _periode_demandee(request, evenement)
+    creneaux, saisie, erreur_periode = _periode_demandee(request, evenement)
+    parametres = periode.parametres(creneaux)
     url = reverse("evenements:detail", args=[evenement.pk])
     contexte = {
         "evenement": evenement, "niveau": niveau, "niveaux": NIVEAUX, "regles": LIBELLES_REGLE,
-        "creneaux": creneaux, "lignes_periode": _lignes_formulaire(parametres), "erreur_periode": erreur_periode,
-        "periode_url": urlencode(parametres) if creneaux else "",
-        "parametres_periode": parametres if creneaux else [],
+        "zone": zone_pour_carte(evenement),
+        "carte_tuiles": settings.CARTE_TUILES_URL, "carte_attribution": settings.CARTE_TUILES_ATTRIBUTION,
+        "creneaux": creneaux, "saisie": saisie, "erreur_periode": erreur_periode,
+        "lignes_detail": saisie.lignes or [("", "", "")],
+        "heures_debut": periode.HEURES_DEBUT, "heures_fin": periode.HEURES_FIN,
+        "periode_url": urlencode(parametres),
+        "parametres_periode": parametres,
         "decalages": [(libelle, f"{url}?{urlencode(periode.parametres(periode.decaler(creneaux, mois, jours)) + [('niveau', niveau)])}")
                       for libelle, mois, jours in periode.DECALAGES] if creneaux else [],
         "peut_memoriser": bool(creneaux) and request.user.has_perm("evenements.change_evenement")
@@ -127,7 +135,7 @@ def memoriser_periode(request, pk):
     _exiger(request, "change")
     evenement = get_object_or_404(evenements_visibles(request.user, Evenement.objects.filter(pk=pk)))
     try:
-        creneaux = periode.lire(request.POST.getlist("debut"), request.POST.getlist("fin"))
+        creneaux = periode.lire(request.POST)[0]
     except periode.PeriodeInvalide as e:
         messages.error(request, str(e))
         return redirect("evenements:detail", evenement.pk)

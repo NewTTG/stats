@@ -5,14 +5,19 @@
 .workspace .periode-evenement .periode-entete h2 { margin: 0; }
 .periode-entete .aide { margin: 0; color: var(--texte-3); }
 .periode-evenement .erreur { margin: 0 0 12px; }
-.periode-creneaux { display: flex; flex-direction: column; gap: 8px; }
-.periode-creneau { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; padding: 10px 12px; border: 1px solid var(--bord); border-radius: 10px; background: #fbfcfb; }
-.workspace .periode-creneau label { display: flex; flex-direction: column; gap: 4px; margin: 0; color: var(--texte-3); font-size: 11px; font-weight: 600; }
-.periode-creneau input { width: 220px; background: #fff; }
-.periode-fleche { padding-bottom: 10px; color: var(--texte-3); }
-.periode-duree { min-width: 70px; padding-bottom: 10px; color: var(--texte-2); font-size: 12px; font-variant-numeric: tabular-nums; }
-.periode-duree.erreur { color: var(--critique); background: none; border: 0; padding: 0 0 10px; }
-.periode-outils { display: flex; align-items: center; gap: 10px; margin-left: auto; padding-bottom: 6px; }
+.periode-simple, .periode-detail { margin: 0; padding: 0; border: 0; min-width: 0; }
+.periode-simple, .periode-ligne { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; padding: 12px 14px;
+  border: 1px solid var(--bord); border-radius: 10px; background: #fbfcfb; }
+.periode-lignes { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.workspace .periode-evenement label:not(.periode-bascule) { display: flex; flex-direction: column; gap: 4px; margin: 0; color: var(--texte-3); font-size: 11px; font-weight: 600; }
+.periode-evenement label small { font-weight: 400; }
+.periode-evenement input[type="date"] { width: 170px; background: #fff; }
+.periode-evenement select { width: 130px; background: #fff; }
+.periode-sep { width: 8px; }
+.periode-duree { min-width: 70px; padding-bottom: 11px; color: var(--texte-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.periode-ligne .periode-retirer { margin-left: auto; margin-bottom: 6px; }
+.workspace .periode-bascule { display: inline-flex; align-items: center; gap: 7px; margin: 0; color: var(--texte); font-size: 12px; font-weight: 550; cursor: pointer; }
+.periode-bascule input { width: auto; min-height: 0; margin: 0; accent-color: #1b6652; }
 .periode-retirer { display: inline-grid; place-items: center; width: 26px; height: 26px; min-height: 0; padding: 0; border: 0; border-radius: 6px;
   background: transparent; color: var(--texte-3); font-size: 18px; line-height: 1; cursor: pointer; }
 .periode-retirer:hover { background: #f2f6f3; color: var(--critique); }
@@ -24,9 +29,25 @@
 .periode-decalages a { padding: 5px 9px; border-radius: 5px; color: #426052; font-size: 11px; text-decoration: none; white-space: nowrap; }
 .periode-decalages a:hover { background: #eaf3ec; color: #1b6652; }
 .periode-memoriser { margin-top: 10px; }
+.periode-simple[hidden], .periode-detail[hidden] { display: none; }
 
 @media (max-width: 700px) {
-  .periode-creneau label, .periode-creneau input { width: 100%; }
-  .periode-fleche { display: none; }
+  .periode-evenement label:not(.periode-bascule), .periode-evenement input[type="date"], .periode-evenement select { width: 100%; }
+  .periode-sep { display: none; }
   .periode-actions > .bouton[type="submit"] { width: 100%; margin-left: 0; }
 }
+
+/* Courbes de l'événement : choix Global / Par site / Par cellule (static/js/kpi.js). */
+.courbes-vue { margin: 0 0 12px; }
+
+/* Carte de la zone couverte : sites et secteurs actifs seulement (static/js/evenement-zone.js). */
+.zone-carte { height: 300px; border: 1px solid var(--bord); border-radius: 10px; background: #eef2ef; overflow: hidden; }
+.zone-carte .leaflet-control-attribution { font-size: 10px; }
+.zone-marqueur svg { display: block; overflow: visible; }
+.zone-coin { stroke: #0f3b2f; stroke-width: 1.2; }
+.zone-coin.choisi { fill: rgba(27, 102, 82, .85); }
+.zone-coin.partiel { fill: rgba(27, 102, 82, .38); }
+.zone-coin.estime { stroke-dasharray: 3 2; }
+.zone-centre { fill: #1b6652; stroke: #fff; stroke-width: 2; }
+.zone-nom { position: absolute; left: 50%; top: calc(100% - 4px); transform: translateX(-50%); padding: 1px 5px; border-radius: 4px;
+  background: rgba(24, 60, 56, .88); color: #fff; font-size: 10px; font-weight: 600; white-space: nowrap; }

@@ -376,16 +376,24 @@ bilan complet ; un indicateur explicite reste prioritaire (« stats du débit »
 - Cellules : codes site (toutes leurs cellules), codes secteur et/ou noms de cellules
   LTE ou WCDMA. Elles sont enregistrées par leur nom : un nouvel import du référentiel
   ne les perd pas (un code absent du référentiel est signalé sur la page d'édition).
+- Durée des requêtes : chaque page est journalisée avec sa durée (`stats.requetes`, console),
+  en avertissement au-delà de `REQUETE_LENTE_S` secondes (10 par défaut), et envoyée dans
+  l'en-tête `Server-Timing`. Côté navigateur, une barre de chargement et le temps écoulé
+  s'affichent si la page suivante tarde plus de 3 s (`static/js/attente.js`).
 - Fond de carte : `CARTE_TUILES_URL` (OpenStreetMap par défaut, chargé par le navigateur, qui
   envoie l'origine du site en Referer comme l'exige OpenStreetMap) ; vide, les sites et secteurs
   restent dessinés sans fond. Leaflet est servi localement.
 - Période : choisie sur la page de l'événement, pas dans sa définition (un même lieu sert d'une
-  édition à l'autre). Autant de créneaux que nécessaire (plusieurs jours, horaires différents),
-  en heure de Nouméa, 31 jours cumulés au plus ; « Copier au lendemain » duplique un créneau et
-  les raccourcis −1 an / −1 mois / ±1 semaine / +1 mois / +1 an décalent toute la période. La
-  période est dans l'adresse de la page (lien partageable) et suit les rapports PDF / Excel /
-  PowerPoint. « Proposer cette période à la prochaine ouverture » la mémorise avec l'événement
-  (droit de modification) ; sans période mémorisée, la page demande d'en choisir une.
+  édition à l'autre). Heures pleines (la base est horaire), heure de Nouméa : jours « du … au … »
+  à la même plage horaire « de … à … » (une heure de fin inférieure à celle du début : la plage
+  finit le lendemain), ou « Heures différentes selon les jours », une ligne par jour préremplie
+  depuis la plage commune. 31 jours au plus. Les raccourcis −1 an / −1 mois / ±1 semaine /
+  +1 mois / +1 an décalent toute la période. La période est dans l'adresse de la page (lien
+  partageable) et suit les rapports PDF / Excel / PowerPoint. « Proposer cette période à la
+  prochaine ouverture » la mémorise avec l'événement (droit de modification).
+- Page de l'événement : carte de la zone couverte (seuls les sites et secteurs actifs, cadrée sur
+  la zone), puis courbes horaires en trois vues : Global (événement, référence, bande min–max),
+  Par site et Par cellule (une courbe par site / cellule, noms en légende).
 - Référence : moyenne des mêmes créneaux décalés de 1 à N semaines. Pour un KPI
   additif (volume, trafic), c'est la moyenne des semaines, pas leur somme.
 - KPI analysés : ceux de l'événement s'il en liste, sinon les KPI principaux du
