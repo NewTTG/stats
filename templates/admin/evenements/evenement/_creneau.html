@@ -1,0 +1,14 @@
+<div class="ev-creneau{% if form.errors %} en-erreur{% endif %}" data-creneau{% if form.instance.pk %} data-existant{% endif %}>
+  {% for champ in form.hidden_fields %}{{ champ }}{% endfor %}
+  <label class="ev-creneau-champ"><span>Début</span>{{ form.debut }}</label>
+  <span class="ev-fleche" aria-hidden="true">→</span>
+  <label class="ev-creneau-champ"><span>Fin</span>{{ form.fin }}</label>
+  <span class="ev-duree" data-duree></span>
+  <span class="ev-creneau-actions">
+    <button type="button" class="ev-lien" data-jour-suivant title="Ajouter le même créneau le lendemain">Copier au lendemain</button>
+    <button type="button" class="ev-icone" data-retirer-creneau aria-label="Retirer ce créneau" title="Retirer ce créneau">×</button>
+    <button type="button" class="ev-lien" data-annuler-retrait hidden>Annuler le retrait</button>
+  </span>
+  {% if form.DELETE %}<span hidden>{{ form.DELETE }}</span>{% endif %}
+  {% if form.errors %}<div class="ev-creneau-erreurs">{{ form.non_field_errors }}{{ form.debut.errors }}{{ form.fin.errors }}</div>{% endif %}
+</div>

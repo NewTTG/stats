@@ -68,7 +68,7 @@ Les colonnes `Max_max` (ex. `RrcConnMax_max_nb`) s'agrègent en **max**, pas en 
 | Onglet | Lignes | Rôle | Colonnes clés |
 |---|---|---|---|
 | `Site_File` | 588 | un site physique | `codeSite`, `Trigramme`, `commune` (33), `region` (NORD, SUD, GRD NEA 1, NEA, ILES), `siteNameWcdma`, `siteNameLte`, `RBS_Name_3G`, `ERBS`, `lonWgs84`/`latWgs84`, `nbSect`, `bandType` |
-| `Cell_File` | 1 391 | un secteur (`cells` = `codeSite` + n° secteur) : **non utilisé** : numérotation peu fiable (sites déportés en 4-6, secteurs manquants) | `cells`, `codeSite`, `commune`, `province`, `azimut`, `NbCarrierLte`, `nbCarrierWcdma`, `Trigramme` |
+| `Cell_File` | 1 391 | un secteur (`cells` = `codeSite` + n° secteur) : **azimut seulement** (carte des événements) : numérotation peu fiable (sites déportés en 4-6, secteurs manquants) | `cells`, `codeSite`, `commune`, `province`, `azimut`, `NbCarrierLte`, `nbCarrierWcdma`, `Trigramme` |
 | `Cluster` | 342 | cellules par **événement** (24 clusters : carnaval, foires…) | `Cluster`, `RBS`, `Trigramme`, `Cellule`, `Type` (Concert / Day) |
 
 Coordonnées GPS disponibles → carte possible pour la sélection de cellules.

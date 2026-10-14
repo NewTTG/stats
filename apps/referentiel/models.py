@@ -57,6 +57,8 @@ class Secteur(models.Model):
     code = models.CharField(max_length=16, unique=True)  # <codeSite><n° secteur>
     site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name="secteurs")
     numero = models.PositiveSmallIntegerField("n° secteur")
+    # Orientation indicative (onglet Cell_File) : sert seulement à dessiner le secteur sur la carte.
+    azimut = models.PositiveSmallIntegerField("azimut (°)", null=True, blank=True)
 
     class Meta:
         ordering = ["code"]

@@ -27,7 +27,7 @@ Les hypothèses retenues en attendant sont indiquées.
      site à 4 secteurs : A/B/C/D porteuse 1, J/K/L/M porteuse 2.
    - ✅ Secteur du reporting = secteur physique du site, toutes technos et porteuses
      confondues (ex. secteur 1 d'Aiguade : AIG101A/D/J, AIGe1/e11/e21), déduit des noms de
-     cellules ; site rattaché par le trigramme dans `Site_File` (`Cell_File` non utilisé).
+     cellules ; site rattaché par le trigramme dans `Site_File` (`Cell_File` : azimut seulement).
    - ✅ Passage de 3 à 4 secteurs (DTS009, MDO355) : D/E/F = secteurs 1-3 avant, D = secteur 4
      ensuite, E et F sans statistiques. Date : `manage.py detecter_bascules` (1re apparition
      de e4 / M dans la base KPI) ou admin → Sites. Sans cellule M (MDO355), la date de

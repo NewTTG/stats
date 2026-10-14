@@ -1,0 +1,181 @@
+{% extends "admin/change_form.html" %}
+{% load i18n static admin_urls %}
+{% comment %}
+Création / modification d'un événement (EvenementAdmin.render_change_form) : une page, quatre blocs
+(événement, zone couverte sur carte, créneaux, analyse). Sites, secteurs et cellules sont des champs
+cachés tenus par static/js/evenement-edition.js ; sans JavaScript, la sélection existante est conservée.
+{% endcomment %}
+
+{% block extrastyle %}{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/leaflet-1.9.4/leaflet.css' %}">
+<link rel="stylesheet" href="{% static 'css/evenement-edition.css' %}">
+{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+<script src="{% static 'vendor/leaflet-1.9.4/leaflet.js' %}" defer></script>
+<script src="{% static 'js/evenement-edition.js' %}" defer></script>
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} edition-evenement{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">Accueil</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">Événements</a>
+&rsaquo; {% if add %}Nouvel événement{% else %}{{ original|truncatewords:"18" }}{% endif %}
+</div>
+{% endblock %}
+
+{% block content_title %}
+<div class="page-entete">
+  <div>
+    <h1>{% if add %}Nouvel événement{% else %}{{ original.nom }}{% endif %}</h1>
+    <p>{% if add %}Nommez l'événement, choisissez les sites ou secteurs concernés sur la carte, puis indiquez ses créneaux.
+       {% else %}Créé{% if original.cree_par %} par {{ original.cree_par }}{% endif %} le {{ original.cree_le|date:"j F Y" }}.{% endif %}</p>
+  </div>
+  {% if change %}
+  <div class="page-actions">
+    <a class="bouton" href="{% url 'evenements:detail' original.pk %}">Voir l'analyse</a>
+    <a class="bouton" href="{% url opts|admin_urlname:'history' original.pk|admin_urlquote %}">Historique</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block object-tools %}{% endblock %}
+
+{% block field_sets %}
+{% with f=adminform.form %}
+<section class="panneau ev-bloc" aria-labelledby="ev-titre-infos">
+  <header class="panneau-entete"><h2 id="ev-titre-infos">Événement</h2></header>
+  <div class="ev-corps ev-grille-infos">
+    <div class="ev-champ">
+      <label for="{{ f.nom.id_for_label }}">Nom</label>
+      {{ f.nom }}
+      {{ f.nom.errors }}
+    </div>
+    <div class="ev-champ">
+      <label for="{{ f.type.id_for_label }}">Type <span class="ev-facultatif">facultatif</span></label>
+      {{ f.type }}
+      <datalist id="types-evenement">{% for t in types_existants %}<option value="{{ t }}">{% endfor %}</datalist>
+      {{ f.type.errors }}
+    </div>
+    <div class="ev-champ ev-plein">
+      <label for="{{ f.description.id_for_label }}">Description <span class="ev-facultatif">facultatif</span></label>
+      {{ f.description }}
+      {{ f.description.errors }}
+    </div>
+  </div>
+</section>
+
+<section class="panneau ev-bloc" id="ev-zone" aria-labelledby="ev-titre-zone"
+  data-reseau="{{ url_reseau }}" data-tuiles="{{ carte_tuiles }}" data-attribution="{{ carte_attribution }}">
+  <header class="panneau-entete">
+    <div>
+      <h2 id="ev-titre-zone">Zone couverte</h2>
+      <p class="ev-aide">Sur la carte, le point central sélectionne le site entier, chaque secteur (ouverture indicative de 60°) se sélectionne seul.</p>
+    </div>
+    <p class="ev-total" data-total aria-live="polite"></p>
+  </header>
+  {{ f.sites }}{{ f.secteurs }}{{ f.cellules }}
+  {% if f.sites.errors %}<div class="ev-corps ev-erreur-zone">{{ f.sites.errors }}</div>{% endif %}
+  <div class="ev-zone">
+    <div class="ev-zone-panneau">
+      <div class="ev-recherche">
+        <label class="visually-hidden" for="ev-recherche">Ajouter un site, un secteur ou une cellule</label>
+        <input id="ev-recherche" type="search" autocomplete="off" spellcheck="false" disabled
+          placeholder="Site, commune, secteur ou cellule…" role="combobox" aria-autocomplete="list"
+          aria-expanded="false" aria-controls="ev-suggestions">
+        <ul id="ev-suggestions" class="ev-suggestions" role="listbox" hidden></ul>
+      </div>
+      <div class="ev-selection" data-selection>
+        <p class="ev-vide">Chargement du référentiel…</p>
+      </div>
+    </div>
+    <div class="ev-carte-cadre">
+      <div class="ev-carte" data-carte role="application" aria-label="Carte des sites et secteurs"></div>
+      <div class="ev-legende" aria-hidden="true">
+        <span><i class="ev-pastille choisi"></i>Sélectionné</span>
+        <span><i class="ev-pastille partiel"></i>En partie</span>
+        <span><i class="ev-pastille libre"></i>Non sélectionné</span>
+        <span><i class="ev-pastille estime"></i>Azimut inconnu</span>
+      </div>
+      <button type="button" class="bouton ev-recentrer" data-recentrer>Recentrer sur la sélection</button>
+    </div>
+  </div>
+  <noscript><p class="ev-corps ev-aide">La carte demande JavaScript ; la sélection enregistrée reste inchangée.</p></noscript>
+</section>
+{% endwith %}
+
+{% with fs=creneaux %}
+<section class="panneau ev-bloc" aria-labelledby="ev-titre-creneaux">
+  <header class="panneau-entete">
+    <div>
+      <h2 id="ev-titre-creneaux">Créneaux</h2>
+      <p class="ev-aide">Heure de Nouméa. Plusieurs jours : un créneau par jour.</p>
+    </div>
+  </header>
+  <div class="ev-corps">
+    {{ fs.management_form }}
+    {{ fs.non_form_errors }}
+    <div class="ev-creneaux" data-creneaux data-prefix="{{ fs.prefix }}">
+      {% for form in fs.forms %}{% include "admin/evenements/evenement/_creneau.html" %}{% endfor %}
+    </div>
+    <p class="ev-vide ev-sans-creneau" data-sans-creneau{% if fs.forms %} hidden{% endif %}>Aucun créneau : l'événement ne pourra pas être analysé.</p>
+    <template data-modele-creneau>{% include "admin/evenements/evenement/_creneau.html" with form=fs.empty_form %}</template>
+    <button type="button" class="bouton ev-ajouter" data-ajouter-creneau>+ Ajouter un créneau</button>
+  </div>
+</section>
+{% endwith %}
+
+{% with f=adminform.form %}
+<section class="panneau ev-bloc" aria-labelledby="ev-titre-analyse">
+  <header class="panneau-entete">
+    <div>
+      <h2 id="ev-titre-analyse">Analyse</h2>
+      <p class="ev-aide">Chaque créneau est comparé aux mêmes jour et heures des semaines précédentes.</p>
+    </div>
+  </header>
+  <div class="ev-corps">
+    <div class="ev-champ ev-semaines">
+      <label for="{{ f.semaines_reference.id_for_label }}">Période de référence</label>
+      <div class="ev-en-ligne">{{ f.semaines_reference }}<span>semaines précédentes</span></div>
+      {{ f.semaines_reference.errors }}
+    </div>
+    <fieldset class="ev-champ ev-kpis" data-kpis>
+      <legend>KPI analysés</legend>
+      <label class="ev-option"><input type="radio" name="kpis_choisis" value="false"{% if not kpis_choisis %} checked{% endif %}>
+        KPI principaux <small>{{ nb_kpis_principaux }} indicateurs, sans le détail des causes de coupure</small></label>
+      <label class="ev-option"><input type="radio" name="kpis_choisis" value="true"{% if kpis_choisis %} checked{% endif %}>
+        Choisir les KPI <small data-nb-kpis></small></label>
+      {{ f.kpis.errors }}
+      <div class="ev-kpis-liste" data-kpis-liste>
+        {% for groupe in groupes_kpi %}
+        <div class="ev-kpis-techno">
+          <h3>{{ groupe.titre }}</h3>
+          {% for categorie, kpis in groupe.categories %}
+          <div class="ev-kpis-categorie">
+            <h4>{{ categorie }}</h4>
+            {% for k in kpis %}<label class="ev-case{% if k.cause %} cause{% endif %}"><input type="checkbox" name="kpis" value="{{ k.code }}"{% if k.coche %} checked{% endif %}>{{ k.libelle }}</label>{% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+    </fieldset>
+  </div>
+</section>
+{% endwith %}
+{% endblock %}
+
+{% block inline_field_sets %}{% endblock %}
+
+{% block submit_buttons_bottom %}
+<div class="ev-actions">
+  <button type="submit" name="_save" class="bouton primaire">Enregistrer</button>
+  {% if change and has_delete_permission %}<a class="ev-supprimer" href="{% url opts|admin_urlname:'delete' original.pk|admin_urlquote %}">Supprimer l'événement</a>{% endif %}
+  <span class="ev-actions-espace"></span>
+  <a class="bouton" href="{% url opts|admin_urlname:'changelist' %}">Annuler</a>
+  <button type="submit" name="_analyse" class="bouton">Enregistrer et voir l'analyse</button>
+</div>
+{% endblock %}
