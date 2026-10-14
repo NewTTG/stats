@@ -110,8 +110,8 @@ APPLICATION = [
     ('kpi:dashboard', {}, 200),
     ('kpi:requete', {}, 200), ('kpi:suggestions', {}, 200),
     ('evenements:liste', {}, 200), ('evenements:detail', {'pk': 1}, 200),
-    # Création / modification : droits evenements.* requis (l'analyste ne les a pas).
-    ('evenements:nouveau', {}, 403), ('evenements:modifier', {'pk': 1}, 403), ('evenements:reseau', {}, 403),
+    # Création / modification : ouvertes à tous, sans droit evenements.* particulier.
+    ('evenements:nouveau', {}, 200), ('evenements:modifier', {'pk': 1}, 200), ('evenements:reseau', {}, 200),
     ('evenements:supprimer', {'pk': 1}, 405), ('evenements:memoriser_periode', {'pk': 1}, 405),
     ('evenements:enregistrer_edition', {'pk': 1}, 405),
     # Réseau : consultation ouverte à qui voit tout le réseau ; déclaration / modification : droits referentiel.*.
@@ -123,8 +123,9 @@ APPLICATION = [
     ('rapports:planifie_basculer', {'pk': 1}, 405), ('rapports:planifie_supprimer', {'pk': 1}, 405),
     ('login', {}, 200), ('logout', {}, 405),
 ]
-LECTURES = [nom for nom, _, statut in APPLICATION if statut == 200 and nom not in ('login', 'rapports:enregistrer')]
-MUTATIONS = [nom for nom, _, statut in APPLICATION if statut == 405] + ['rapports:enregistrer']
+FORMULAIRES = ['rapports:enregistrer', 'evenements:nouveau', 'evenements:modifier']
+LECTURES = [nom for nom, _, statut in APPLICATION if statut == 200 and nom not in ['login'] + FORMULAIRES]
+MUTATIONS = [nom for nom, _, statut in APPLICATION if statut == 405] + FORMULAIRES
 
 
 @pytest.fixture

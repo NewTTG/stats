@@ -6,11 +6,10 @@
 <div class="entete-page">
   <div>
     <h1>{{ evenement.nom }}</h1>
-    {% if evenement.type %}<p class="sous-titre">{{ evenement.type }}</p>{% endif %}
+    {% if evenement.type or not evenement.public %}<p class="sous-titre">{{ evenement.type }}{% if not evenement.public %}
+      <span class="etiquette prive" title="Visible par vous seul">Privé</span>{% endif %}</p>{% endif %}
   </div>
-  {% if perms.evenements.change_evenement %}
   <div class="boutons"><a class="bouton secondaire" href="{% url 'evenements:modifier' evenement.pk %}">Modifier l'événement</a></div>
-  {% endif %}
 </div>
 {% if evenement.description %}<p class="description-evenement">{{ evenement.description }}</p>{% endif %}
 

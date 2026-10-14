@@ -41,6 +41,16 @@ la sélection enregistrée est conservée.
       <label for="{{ f.description.id_for_label }}">Description <span class="ev-facultatif">facultatif</span></label>
       {{ f.description }}{{ f.description.errors }}
     </div>
+    {% if f.public %}
+    <fieldset class="ev-champ ev-plein ev-visibilite">
+      <legend>Visibilité</legend>
+      <label class="ev-option"><input type="radio" name="public" value="public"{% if f.public.value != "prive" %} checked{% endif %}>
+        <span>Public <small>visible et modifiable par tous les utilisateurs</small></span></label>
+      <label class="ev-option"><input type="radio" name="public" value="prive"{% if f.public.value == "prive" %} checked{% endif %}>
+        <span>Privé <small>visible et modifiable par vous seul</small></span></label>
+      {{ f.public.errors }}
+    </fieldset>
+    {% endif %}
   </div>
 </section>
 

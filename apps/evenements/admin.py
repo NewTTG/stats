@@ -32,8 +32,8 @@ class CreneauxFilter(admin.SimpleListFilter):
 @admin.register(Evenement)
 class EvenementAdmin(admin.ModelAdmin):
     inlines = [CreneauInline]
-    list_display = ["nom", "type", "premier_creneau", "nb_creneaux", "semaines_reference"]
-    list_filter = [CreneauxFilter, "type"]
+    list_display = ["nom", "type", "public", "cree_par", "premier_creneau", "nb_creneaux", "semaines_reference"]
+    list_filter = [CreneauxFilter, "type", "public"]
     search_fields = ["nom", "description"]
 
     # Création et modification : pages de l'application (/evenements/), avec la carte des secteurs.

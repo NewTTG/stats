@@ -12,15 +12,16 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_POST, require_safe
+from django.views.decorators.http import require_http_methods, require_POST, require_safe
 from sqlalchemy.exc import SQLAlchemyError
 
 from apps.comptes.models import JournalAudit
 from apps.comptes import suivi
-from apps.comptes.acces import voit_tout_le_reseau
+from apps.comptes.acces import cellules_autorisees, voit_tout_le_reseau
 from apps.kpi.source import BaseKpiNonConfiguree, MESSAGE_BASE_INDISPONIBLE, moteur_kpi
 from apps.rapports.contenu import LIBELLES_REGLE
 
+from . import acces
 from .acces import evenements_visibles
 from .analyse import NIVEAUX, AnalyseImpossible, analyser
 from . import archives, periode
@@ -131,8 +132,7 @@ def detail(request, pk):
         "parametres_periode": parametres_complets,
         "decalages": [(libelle, f"{url}?{urlencode(periode.parametres(periode.decaler(creneaux, mois, jours)) + [('niveau', niveau)])}")
                       for libelle, mois, jours in periode.DECALAGES] if creneaux else [],
-        "peut_memoriser": bool(creneaux) and request.user.has_perm("evenements.change_evenement")
-                          and creneaux != periode.memorises(evenement),
+        "peut_memoriser": bool(creneaux) and creneaux != periode.memorises(evenement),
     }
     if not creneaux or erreur_periode:  # rien à analyser : on demande la période
         return render(request, "evenements/detail.html", contexte)
@@ -173,7 +173,6 @@ def detail(request, pk):
 @require_POST
 def memoriser_periode(request, pk):
     """La période affichée devient celle proposée à la prochaine ouverture de l'événement."""
-    _exiger(request, "change")
     evenement = get_object_or_404(evenements_visibles(request.user, Evenement.objects.filter(pk=pk)))
     try:
         creneaux = periode.lire(request.POST)[0]
@@ -224,16 +223,17 @@ def _exiger(request, droit):
 
 
 @login_required
+@require_http_methods(["GET", "HEAD", "POST"])
 def edition(request, pk=None):
-    """Création (``pk`` vide) ou modification d'un événement : zone couverte sur carte, créneaux, KPI."""
+    """Création (``pk`` vide) ou modification d'un événement : zone couverte sur carte, créneaux, KPI.
+    Ouverte à tous : on modifie les événements que l'on voit (cf. ``acces``)."""
     if pk is None:
-        _exiger(request, "add")
         evenement = Evenement()
     else:
-        _exiger(request, "change")
         evenement = get_object_or_404(evenements_visibles(request.user, Evenement.objects.filter(pk=pk)))
     donnees = request.POST if request.method == "POST" else None
-    formulaire = EvenementForm(donnees, instance=evenement)
+    formulaire = EvenementForm(donnees, instance=evenement,
+                               visibilite=acces.peut_choisir_visibilite(request.user, evenement))
     if donnees is not None and formulaire.is_valid():
         evenement = formulaire.save(commit=False)
         if not evenement.cree_par_id:
@@ -249,19 +249,21 @@ def edition(request, pk=None):
     return render(request, "evenements/edition.html", {
         "evenement": evenement, "formulaire": formulaire,
         "erreurs": donnees is not None,
-        "types_existants": sorted(set(Evenement.objects.exclude(type="").values_list("type", flat=True))),
+        "types_existants": sorted(set(evenements_visibles(request.user).exclude(type="").values_list(
+            "type", flat=True))),
         "groupes_kpi": groupes_kpi(formulaire), "nb_kpis_principaux": nb_kpis_principaux(),
         "kpis_choisis": bool(formulaire["kpis_choisis"].value()),
         "carte_tuiles": settings.CARTE_TUILES_URL, "carte_attribution": settings.CARTE_TUILES_ATTRIBUTION,
-        "peut_supprimer": pk is not None and request.user.has_perm("evenements.delete_evenement"),
+        "peut_supprimer": pk is not None and acces.peut_supprimer(request.user, evenement),
     })
 
 
 @login_required
 @require_POST
 def supprimer(request, pk):
-    _exiger(request, "delete")
     evenement = get_object_or_404(evenements_visibles(request.user, Evenement.objects.filter(pk=pk)))
+    if not acces.peut_supprimer(request.user, evenement):
+        raise PermissionDenied
     JournalAudit.objects.create(utilisateur=request.user, action="suppression_evenement",
                                 requete={"evenement": evenement.pk, "nom": evenement.nom})
     evenement.delete()
@@ -272,7 +274,8 @@ def supprimer(request, pk):
 @login_required
 @require_safe
 def reseau_json(request):
-    """Référentiel pour la carte de sélection (sites, secteurs avec azimut, cellules)."""
-    if not (request.user.has_perm("evenements.add_evenement") or request.user.has_perm("evenements.change_evenement")):
-        raise PermissionDenied
-    return JsonResponse(reseau_pour_carte(), json_dumps_params={"ensure_ascii": False, "separators": (",", ":")})
+    """Référentiel pour la carte de sélection (sites, secteurs avec azimut, cellules), limité au
+    périmètre autorisé : la création d'événements est ouverte à tous."""
+    permises = None if voit_tout_le_reseau(request.user) else set().union(
+        *(cellules_autorisees(request.user, techno) for techno in ("LTE", "WCDMA")))
+    return JsonResponse(reseau_pour_carte(permises), json_dumps_params={"ensure_ascii": False, "separators": (",", ":")})

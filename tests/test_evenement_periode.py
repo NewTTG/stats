@@ -5,7 +5,7 @@ from datetime import datetime
 from urllib.parse import urlencode
 
 import pytest
-from django.contrib.auth.models import Group, Permission, User
+from django.contrib.auth.models import Group, User
 from django.http import QueryDict
 from django.urls import reverse
 from django.utils import timezone
@@ -142,9 +142,7 @@ def test_memoriser_la_periode(client, evenement):  # noqa: F811
     client.force_login(lecteur)
     url = reverse("evenements:memoriser_periode", args=[evenement.pk])
     donnees = {"du": "2027-09-28", "de": "18", "a": "22"}
-    assert client.post(url, donnees).status_code == 403
-    lecteur.user_permissions.add(Permission.objects.get(codename="change_evenement"))
-    reponse = client.post(url, donnees)
+    reponse = client.post(url, donnees)  # sans droit particulier : qui voit l'événement le modifie
     assert reponse.status_code == 302 and "du=2027-09-28&au=2027-09-28&de=18&a=22" in reponse["Location"]
     creneau = Creneau.objects.get(evenement=evenement)
     assert timezone.localtime(creneau.debut).replace(tzinfo=None) == datetime(2027, 9, 28, 18)

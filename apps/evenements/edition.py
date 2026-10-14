@@ -51,11 +51,15 @@ class EvenementForm(forms.ModelForm):
     deploiements = Deploiements(required=False)
     kpis = forms.MultipleChoiceField(required=False, label="KPI analysés", widget=forms.CheckboxSelectMultiple)
     kpis_choisis = forms.BooleanField(required=False, label="Choisir les KPI analysés")
+    # Absent de l'envoi : visibilité inchangée (public pour un nouvel événement).
+    public = forms.TypedChoiceField(label="Visibilité", required=False, empty_value=None,
+                                    choices=[("public", "Public"), ("prive", "Privé")],
+                                    coerce=lambda valeur: valeur == "public")
 
     class Meta:
         model = Evenement
-        fields = ["nom", "type", "description", "sites", "secteurs", "cellules", "deploiements", "semaines_reference",
-                  "kpis"]
+        fields = ["nom", "type", "description", "public", "sites", "secteurs", "cellules", "deploiements",
+                  "semaines_reference", "kpis"]
         widgets = {
             "nom": forms.TextInput(attrs={"placeholder": "Ex. Foire de Bourail 2026", "autocomplete": "off"}),
             "type": forms.TextInput(attrs={"placeholder": "Concert, Foire, Journée…", "list": "types-evenement",
@@ -64,10 +68,19 @@ class EvenementForm(forms.ModelForm):
             "semaines_reference": forms.NumberInput(attrs={"min": 1, "max": 12}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, visibilite: bool = True, **kwargs):
+        """``visibilite`` : public / privé se choisit (création, ou par le créateur)."""
         super().__init__(*args, **kwargs)
         self.fields["kpis"].choices = [(code, k.libelle) for code, k in catalogue_yaml().items()]
         self.fields["kpis_choisis"].initial = bool(self.instance.kpis)
+        if visibilite:
+            self.initial["public"] = "public" if self.instance.public else "prive"
+        else:
+            del self.fields["public"]
+
+    def clean_public(self):
+        public = self.cleaned_data.get("public")
+        return self.instance.public if public is None else public
 
     def clean(self):
         donnees = super().clean()
@@ -88,20 +101,28 @@ class EvenementForm(forms.ModelForm):
         return donnees
 
 
-def reseau_pour_carte() -> dict:
+def reseau_pour_carte(permises: set[str] | None = None) -> dict:
     """Sites (coordonnées), secteurs (azimut) et cellules du référentiel, pour la carte de sélection.
+    ``permises`` : cellules autorisées (None = tout le réseau) ; seuls leurs sites sont proposés.
 
     Sites mobiles : sans position (elle se déclare dans l'événement), même sans cellule connue."""
+    toutes = permises is None
     sites = {s.pk: {"code": s.code_site, "nom": s.nom, "commune": s.commune, "trigramme": s.trigramme,
                     "lat": None if s.mobile else s.latitude, "lon": None if s.mobile else s.longitude,
                     "mobile": s.mobile, "secteurs": []}
              for s in Site.objects.order_by("code_site")}
-    for sect in Secteur.objects.filter(site__mobile=True, cellules__isnull=True).order_by("numero"):
+    sans_cellule = Secteur.objects.filter(site__mobile=True, cellules__isnull=True)
+    if not toutes:
+        sans_cellule = sans_cellule.none()
+    for sect in sans_cellule.order_by("numero"):
         # Secteur d'une remorque sans cellule : proposé quand même pour la déclaration.
         sites[sect.site_id]["secteurs"].append({"code": sect.code, "numero": sect.numero, "azimut": sect.azimut,
                                                 "cellules": []})
     secteurs, libres = {}, []
-    for c in Cellule.objects.select_related("secteur").order_by("secteur__numero", "techno", "porteuse", "nom"):
+    cellules = Cellule.objects.select_related("secteur")
+    if not toutes:
+        cellules = cellules.filter(nom__in=permises)
+    for c in cellules.order_by("secteur__numero", "techno", "porteuse", "nom"):
         if c.secteur is None or c.secteur.site_id not in sites:
             libres.append([c.nom, c.techno])
             continue
@@ -112,7 +133,7 @@ def reseau_pour_carte() -> dict:
         secteurs[c.secteur_id]["cellules"].append([c.nom, c.techno])
     for site in sites.values():
         site["secteurs"].sort(key=lambda sec: sec["numero"])
-    return {"sites": [s for s in sites.values() if s["secteurs"] or s["mobile"]], "libres": libres}
+    return {"sites": [s for s in sites.values() if s["secteurs"] or (s["mobile"] and toutes)], "libres": libres}
 
 
 def zone_pour_carte(evenement: Evenement) -> dict:

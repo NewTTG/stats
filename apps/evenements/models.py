@@ -26,6 +26,8 @@ class Evenement(models.Model):
     semaines_reference = models.PositiveSmallIntegerField(
         "semaines de référence", default=4, validators=[MinValueValidator(1), MaxValueValidator(12)],
         help_text="Chaque créneau est comparé aux mêmes jour et heures des N semaines précédentes.")
+    # Public : visible de tous (dans le périmètre de chacun) et modifiable par tous ; privé : son créateur seul.
+    public = models.BooleanField(default=True, help_text="Décoché : visible et modifiable par son créateur seul.")
     cree_par = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
                                  related_name="+", verbose_name="créé par")
     cree_le = models.DateTimeField("créé le", auto_now_add=True)
