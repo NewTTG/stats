@@ -171,7 +171,7 @@ def pdf_requete(resultat):
 
 
 def pdf_evenement(analyse):
-    elements = [p(f'Analyse par {analyse.niveau} · Référence : {analyse.semaines} semaines précédentes.')]
+    elements = [p(f'Analyse par {analyse.niveau} · Référence : {analyse.reference_libelle or str(analyse.semaines) + " semaines précédentes"}.')]
     for debut, fin in analyse.creneaux:
         debut = timezone.localtime(debut) if timezone.is_aware(debut) else debut
         fin = timezone.localtime(fin) if timezone.is_aware(fin) else fin

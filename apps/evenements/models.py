@@ -72,6 +72,26 @@ class Creneau(models.Model):
             raise ValidationError({"fin": "La fin doit suivre le début."})
 
 
+class EditionEvenement(models.Model):
+    """Archive autonome : aucune mise à jour des anciennes éditions lors d'un déplacement."""
+
+    evenement = models.ForeignKey(Evenement, on_delete=models.CASCADE, related_name="editions")
+    nom = models.CharField(max_length=128)
+    debut = models.DateTimeField()
+    fin = models.DateTimeField()
+    cellules = models.JSONField(default=dict)  # index d'accès, sans charger les compteurs archivés
+    donnees = models.JSONField()  # compteurs horaires, périmètre, déploiements, catalogue et seuils
+    cree_le = models.DateTimeField(auto_now_add=True)
+    cree_par = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        ordering = ["-debut", "-pk"]
+        constraints = [models.UniqueConstraint(fields=["evenement", "nom"], name="edition_nom_unique")]
+
+    def __str__(self):
+        return self.nom
+
+
 class ReglagesAnomalies(models.Model):
     """Paramètres de détection (une seule ligne, modifiable dans l'admin)."""
 

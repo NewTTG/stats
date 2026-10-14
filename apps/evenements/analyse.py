@@ -8,9 +8,11 @@ moyenne des pics hebdomadaires, pas leur maximum.
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 
 import pandas as pd
 from django.utils import timezone
+from sqlalchemy.exc import SQLAlchemyError
 
 from apps.comptes.acces import cellules_autorisees, kpis_autorises
 from apps.kpi.catalogue import DefinitionKpi, catalogue, kpis_principaux
@@ -82,6 +84,7 @@ class Analyse:
     anomalies: list[detection.Anomalie] = field(default_factory=list)
     classement: list[dict] = field(default_factory=list)
     avertissements: list[str] = field(default_factory=list)
+    reference_libelle: str = ""
 
 
 def _local(dt: datetime) -> datetime:
@@ -120,17 +123,18 @@ def _lire_fenetres(engine, techno, colonnes, cellules, fenetres) -> pd.DataFrame
     return pd.concat(morceaux, ignore_index=True)
 
 
-def _valeurs(df: pd.DataFrame, kpis: list[DefinitionKpi], par: list[str]):
+def _valeurs(df: pd.DataFrame, kpis: list[DefinitionKpi], par: list[str], ref_kpis=None):
     """``par`` non vide. (valeurs événement, référence, valeurs par semaine de référence), indexées par ``par``."""
     codes = [k.code for k in kpis]
     evt, ref = df[df["semaine"] == 0], df[df["semaine"] > 0]
     vide = pd.DataFrame(columns=codes)
     valeurs = agreger(evt, kpis, par)[codes] if len(evt) else vide
-    if not len(ref):
+    if not len(ref) or ref_kpis == []:
         return valeurs, vide, pd.DataFrame(columns=codes, index=pd.MultiIndex.from_arrays([[]] * (len(par) + 1)))
-    hebdo = agreger(ref, kpis, [*par, "semaine"])[codes]
-    reference = agreger(ref, kpis, par)[codes]
-    additifs = [k.code for k in kpis if k.additif]
+    ref_kpis = kpis if ref_kpis is None else ref_kpis
+    hebdo = agreger(ref, ref_kpis, [*par, "semaine"]).reindex(columns=codes)
+    reference = agreger(ref, ref_kpis, par).reindex(columns=codes)
+    additifs = [k.code for k in ref_kpis if k.additif]
     if additifs:
         moyennes = hebdo[additifs].groupby(level=list(range(len(par)))).mean()
         reference[additifs] = moyennes.reindex(reference.index)
@@ -173,10 +177,10 @@ def _detail(evt, kpis, par: str, instants) -> dict[str, dict[str, list]]:
     return resultat
 
 
-def _courbes(df, kpis, instants, sites: dict[str, str]) -> list[Courbe]:
+def _courbes(df, kpis, instants, sites: dict[str, str], ref_kpis=None) -> list[Courbe]:
     if df.empty:
         return []
-    valeurs, reference, hebdo = _valeurs(df, kpis, ["instant"])
+    valeurs, reference, hebdo = _valeurs(df, kpis, ["instant"], ref_kpis)
     evt = df[df["semaine"] == 0]
     par_site = _detail(evt.assign(site=evt["cellule"].map(sites)), kpis, "site", instants)
     par_cellule = _detail(evt, kpis, "cellule", instants)
@@ -195,7 +199,8 @@ def _courbes(df, kpis, instants, sites: dict[str, str]) -> list[Courbe]:
     return courbes
 
 
-def analyser(evenement: Evenement, user, engine, niveau: str = "secteur", creneaux=None) -> Analyse:
+def analyser(evenement: Evenement, user, engine, niveau: str = "secteur", creneaux=None,
+             reference=None, archive=None, archive_reference=None) -> Analyse:
     """``creneaux`` : période choisie à l'affichage (heure locale) ; à défaut, créneaux mémorisés."""
     if niveau not in NIVEAUX:
         raise AnalyseImpossible(f"Niveau inconnu : {niveau}")
@@ -205,22 +210,39 @@ def analyser(evenement: Evenement, user, engine, niveau: str = "secteur", crenea
     if not creneaux:
         raise AnalyseImpossible("Choisissez la période à analyser.")
 
-    reglages = ReglagesAnomalies.courant()
-    cat = catalogue()
+    from . import archives
+
+    reglages = SimpleNamespace(**archive.donnees["reglages"]) if archive else ReglagesAnomalies.courant()
+    cat = ({c: DefinitionKpi(**k) for c, k in archive.donnees["catalogue"].items()}
+           if archive else catalogue())
     # Sans liste : KPI principaux (ni causes ni composants de composites, sélectionnables explicitement).
-    demandes = set(evenement.kpis or kpis_principaux(cat))
+    demandes = set(cat) if archive else set(evenement.kpis or kpis_principaux(cat))
     autorises = kpis_autorises(user, demandes & set(cat))
-    n = evenement.semaines_reference
+    n = 1 if reference is not None else evenement.semaines_reference
     fenetres = [(s, i, debut - timedelta(weeks=s), fin - timedelta(weeks=s))
-                for s in range(n + 1) for i, (debut, fin) in enumerate(creneaux)]
+                for s in range(1 if reference is not None else n + 1)
+                for i, (debut, fin) in enumerate(creneaux)]
     instants = _instants(creneaux)
     analyse = Analyse(evenement=evenement, niveau=niveau, creneaux=creneaux, semaines=n)
+    analyse.reference_libelle = (archives.libelle(reference) if reference is not None else
+        f"Mêmes jours et heures des {n} semaines précédentes : " + " ; ".join(
+            archives.libelle([(d - timedelta(weeks=s), f - timedelta(weeks=s)) for d, f in creneaux])
+            for s in range(1, n + 1)))
+    if reference is not None:
+        duree = lambda plages: sum((f - d for d, f in plages), timedelta())
+        if duree(creneaux) != duree(reference):
+            analyse.avertissements.append(
+                f"Durées différentes : événement {duree(creneaux).total_seconds() / 3600:g} h, "
+                f"référence {duree(reference).total_seconds() / 3600:g} h. "
+                "Les volumes sont des totaux bruts, sans normalisation de durée.")
+        analyse.avertissements.append("Courbes alignées par rang d'heure dans chaque période ; les heures absentes restent vides.")
     if demandes - autorises:
         analyse.avertissements.append("Certains KPI ne vous sont pas autorisés et ne sont pas affichés.")
 
     for techno in ("LTE", "WCDMA"):
         kpis = [cat[c] for c in cat if c in autorises and cat[c].techno == techno]
-        cellules = evenement.noms_cellules(techno)
+        cellules = (archive.donnees["technos"].get(techno, {}).get("cellules", [])
+                    if archive else evenement.noms_cellules(techno))
         if not kpis or not cellules:
             continue
         permises = cellules_autorisees(user, techno)
@@ -233,7 +255,8 @@ def analyser(evenement: Evenement, user, engine, niveau: str = "secteur", crenea
                 continue
 
         colonnes = colonnes_utilisees(kpis)
-        df = _lire_fenetres(engine, techno, colonnes, cellules, fenetres)
+        df = (archives.lire(archive, techno, cellules, creneaux) if archive else
+              _lire_fenetres(engine, techno, colonnes, cellules, fenetres))
         premier_jour = min(debut for debut, _ in creneaux).date()
         entites = _entites(techno, niveau, cellules, premier_jour)
         sites = entites if niveau == "site" else _entites(techno, "site", cellules, premier_jour)
@@ -241,13 +264,79 @@ def analyser(evenement: Evenement, user, engine, niveau: str = "secteur", crenea
             deploiements = evenement.deploiements
             entites.update((c, e) for c, e in mobiles.entites(deploiements, techno, niveau).items() if c in entites)
             sites.update((c, e) for c, e in mobiles.entites(deploiements, techno, "site").items() if c in sites)
+        if archive:
+            figes = archive.donnees["technos"].get(techno, {}).get("entites", {})
+            entites = {c: figes.get(niveau, {}).get(c, c) for c in cellules}
+            sites = {c: figes.get("site", {}).get(c, c) for c in cellules}
         df = df.assign(entite=df["cellule"].map(entites))
+        mobiles_connues = set(Cellule.objects.filter(techno=techno, secteur__site__mobile=True)
+                              .values_list("nom", flat=True)) | set(evenement.cellules_deployees(techno))
+        if archive:
+            mobiles_connues |= set(mobiles.cellules(archive.donnees["deploiements"], techno))
+        if reference is None:
+            if archive:
+                # Seuls les créneaux de l'édition sont figés. La moyenne hebdomadaire est une référence vivante.
+                try:
+                    historique = (_lire_fenetres(engine, techno, colonnes,
+                        [c for c in cellules if c not in mobiles_connues], [f for f in fenetres if f[0] > 0])
+                        if engine is not None else df.iloc[:0].copy())
+                except SQLAlchemyError:
+                    historique = df.iloc[:0].copy()
+                    analyse.avertissements.append("Source indisponible : référence hebdomadaire en N/D, données de l'édition conservées.")
+                historique = historique.assign(entite=historique["cellule"].map(entites))
+                df = pd.concat([df, historique], ignore_index=True)
+            else:
+                df = df[(df["semaine"] == 0) | ~df["cellule"].isin(mobiles_connues)].copy()
 
-        valeurs, reference, hebdo = _valeurs(df.assign(tout="Global"), kpis, ["tout"])
+        axe = instants
+        ref_kpis = None
+        if reference is not None:
+            ref_cellules = (archive_reference.donnees["technos"].get(techno, {}).get("cellules", [])
+                            if archive_reference else cellules)
+            if not archive_reference:
+                ref_cellules = [c for c in ref_cellules if c not in mobiles_connues]
+            if permises is not None:
+                ref_cellules = [c for c in ref_cellules if c in permises]
+            if set(ref_cellules) != set(cellules):
+                analyse.avertissements.append(f"{techno} : périmètres différents, {len(cellules)} cellule(s) "
+                                              f"dans l'événement et {len(ref_cellules)} en référence.")
+            try:
+                ref = (archives.lire(archive_reference, techno, ref_cellules, reference) if archive_reference else
+                       _lire_fenetres(engine, techno, colonnes, ref_cellules,
+                                     [(0, i, d, f) for i, (d, f) in enumerate(reference)])
+                       if engine is not None else df.iloc[:0].copy())
+            except SQLAlchemyError:
+                if not archive:
+                    raise
+                ref = df.iloc[:0].copy()
+                analyse.avertissements.append("Source indisponible : référence en N/D, données de l'édition conservées.")
+            if archive_reference:
+                mapping = archive_reference.donnees["technos"].get(techno, {}).get("entites", {}).get(niveau, {})
+            else:
+                mapping = entites
+            ref = ref.assign(entite=ref["cellule"].map(mapping), semaine=1)
+            # Un axe ordinal commun conserve également les heures supplémentaires de la référence.
+            ref_instants = _instants(reference)
+            axe = list(range(max(len(instants), len(ref_instants))))
+            df["instant"] = df["horodatage"].map({v: i for i, v in enumerate(instants)})
+            ref["instant"] = ref["horodatage"].map({v: i for i, v in enumerate(ref_instants)})
+            df = pd.concat([df, ref], ignore_index=True)
+            for colonne in colonnes:
+                if colonne not in df:
+                    df[colonne] = float("nan")
+            if archive_reference:
+                disponibles = set(archive_reference.donnees["catalogue"])
+                if set(k.code for k in kpis) - disponibles:
+                    analyse.avertissements.append(f"{techno} : les KPI absents de l'édition de référence restent en N/D côté référence.")
+                ref_kpis = [DefinitionKpi(**archive_reference.donnees["catalogue"][k.code]) for k in kpis if k.code in disponibles]
+        if archive and engine is None and not archive_reference:
+            analyse.avertissements.append("Source indisponible ou non configurée : référence en N/D, données de l'édition conservées.")
+
+        valeurs, moyennes, hebdo = _valeurs(df.assign(tout="Global"), kpis, ["tout"], ref_kpis)
         synthese = []
         for k in kpis:
             v = valeurs[k.code].iloc[0] if len(valeurs) else None
-            r = reference[k.code].iloc[0] if len(reference) else None
+            r = moyennes[k.code].iloc[0] if len(moyennes) else None
             semaines = list(hebdo[k.code]) if len(hebdo) else []
             synthese.append(LigneSynthese(k, detection._nombre(v), detection._nombre(r), detection.ecart_significatif(
                 k, v, r, semaines, reglages.ecart_sigma, reglages.ecart_pct)))
@@ -255,7 +344,7 @@ def analyser(evenement: Evenement, user, engine, niveau: str = "secteur", crenea
         evt = df[df["semaine"] == 0]
         presence = set(zip(evt["cellule"], evt["creneau"]))
         sans = detection.anomalies_sans_donnees(techno, entites, presence, len(creneaux))
-        par_entite = _valeurs(df, kpis, ["entite"])
+        par_entite = _valeurs(df, kpis, ["entite"], ref_kpis)
         analyse.anomalies += detection.anomalies_seuils(techno, par_entite[0], kpis)
         analyse.anomalies += detection.anomalies_ecarts(techno, *par_entite, kpis,
                                                         reglages.ecart_sigma, reglages.ecart_pct)
@@ -269,8 +358,9 @@ def analyser(evenement: Evenement, user, engine, niveau: str = "secteur", crenea
 
         analyse.par_techno.append(AnalyseTechno(
             techno=techno, kpis=kpis, nb_cellules=len(cellules), synthese=synthese,
-            instants=[i.strftime(FORMAT_INSTANT) for i in instants],
-            courbes=_courbes(df, kpis, instants, sites),
+            instants=([f"Heure {i + 1}" for i in axe] if reference is not None else
+                      [i.strftime(FORMAT_INSTANT) for i in instants]),
+            courbes=_courbes(df, kpis, axe, sites, ref_kpis),
             cellules_sans_donnees=sorted(c for c in cellules if c not in set(evt["cellule"])),
         ))
 
