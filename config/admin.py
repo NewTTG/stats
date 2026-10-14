@@ -4,13 +4,16 @@ Déclaré par ``config.apps.AdminStatsConfig`` (``default_site``) : ``admin.site
 ``@admin.register`` des applications désignent ce site.
 """
 
+from datetime import timedelta
 from urllib.parse import urlencode
 
 from django.apps import apps
 from django.contrib import admin
 from django.contrib.auth import REDIRECT_FIELD_NAME
+from django.db.models import Count, Exists, OuterRef, Q
 from django.http import HttpResponseRedirect
 from django.urls import NoReverseMatch, reverse
+from django.utils import timezone
 
 # Sections du tableau de bord et du menu latéral : usage le plus fréquent d'abord, technique en dernier.
 ORDRE_SECTIONS = ["evenements", "kpi", "comptes", "auth", "referentiel", "rapports", "django_q"]
@@ -39,26 +42,37 @@ def _evenements_sans_creneau():
     return Evenement.objects.filter(creneaux__isnull=True).count()
 
 
-# Accès rapides du tableau de bord : (titre, description, modèle, page, paramètres de la liste,
-# compteur affiché sur la carte). Une carte n'est affichée que si l'utilisateur a le droit correspondant.
+# Raccourcis du tableau de bord : (titre, description, modèle, page, paramètres de la liste).
+# Un raccourci n'est affiché que si l'utilisateur a le droit correspondant.
 ACCES_RAPIDES = [
-    ("Suivi des demandes", "Demandes, suggestions, précisions et résultats de chaque parcours.",
-     "comptes.DemandeSuivie", "changelist", {}, None),
-    ("Rapports générés", "Retrouver et télécharger les fichiers d’un utilisateur.",
-     "rapports.Rapport", "changelist", {}, None),
-    ("Créer un événement", "Cellules concernées, créneaux et semaines de référence.",
-     "evenements.Evenement", "add", {}, None),
-    ("Événements à compléter", "Événements sans créneau : leur analyse n'est pas encore possible.",
-     "evenements.Evenement", "changelist", {"creneaux": "sans"}, _evenements_sans_creneau),
-    ("Seuils KPI", "Seuils d'alerte et critiques, modifiables directement dans la liste.",
-     "kpi.SeuilKpi", "changelist", {}, None),
-    ("Périmètres d'accès", "Communes, sites, cellules et KPI visibles par un compte ou un groupe.",
-     "comptes.Perimetre", "changelist", {}, None),
-    ("Comptes utilisateurs", "Comptes avec mot de passe ; les sessions visiteur sont masquées.",
-     "auth.User", "changelist", {}, None),
-    ("Journal d'audit", "Recherches, exports, analyses et rapports : qui, quoi, quand.",
-     "comptes.JournalAudit", "changelist", {}, None),
+    ("Créer un événement", "Cellules, créneaux et semaines de référence",
+     "evenements.Evenement", "add", {}),
+    ("Seuils KPI", "Seuils d'alerte et critiques",
+     "kpi.SeuilKpi", "changelist", {}),
+    ("Périmètres d'accès", "Communes, sites, cellules et KPI visibles",
+     "comptes.Perimetre", "changelist", {}),
+    ("Comptes utilisateurs", "Comptes avec mot de passe",
+     "auth.User", "changelist", {}),
+    ("Journal d'audit", "Recherches, exports, analyses et rapports",
+     "comptes.JournalAudit", "changelist", {}),
 ]
+
+# Menu latéral : rubriques par usage. Les modèles sans droit sont omis, une rubrique vide aussi ;
+# un modèle enregistré mais absent d'ici est rangé dans « Autres ».
+NAVIGATION = [
+    ("Pilotage", ["index", "comptes.DemandeSuivie", "rapports.Rapport", "rapports.RapportPlanifie",
+                  "comptes.JournalAudit"]),
+    ("Analyse", ["evenements.Evenement", "kpi.SeuilKpi", "evenements.ReglagesAnomalies"]),
+    ("Référentiel réseau", ["referentiel.ImportReferentiel", "referentiel.Site", "referentiel.Secteur",
+                            "referentiel.Cellule"]),
+    ("Comptes et accès", ["auth.User", "auth.Group", "comptes.Perimetre"]),
+    ("Système", ["django_q.Schedule", "django_q.OrmQ", "django_q.Failure", "django_q.Success"]),
+]
+LIBELLES_NAVIGATION = {
+    "referentiel.ImportReferentiel": "Chargement et imports",
+    "evenements.ReglagesAnomalies": "Détection d'anomalies",
+    "comptes.DemandeSuivie": "Suivi des demandes",
+}
 
 # Opérations faites en ligne de commande, depuis la racine du dépôt (rappel réservé à l'administration).
 RAPPELS_COMMANDES = [
@@ -104,63 +118,144 @@ class AdminStats(admin.AdminSite):
             return None
         return f"{url}?{urlencode(parametres)}" if parametres else url
 
+    def _droit(self, request, label, page="changelist"):
+        """ModelAdmin de ``label`` si l'utilisateur peut ouvrir la page, sinon None."""
+        try:
+            modele_admin = self._registry.get(apps.get_model(label))
+        except LookupError:
+            return None
+        if modele_admin is None:
+            return None
+        autorise = (modele_admin.has_add_permission(request) if page == "add"
+                    else modele_admin.has_view_or_change_permission(request))
+        return modele_admin if autorise else None
+
     def acces_rapides(self, request):
         cartes = []
-        for titre, description, label, page, parametres, compteur in ACCES_RAPIDES:
-            try:
-                modele_admin = self._registry.get(apps.get_model(label))
-            except LookupError:
-                continue
-            if modele_admin is None:
-                continue
-            autorise = (modele_admin.has_add_permission(request) if page == "add"
-                        else modele_admin.has_view_or_change_permission(request))
-            url = self._url(modele_admin.model, page, parametres) if autorise else None
+        for titre, description, label, page, parametres in ACCES_RAPIDES:
+            modele_admin = self._droit(request, label, page)
+            url = self._url(modele_admin.model, page, parametres) if modele_admin else None
             if url:
-                cartes.append({"titre": titre, "description": description, "url": url, "ajout": page == "add",
-                               "compteur": compteur() if compteur else None})
+                cartes.append({"titre": titre, "description": description, "url": url, "ajout": page == "add"})
         return cartes
 
-    def dernier_import(self, request):
-        from apps.referentiel.models import ImportReferentiel
+    def navigation(self, request, app_list):
+        """Rubriques du menu latéral, d'après ``app_list`` (déjà filtrée selon les droits)."""
+        # Clé : label réel du modèle (« auth.User »), même regroupé dans une autre section.
+        modeles = {m["model"]._meta.label: m for a in app_list for m in a["models"]}
+        index = reverse("admin:index", current_app=self.name)
+        rubriques, ranges = [], set()
 
-        modele_admin = self._registry.get(ImportReferentiel)
-        if modele_admin is None or not modele_admin.has_view_or_change_permission(request):
+        def entree(cle):
+            m = modeles[cle]
+            ranges.add(cle)
+            url = m.get("admin_url")
+            # Pastille : événements à compléter (sans créneau, donc pas encore analysables).
+            compteur = (_evenements_sans_creneau() or None) if cle == "evenements.Evenement" else None
+            return {"libelle": LIBELLES_NAVIGATION.get(cle, m["name"]), "url": url,
+                    "actif": bool(url) and request.path.startswith(url), "compteur": compteur}
+
+        for titre, cles in NAVIGATION:
+            entrees = []
+            for cle in cles:
+                if cle == "index":
+                    entrees.append({"libelle": "Vue d’ensemble", "url": index, "actif": request.path == index,
+                                    "compteur": None})
+                elif cle in modeles:
+                    entrees.append(entree(cle))
+            if entrees:
+                rubriques.append({"titre": titre, "entrees": entrees})
+        autres = [entree(cle) for cle in modeles if cle not in ranges]
+        if autres:
+            rubriques.append({"titre": "Autres", "entrees": autres})
+        return rubriques
+
+    def etat_referentiel(self, request):
+        """Volumes du référentiel, dernier import et droit de recharger (None sans droit de lecture)."""
+        from apps.referentiel.models import Cellule, ImportReferentiel, Secteur, Site
+        from apps.referentiel.rechargement import fichier_courant, peut_recharger
+
+        if not self._droit(request, "referentiel.ImportReferentiel"):
             return None
-        dernier = ImportReferentiel.objects.select_related("auteur").first()
-        return {"import": dernier, "url": self._url(ImportReferentiel, "changelist")}
+        cellules = dict(Cellule.objects.values_list("techno").annotate(n=Count("pk")).values_list("techno", "n"))
+        fichier = fichier_courant()
+        return {
+            "import": ImportReferentiel.objects.select_related("auteur").first(),
+            "url": self._url(ImportReferentiel, "changelist"),
+            "sites": Site.objects.count(),
+            "secteurs": Secteur.objects.count(),
+            "cellules_lte": cellules.get("LTE", 0),
+            "cellules_wcdma": cellules.get("WCDMA", 0),
+            "non_rattachees": Cellule.objects.filter(secteur__isnull=True).count(),
+            "url_non_rattachees": self._url(Cellule, "changelist", {"rattachement": "non"}),
+            "fichier": fichier.name if fichier else None,
+            "peut_recharger": peut_recharger(request.user),
+            "url_recharger": reverse("admin:referentiel_importreferentiel_recharger", current_app=self.name),
+        }
+
+    def a_traiter(self, request, depuis):
+        """Points à examiner : (libellé, nombre, lien, gravité), selon les droits de l'utilisateur."""
+        from apps.comptes.models import DemandeSuivie
+        from apps.evenements.models import Evenement
+        from apps.rapports.models import Rapport
+
+        lignes = []
+        if self._droit(request, "evenements.Evenement"):
+            lignes.append(("Événements sans créneau", _evenements_sans_creneau(),
+                           self._url(Evenement, "changelist", {"creneaux": "sans"}), "attention"))
+        if self._droit(request, "comptes.DemandeSuivie"):
+            recentes = DemandeSuivie.objects.filter(creee_le__gte=depuis)
+            lignes.append(("Précisions sans réponse (7 j)",
+                           recentes.filter(statut="a_preciser", suites__isnull=True).count(),
+                           self._url(DemandeSuivie, "changelist", {"suite": "sans_suite",
+                                                                   "creee_le__gte": depuis.isoformat()}),
+                           "attention"))
+            lignes.append(("Demandes en échec (7 j)", recentes.filter(statut="erreur").count(),
+                           self._url(DemandeSuivie, "changelist", {"statut__exact": "erreur",
+                                                                   "creee_le__gte": depuis.isoformat()}),
+                           "critique"))
+        if self._droit(request, "rapports.Rapport"):
+            lignes.append(("Rapports en erreur", Rapport.objects.filter(statut="erreur").count(),
+                           self._url(Rapport, "changelist", {"statut__exact": "erreur"}), "critique"))
+        if self._droit(request, "django_q.Failure"):
+            from django_q.models import Failure
+            lignes.append(("Tâches de fond échouées", Failure.objects.count(),
+                           self._url(Failure, "changelist"), "critique"))
+        return [{"libelle": l, "nombre": n, "url": u, "gravite": g} for l, n, u, g in lignes]
 
     def each_context(self, request):
         contexte = super().each_context(request)
-        contexte['peut_suivi'] = request.user.has_perm('comptes.view_demandesuivie')
-        contexte['peut_rapports'] = request.user.has_perm('rapports.view_rapport')
+        contexte["navigation"] = self.navigation(request, contexte.get("available_apps") or [])
+        contexte["peut_suivi"] = request.user.has_perm("comptes.view_demandesuivie")
+        contexte["peut_rapports"] = request.user.has_perm("rapports.view_rapport")
         return contexte
 
     def index(self, request, extra_context=None):
         from apps.kpi.source import est_demo
 
+        depuis = timezone.now() - timedelta(days=7)
         rappels = list(RAPPELS_COMMANDES) + ([RAPPEL_DEMO] if est_demo() else [])
         contexte = {
             "acces_rapides": self.acces_rapides(request),
             "rappels_commandes": rappels,
-            "referentiel": self.dernier_import(request),
+            "referentiel": self.etat_referentiel(request),
+            "a_traiter": self.a_traiter(request, depuis),
             **(extra_context or {}),
         }
-        if request.user.has_perm('comptes.view_demandesuivie'):
-            from datetime import timedelta
-            from django.db.models import Count, Q, Exists, OuterRef
-            from django.utils import timezone
+        if request.user.has_perm("comptes.view_demandesuivie"):
             from apps.comptes.models import DemandeSuivie
-            depuis = timezone.now() - timedelta(days=7)
-            contexte['suivi_depuis'] = depuis.isoformat()
+
+            contexte["suivi_depuis"] = depuis.isoformat()
             demandes = DemandeSuivie.objects.filter(creee_le__gte=depuis).annotate(
-                a_une_suite=Exists(DemandeSuivie.objects.filter(parent_id=OuterRef('pk'))))
-            contexte['suivi_stats'] = demandes.aggregate(
-                total=Count('pk'), reussies=Count('pk', filter=Q(statut='reussie')),
-                erreurs=Count('pk', filter=Q(statut='erreur')),
-                a_preciser=Count('pk', filter=Q(statut='a_preciser', a_une_suite=False)),
-                sans_donnees=Count('pk', filter=Q(statut='sans_donnees')))
-            contexte['dernieres_demandes'] = DemandeSuivie.objects.select_related('utilisateur')[:8]
+                a_une_suite=Exists(DemandeSuivie.objects.filter(parent_id=OuterRef("pk"))))
+            stats = demandes.aggregate(
+                total=Count("pk"), reussies=Count("pk", filter=Q(statut="reussie")),
+                erreurs=Count("pk", filter=Q(statut="erreur")),
+                a_preciser=Count("pk", filter=Q(statut="a_preciser", a_une_suite=False)),
+                sans_donnees=Count("pk", filter=Q(statut="sans_donnees")))
+            stats["taux"] = round(100 * stats["reussies"] / stats["total"]) if stats["total"] else None
+            contexte["suivi_stats"] = stats
+            contexte["dernieres_demandes"] = DemandeSuivie.objects.select_related("utilisateur")[:10]
         return super().index(request, contexte)
 
     def login(self, request, extra_context=None):

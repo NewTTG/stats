@@ -62,16 +62,21 @@ def test_tableau_de_bord(client_admin):
     # lien de retour vers l'application, à la place de « Voir le site »
     assert '<a class="retour-statistiques" href="/">← Retour aux statistiques</a>' in html
     assert "Voir le site" not in html
-    # accès rapides, avant la liste des sections
-    assert html.index("Accès rapides") < html.index('class="app-evenements module')
-    for titre in ["Créer un événement", "Événements à compléter", "Seuils KPI", "Périmètres d&#x27;accès",
-                  "Comptes utilisateurs", "Journal d&#x27;audit"]:
+    # menu latéral par rubriques d'usage, présent aussi sur le tableau de bord
+    assert 'id="nav-sidebar"' in html
+    rubriques = [r["titre"] for r in client_admin.get("/admin/").context["navigation"]]
+    assert rubriques == ["Pilotage", "Analyse", "Référentiel réseau", "Comptes et accès", "Système"]
+    # raccourcis et points à traiter (événement sans créneau : compteur et lien filtré)
+    for titre in ["Accès rapides", "À traiter", "Créer un événement", "Seuils KPI", "Périmètres d&#x27;accès",
+                  "Comptes utilisateurs", "Journal d&#x27;audit", "Événements sans créneau"]:
         assert titre in html
     assert f'href="{reverse("admin:evenements_evenement_add")}"' in html
     assert f'href="{reverse("admin:evenements_evenement_changelist")}?creneaux=sans"' in html
     assert f'href="{reverse("admin:kpi_seuilkpi_changelist")}"' in html
     assert f'href="{reverse("admin:auth_user_changelist")}"' in html
-    assert 'class="carte-admin-compteur" title="1 à compléter">1</span>' in html
+    assert '<span class="admin-pastille" title="1 à compléter">1</span>' in html
+    # référentiel : volumes et accès au rechargement
+    assert "Référentiel réseau" in html and "Recharger le référentiel" in html
     # rappel des opérations en ligne de commande : réservé à l'administration
     assert "python manage.py import_referentiel" in html
     assert "import_referentiel" not in _html(client_admin.get("/"))
@@ -107,6 +112,10 @@ def test_acces_rapides_selon_les_droits(client):
     reponse = client.get("/admin/")
     assert [c["titre"] for c in reponse.context["acces_rapides"]] == ["Seuils KPI"]
     assert [a["app_label"] for a in reponse.context["app_list"]] == ["kpi"]
+    # menu et points à traiter limités aux droits ; pas de référentiel sans droit de lecture
+    assert [(r["titre"], [e["libelle"] for e in r["entrees"]]) for r in reponse.context["navigation"]] == [
+        ("Pilotage", ["Vue d’ensemble"]), ("Analyse", ["Seuils KPI"])]
+    assert reponse.context["a_traiter"] == [] and reponse.context["referentiel"] is None
     assert "Créer un événement" not in reponse.content.decode()
 
 

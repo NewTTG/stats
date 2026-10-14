@@ -164,8 +164,8 @@ class SuiteFilter(admin.SimpleListFilter):
 
 @admin.register(DemandeSuivie)
 class DemandeSuivieAdmin(admin.ModelAdmin):
-    list_display = ['demande', 'etat', 'utilisateur', 'creee_le', 'nature', 'suite_parcours', 'duree_ms']
-    list_display_links = ['creee_le', 'demande']
+    list_display = ['creee_le', 'demande', 'etat', 'suite_parcours', 'nature', 'utilisateur', 'duree_ms']
+    list_display_links = ['demande']
     list_filter = ['statut', SuiteFilter, 'nature', ('creee_le', admin.DateFieldListFilter)]
     search_fields = ['texte', 'utilisateur__username', 'utilisateur__email', 'message']
     search_help_text = 'Rechercher une demande, un utilisateur ou un message d’erreur.'

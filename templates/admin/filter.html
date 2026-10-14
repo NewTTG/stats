@@ -1,0 +1,10 @@
+{% load i18n %}{# Filtre de liste en menu déroulant (barre d'outils de admin/change_list.html). #}
+<details class="filtre{% for choice in choices %}{% if choice.selected and not forloop.first %} actif{% endif %}{% endfor %}" data-filter-title="{{ title }}">
+  <summary><span class="filtre-nom">{{ title|capfirst }}</span>{% for choice in choices %}{% if choice.selected %}<span class="filtre-valeur">{{ choice.display }}</span>{% endif %}{% endfor %}</summary>
+  <ul>
+  {% for choice in choices %}
+    <li{% if choice.selected %} class="selected"{% endif %}>
+    <a href="{{ choice.query_string|iriencode }}"{% if choice.selected %} aria-current="true"{% endif %}>{{ choice.display }}</a></li>
+  {% endfor %}
+  </ul>
+</details>

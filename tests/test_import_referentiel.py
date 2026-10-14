@@ -178,3 +178,81 @@ def test_commande_cellules_kpi_sans_base(referentiel, monkeypatch):
     monkeypatch.setattr("apps.referentiel.management.commands.import_referentiel.moteur_kpi", absente)
     with pytest.raises(CommandError, match="non configurée"):
         call_command("import_referentiel", str(referentiel), "--cellules-kpi")
+
+
+# ------------------------------------------------------------------ rechargement depuis l'administration
+
+@pytest.fixture
+def client_admin(client):
+    from django.contrib.auth.models import User
+
+    client.force_login(User.objects.create_superuser("admin", password="secret-123-Abc"))
+    return client
+
+
+def test_rechargement_depuis_l_administration(client_admin, referentiel, settings, tmp_path):
+    from django.urls import reverse
+
+    settings.REFERENTIEL_XLSX = tmp_path / "absent.xlsx"
+    liste = reverse("admin:referentiel_importreferentiel_changelist")
+    url = reverse("admin:referentiel_importreferentiel_recharger")
+    html = client_admin.get(liste).content.decode()
+    assert "Recharger le référentiel" in html and "aucun sur le serveur" in html
+    assert client_admin.get(url).status_code == 403  # POST seulement
+
+    # sans fichier sur le serveur ni fichier envoyé : message d'erreur, rien d'importé
+    reponse = client_admin.post(url, follow=True)
+    assert "Aucun fichier de référentiel" in reponse.content.decode()
+    assert not ImportReferentiel.objects.exists()
+
+    # fichier envoyé : importé, puis conservé comme nouvelle référence
+    with open(referentiel, "rb") as f:
+        reponse = client_admin.post(url, {"fichier": f}, follow=True)
+    html = reponse.content.decode()
+    imp = ImportReferentiel.objects.get()
+    assert imp.fichier == "ref.xlsx" and imp.auteur.username == "admin" and imp.nb_sites == 7
+    assert "Référentiel rechargé depuis ref.xlsx : 7 sites" in html
+    assert (settings.MEDIA_ROOT / "referentiel" / "ref.xlsx").exists()
+    assert "<strong>ref.xlsx</strong>" in html
+
+    # sans fichier : le dernier déposé est relu
+    Site.objects.filter(code_site="BBB200").delete()
+    client_admin.post(url)
+    assert ImportReferentiel.objects.count() == 2 and Site.objects.filter(code_site="BBB200").exists()
+
+    # fichier illisible : refusé, la référence reste la précédente
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    reponse = client_admin.post(url, {"fichier": SimpleUploadedFile("faux.xlsx", b"pas un xlsx")}, follow=True)
+    assert "Fichier non importé" in reponse.content.decode()
+    assert ImportReferentiel.objects.count() == 2
+    assert not (settings.MEDIA_ROOT / "referentiel" / "faux.xlsx").exists()
+    reponse = client_admin.post(url, {"fichier": SimpleUploadedFile("ref.csv", b"a;b")}, follow=True)
+    assert "Fichier .xlsx attendu." in reponse.content.decode() and ImportReferentiel.objects.count() == 2
+
+    # détail d'un import : listes lisibles, pas de modification
+    html = client_admin.get(reverse("admin:referentiel_importreferentiel_change", args=[imp.pk])).content.decode()
+    assert '<ul class="liste-import">' in html and "AAA100" in html
+
+
+def test_rechargement_reserve(client, referentiel):
+    from django.contrib.auth.models import Permission, User
+    from django.urls import reverse
+
+    user = User.objects.create_user("lecteur", password="secret-123-Abc", is_staff=True)
+    user.user_permissions.add(Permission.objects.get(codename="view_importreferentiel"))
+    client.force_login(user)
+    html = client.get(reverse("admin:referentiel_importreferentiel_changelist")).content.decode()
+    assert "Historique des imports" in html and "Recharger maintenant" not in html
+    with open(referentiel, "rb") as f:
+        assert client.post(reverse("admin:referentiel_importreferentiel_recharger"), {"fichier": f}).status_code == 403
+    assert not ImportReferentiel.objects.exists()
+
+
+def test_cellules_non_rattachees(client_admin, referentiel, exports):
+    from django.urls import reverse
+
+    importer(referentiel, exports)
+    url = reverse("admin:referentiel_cellule_changelist")
+    noms = {c.nom for c in client_admin.get(url, {"rattachement": "non"}).context["cl"].result_list}
+    assert noms == set(Cellule.objects.filter(secteur__isnull=True).values_list("nom", flat=True)) and noms
