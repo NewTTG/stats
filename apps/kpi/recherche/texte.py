@@ -12,6 +12,10 @@ jusque the of in at to and or what is are c ca n ne pas plus tout tous toute tou
 leur leurs lors pendant dont comme ainsi alors donc mais si tres bien
 """.split())
 
+# « or » peut être ignoré dans une phrase anglaise, mais reste distinctif dans
+# un nom (« mont d'or »). Ne jamais réduire cette expression au seul « mont ».
+MOTS_LIAISON = MOTS_VIDES - {"or"}
+
 
 def sans_accents(texte: str) -> str:
     texte = texte.replace("œ", "oe").replace("Œ", "OE").replace("æ", "ae").replace("Æ", "AE")
@@ -36,7 +40,7 @@ def normaliser(texte: str) -> str:
 def cle(expression: str) -> tuple[str, ...]:
     """Clé de recherche d'une expression : ses mots normalisés, sans les mots vides."""
     mots = normaliser(expression).split()
-    pleins = tuple(m for m in mots if m not in MOTS_VIDES)
+    pleins = tuple(m for m in mots if m not in MOTS_LIAISON)
     return pleins or tuple(mots)
 
 
@@ -126,7 +130,7 @@ class Correspondeur:
         i = 0
         while i < len(libres):
             debut = libres[i]
-            if texte.mots[debut] in MOTS_VIDES and (texte.mots[debut],) not in self.entrees:
+            if texte.mots[debut] in MOTS_LIAISON and (texte.mots[debut],) not in self.entrees:
                 i += 1
                 continue
             # Mots pleins consécutifs (mots vides sautés, au plus deux d'affilée).
@@ -135,7 +139,7 @@ class Correspondeur:
                 if indices and j != indices[-1] + 1 + vides:
                     break
                 mot = texte.mots[j]
-                if mot in MOTS_VIDES and indices:
+                if mot in MOTS_LIAISON and indices:
                     vides += 1
                     if vides > 2:
                         break

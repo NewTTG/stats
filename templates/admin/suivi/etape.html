@@ -1,0 +1,14 @@
+<article class="suivi-etape{% if e.pk == original.pk %} selectionnee{% endif %}" id="etape-{{ e.pk }}">
+  <div class="admin-section-heading"><span class="admin-eyebrow">{{ e.get_nature_display }} · {{ e.creee_le|date:"d/m/Y H:i:s" }}</span><span class="etat etat-{{ e.statut }}">{{ e.get_statut_display }}</span></div>
+  {% if e.pk == original.pk %}<p class="admin-eyebrow">DEMANDE SÉLECTIONNÉE</p>{% else %}<a href="{% url 'admin:comptes_demandesuivie_change' e.pk %}">Ouvrir cette étape →</a>{% endif %}
+  <h2>{{ e.texte|default:"Demande composée avec les filtres" }}</h2>
+  {% if e.parent %}<p class="admin-muted">Suite de la demande du {{ e.parent.creee_le|date:"d/m H:i:s" }}{% if e.reponses %} · Choix repris : <strong>{{ e.reponses|join:", " }}</strong>{% else %} · Paramètres précisés ou modifiés{% endif %}</p>{% endif %}
+  {% if e.interpretation.compris %}<h3>Ce que l’app a compris</h3><ul class="suivi-puces">{% for puce in e.interpretation.compris %}<li>{{ puce.libelle }}{% if puce.defaut %} <small>par défaut</small>{% endif %}</li>{% endfor %}</ul>{% endif %}
+  {% if e.interpretation.non_compris %}<p class="suivi-message">Mots non reconnus : <strong>{{ e.interpretation.non_compris|join:", " }}</strong></p>{% endif %}
+  {% for note in e.interpretation.notes %}<p class="admin-muted">{{ note }}</p>{% endfor %}
+  {% if e.interpretation.questions %}<h3>Ce que l’app a proposé</h3>{% for q in e.interpretation.questions %}<div class="suivi-question"><strong>{{ q.texte }}</strong><ul>{% for o in q.options %}<li>{{ o.libelle }}{% if o.detail %}<small>{{ o.detail }}</small>{% endif %}</li>{% endfor %}</ul>{% if q.saisie != 'aucune' %}<p>Saisie libre proposée : {{ q.saisie }}</p>{% endif %}</div>{% endfor %}{% endif %}
+  {% if e.message %}<p class="suivi-message">{{ e.message }}</p>{% endif %}
+  {% if e.resultat.lignes != None %}<p><strong>{{ e.resultat.lignes }} ligne{{ e.resultat.lignes|pluralize }}</strong> de résultats.</p>{% endif %}
+  {% for avertissement in e.resultat.avertissements %}<p class="admin-muted">{{ avertissement }}</p>{% endfor %}
+  <footer class="suivi-footer"><span>{% if e.duree_ms != None %}{{ e.duree_ms }} ms{% else %}Traitement en cours{% endif %}{% if e.interpretation.source %} · Interprétation : {{ e.interpretation.source }}{% endif %}</span><details><summary>Paramètres et diagnostic</summary><pre>{{ e.diagnostic }}</pre><small>Identifiant : {{ e.pk }}</small></details></footer>
+</article>

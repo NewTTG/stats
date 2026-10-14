@@ -90,6 +90,14 @@ fieldset.module { border: 1px solid var(--hairline-color); background: var(--bod
 .suivi-layout { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 28px; }
 .suivi-etape { padding: 26px; margin-bottom: 20px; border: 1px solid var(--hairline-color); border-left: 3px solid var(--border-color); border-radius: 12px; background: var(--body-bg); }
 .suivi-etape.selectionnee { border-left-color: var(--primary); }
+.suivi-historique { margin-top: 24px; }
+.suivi-historique > summary { cursor: pointer; padding: 16px; border: 1px solid var(--border-color); border-radius: 8px; font-weight: 600; }
+.suivi-ameliorations { margin-bottom: 24px; }
+.suivi-ameliorations li { margin-bottom: 10px; line-height: 1.6; }
+.suivi-ameliorations textarea { box-sizing: border-box; width: 100%; resize: vertical; font-family: inherit; line-height: 1.5; }
+.suivi-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+button.admin-button { padding: 11px 16px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--button-bg); color: var(--button-fg); cursor: pointer; font-weight: 600; }
+.suivi-actions [role="status"] { font-size: 12px; }
 .suivi-etape h2 { font-size: 20px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; color: var(--body-loud-color); }
 .suivi-etape h3 { font-size: 12px; margin-top: 24px; color: var(--body-quiet-color); }
 .suivi-puces { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; }
