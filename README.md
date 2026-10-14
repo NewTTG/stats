@@ -149,6 +149,34 @@ sont conservés dans le volume `media`.
 
 ### Tableau de bord et exports PDF
 
+L'accueil affiche d'abord la navigation et le constructeur de rapports. Les indicateurs
+sont ensuite chargés séparément via `/dashboard/?vue=24h` : une base KPI lente ne retarde
+plus l'affichage initial de la page. En cas d'échec du chargement, un bouton **Réessayer**
+est proposé. Sans JavaScript, un lien permet un affichage classique avec `indicateurs=1`.
+Le chargement séparé ne rend pas le premier calcul SQL plus rapide : si les indicateurs
+restent lents, les traces ci-dessous permettent d'identifier l'étape concernée.
+
+La liste des 24 derniers créneaux utilise aussi le cache KPI partagé (5 minutes par
+défaut), avec une clé distincte par source, technologie et périmètre effectif. Les droits
+sont relus avant chaque recherche ; l'arrivée d'une nouvelle heure peut prendre jusqu'à
+5 minutes pour apparaître. La réponse HTTP contenant les indicateurs n'est pas mise en
+cache par le navigateur ni par un proxy.
+
+Les lectures SQL de plus d'une seconde produisent une trace `KPI lent` avec l'étape
+(`dernieres_heures` ou `lecture`), la technologie et la durée. Un chargement complet
+de plus d'une seconde produit `Dashboard lent`. Ces traces ne contiennent ni identifiants
+de connexion ni valeurs KPI. L'onglet Réseau du navigateur expose aussi la durée dans
+l'en-tête `Server-Timing` de `/dashboard/`. Les horodatages des lignes `GET ... 200` du
+serveur indiquent la fin des réponses, pas leur durée. Si `dernieres_heures` domine lors
+d'un premier chargement, faire vérifier par l'administrateur PostgreSQL le plan de
+`SELECT DISTINCT "DateHour" ... ORDER BY "DateHour" DESC LIMIT 24` et les index des tables
+horaires ; l'application ne modifie pas la base KPI en lecture seule.
+
+Après application du correctif sous Windows : arrêter le serveur, activer l'environnement
+existant avec `.venv\Scripts\Activate.ps1`, exécuter `python manage.py collectstatic --noinput`,
+puis redémarrer. Ne pas recréer `.venv` depuis son propre Python actif : Windows refuse
+de remplacer l'exécutable en cours d'utilisation. Aucun changement de schéma n'est requis.
+
 L’accueil affiche les KPI 4G et 3G du périmètre autorisé et leurs courbes horaires.
 Par défaut, il utilise les **24 dernières heures disponibles** dans les tables horaires,
 indépendamment pour chaque technologie : les périodes 3G et 4G peuvent être différentes.

@@ -17,7 +17,7 @@ from django.contrib.auth.models import User
 from apps.kpi.cache import memoriser, ouvrir
 from apps.kpi.models import SeuilKpi
 from apps.kpi.service import executer
-from apps.kpi.source import identite_source
+from apps.kpi.source import identite_source, dernieres_heures
 from apps.referentiel.models import Site
 from tests.test_service import analyste, lecteur_paita, referentiel, base_kpi, requete
 
@@ -45,6 +45,31 @@ def test_expiration_fixe_et_copie_independante(settings, monkeypatch):
     horloge[0] = 1301
     memoriser('test', {}, calcul)
     assert calcul.call_count == 2  # consulter n'a pas prolongé le TTL
+
+
+def test_heures_en_cache_perimetre_expiration_et_modification(fichier_kpi, monkeypatch, settings):
+    from apps.kpi.source import _chercher_heures
+
+    horloge = [1000.0]
+    monkeypatch.setattr('diskcache.core.time.time', lambda: horloge[0])
+    settings.KPI_CACHE_TTL = 300
+    lecture = Mock(wraps=_chercher_heures)
+    monkeypatch.setattr('apps.kpi.source._chercher_heures', lecture)
+    globales = dernieres_heures(fichier_kpi, 'LTE', None)
+    assert globales
+    assert dernieres_heures(fichier_kpi, 'LTE', None) == globales
+    assert lecture.call_count == 1
+    assert dernieres_heures(fichier_kpi, 'LTE', ['INCONNUE']) == []
+    assert lecture.call_count == 2  # ne réutilise pas les heures hors du périmètre
+    assert dernieres_heures(fichier_kpi, 'LTE', []) == []
+    assert lecture.call_count == 2
+    horloge[0] = 1301
+    assert dernieres_heures(fichier_kpi, 'LTE', None) == globales
+    assert lecture.call_count == 3
+    with fichier_kpi.begin() as conn:
+        conn.execute(sa.text('DELETE FROM lte_cell_hour'))
+    assert dernieres_heures(fichier_kpi, 'LTE', None) == []
+    assert lecture.call_count == 4  # la source SQLite a changé
 
 
 def test_erreur_de_calcul_non_memorisee():

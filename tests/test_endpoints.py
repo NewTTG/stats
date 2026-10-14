@@ -67,7 +67,7 @@ def test_accueil_kpi_autorise_mais_aucune_cellule(client, base_kpi, monkeypatch)
     p.utilisateurs.add(user)
     client.force_login(user)
     monkeypatch.setattr('apps.kpi.dashboard.moteur_kpi', lambda: base_kpi)
-    reponse = client.get('/')
+    reponse = client.get('/dashboard/')
     assert reponse.status_code == 200
     assert reponse.context['dashboard']['cartes'] == []
     assert reponse.context['dashboard']['message']
@@ -107,6 +107,7 @@ def test_admin_audit_malforme_ne_provoque_pas_500(client):
 
 
 APPLICATION = [
+    ('kpi:dashboard', {}, 200),
     ('kpi:requete', {}, 200), ('kpi:suggestions', {}, 200),
     ('evenements:liste', {}, 200), ('evenements:detail', {'pk': 1}, 200),
     ('rapports:liste', {}, 200), ('rapports:requete', {}, 405),

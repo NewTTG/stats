@@ -9,7 +9,9 @@ synthétiques) générée par ``python manage.py charger_demo_kpi``.
 
 import json
 import hashlib
+import logging
 import re
+from time import perf_counter
 from datetime import date, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
@@ -18,6 +20,10 @@ from urllib.parse import unquote
 import pandas as pd
 import sqlalchemy as sa
 from django.conf import settings
+
+from .cache import memoriser
+
+journal = logging.getLogger(__name__)
 
 # (techno, résolution) -> (table, colonne cellule, colonne horodatage)
 TABLES = {
@@ -149,6 +155,23 @@ def dernieres_heures(engine: sa.Engine, techno: str, cellules: list[str] | None)
     """
     if cellules is not None and not cellules:
         return []
+    source = identite_source(engine)
+    cellules = sorted(set(cellules)) if cellules is not None else None
+    return memoriser("dernieres_heures", {"source": source, "techno": techno, "cellules": cellules},
+                     lambda: _dernieres_heures(engine, techno, cellules), actif=source is not None)
+
+
+def _dernieres_heures(engine, techno, cellules):
+    debut = perf_counter()
+    try:
+        return _chercher_heures(engine, techno, cellules)
+    finally:
+        duree = perf_counter() - debut
+        if duree >= 1:
+            journal.warning("KPI lent : etape=dernieres_heures techno=%s duree=%.3fs", techno, duree)
+
+
+def _chercher_heures(engine, techno, cellules):
     table, col_cellule, col_temps = TABLES[(techno, "heure")]
     temps = _citer(col_temps)
     sql = f"SELECT DISTINCT {temps} FROM {_citer(table)} WHERE {temps} IS NOT NULL"
@@ -205,8 +228,15 @@ def lire(
 
     # Lecture via SQLAlchemy plutôt que pd.read_sql : certaines combinaisons
     # de versions pandas/SQLAlchemy ne reconnaissent pas la connexion.
-    with engine.connect() as conn:
-        lignes = conn.execute(requete, params).all()
+    depart = perf_counter()
+    try:
+        with engine.connect() as conn:
+            lignes = conn.execute(requete, params).all()
+    finally:
+        duree = perf_counter() - depart
+        if duree >= 1:
+            journal.warning("KPI lent : etape=lecture techno=%s resolution=%s duree=%.3fs",
+                            techno, resolution, duree)
     df = pd.DataFrame(lignes, columns=["cellule", "horodatage", *colonnes])
     df["horodatage"] = pd.to_datetime(df["horodatage"])
     for c in colonnes:

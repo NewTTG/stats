@@ -14,14 +14,17 @@ import json
 import logging
 import math
 import re
+from time import perf_counter
 from datetime import date, timedelta
 from urllib.parse import urlencode
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.decorators.http import require_safe
+from django.views.decorators.cache import never_cache
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -356,6 +359,25 @@ def _message_validation(e: ValidationError) -> str:
 
 @login_required
 @require_safe
+@never_cache
+def dashboard(request):
+    """Les calculs ne bloquent plus la navigation et le constructeur de rapports."""
+    from .dashboard import construire as construire_dashboard
+
+    debut = perf_counter()
+    donnees = construire_dashboard(request.user, timezone.localdate(), request.GET.get("vue", "24h"))
+    reponse = JsonResponse({
+        "html": render_to_string("kpi/_dashboard.html", {"dashboard": donnees}, request=request),
+        "debut": donnees["debut"].isoformat(), "fin": donnees["fin"].isoformat(),
+    })
+    duree = perf_counter() - debut
+    reponse["Server-Timing"] = f"dashboard;dur={duree * 1000:.1f}"
+    if duree >= 1:
+        journal.warning("Dashboard lent : vue=%s duree=%.3fs", donnees["selection"], duree)
+    return reponse
+
+@login_required
+@require_safe
 @suivi.suivre_recherche
 def requete(request):
     statut = 200
@@ -409,8 +431,10 @@ def requete(request):
                 else " ".join(e.rstrip(".") for e in erreurs) for c, erreurs in form.errors.items()) + "."
     else:
         ctx["mode"] = "accueil"
-        from .dashboard import construire as construire_dashboard
-        ctx["dashboard"] = construire_dashboard(request.user, aujourdhui, get.get("vue", "24h"))
+        from .dashboard import construire as construire_dashboard, preparer
+        ctx["dashboard_differe"] = get.get("indicateurs") != "1"
+        ctx["dashboard"] = (preparer(aujourdhui, get.get("vue", "24h")) if ctx["dashboard_differe"]
+                            else construire_dashboard(request.user, aujourdhui, get.get("vue", "24h")))
         ctx["q"] = get.get("reprendre", "").strip()[:300]  # « Modifier » une recherche de l'historique
         contexte = Contexte.pour(request.user)
         ctx["rapports_types"] = _rapports_types(contexte)

@@ -18,6 +18,26 @@ from .test_service import base_kpi, referentiel, lecteur_paita  # noqa: F401
 pytestmark = pytest.mark.django_db
 
 
+@pytest.mark.parametrize('selection', ['24h', 'hier', 'aujourdhui', '7j'])
+def test_accueil_ne_lit_pas_la_base_kpi(client, monkeypatch, selection):
+    source = Mock(side_effect=AssertionError('la page ne doit pas attendre les KPI'))
+    monkeypatch.setattr('apps.kpi.dashboard.moteur_kpi', source)
+    client.force_login(User.objects.create_superuser('accueil-rapide'))
+    reponse = client.get('/', {'vue': selection})
+    assert reponse.status_code == 200
+    assert 'dashboard-charge' in reponse.content.decode()
+    assert 'id="constructeur"' in reponse.content.decode()
+    source.assert_not_called()
+
+
+def test_dashboard_sans_javascript(historique_horaire, client):
+    client.force_login(User.objects.create_superuser('sans-js'))
+    reponse = client.get('/', {'indicateurs': '1'})
+    assert reponse.status_code == 200
+    assert len(reponse.context['dashboard']['cartes']) == 2
+    assert 'dashboard-charge' not in reponse.content.decode()
+
+
 def test_dashboard_respecte_perimetre(referentiel, base_kpi, lecteur_paita, monkeypatch):
     monkeypatch.setattr('apps.kpi.dashboard.moteur_kpi', lambda: base_kpi)
     monkeypatch.setattr('apps.kpi.dashboard.est_demo', lambda: False)
@@ -93,6 +113,11 @@ def test_24_heures_disponibles_independantes_et_liens_exacts(historique_horaire,
     assert accueil.status_code == 200
     assert accueil.context['dashboard']['selection'] == '24h'
     assert '24 dernières heures disponibles' in accueil.content.decode()
+    fragment = client.get('/dashboard/')
+    assert fragment.status_code == 200
+    assert fragment.context['dashboard']['cartes'] == d['cartes']
+    assert 'dashboard;dur=' in fragment['Server-Timing']
+    assert 'no-store' in fragment['Cache-Control']
     analyse = client.get('/' + d['graphiques'][0]['lien'])
     assert analyse.status_code == 200
     assert analyse.context['resultat'].par_techno[0].synthese_globale['lte_payload_dl'] == 72
@@ -143,7 +168,7 @@ def test_timeout_connexion_une_seule_tentative(selection, client, monkeypatch, c
     monkeypatch.setattr('apps.kpi.dashboard.moteur_kpi', lambda: engine)
     client.force_login(User.objects.create_superuser('admin-timeout'))
     try:
-        reponse = client.get('/', {'vue': selection})
+        reponse = client.get('/dashboard/', {'vue': selection})
         assert reponse.status_code == 200
         d = reponse.context['dashboard']
         assert not d['cartes'] and not d['graphiques'] and not d['periodes']
