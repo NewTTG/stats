@@ -12,6 +12,7 @@ from apps.comptes import suivi
 from apps.evenements.analyse import AnalyseImpossible, analyser
 from apps.evenements.models import Evenement
 from apps.evenements.acces import evenements_visibles
+from apps.evenements import archives
 from apps.kpi.export_excel import construire as construire_excel
 from apps.kpi.requete import RequeteKpi
 from apps.kpi.service import RequeteRefusee, executer
@@ -38,7 +39,19 @@ def contenu(rapport: Rapport) -> bytes:
     evenement = evenements_visibles(user, Evenement.objects.filter(pk=p["evenement"])).get()
     # Rapports antérieurs au choix de la période à l'affichage : créneaux mémorisés de l'événement.
     creneaux = [(datetime.fromisoformat(d), datetime.fromisoformat(f)) for d, f in p["creneaux"]] if "creneaux" in p else None
-    analyse = analyser(evenement, user, moteur_kpi(), niveau=p.get("niveau", "secteur"), creneaux=creneaux)
+    archive = archives.visibles(evenement, user).filter(pk=p.get("archive")).first()
+    archive_reference = archives.visibles(evenement, user).filter(pk=p.get("archive_reference")).first()
+    if (p.get("archive") and not archive) or (p.get("archive_reference") and not archive_reference):
+        raise AnalyseImpossible("Édition enregistrée inaccessible.")
+    reference = [(datetime.fromisoformat(d), datetime.fromisoformat(f)) for d, f in p["reference"]] if p.get("reference") is not None else None
+    analyse = analyser(evenement, user, archives.moteur_pour_analyse(moteur_kpi, archive, archive_reference),
+                       niveau=p.get("niveau", "secteur"), creneaux=creneaux, reference=reference,
+                       archive=archive, archive_reference=archive_reference)
+    if p.get("origine_reference"):
+        analyse.avertissements.insert(0, p["origine_reference"])
+    if archive:
+        analyse.avertissements.insert(0, f"Édition enregistrée : {archive.nom} le "
+            f"{timezone.localtime(archive.cree_le):%d/%m/%Y à %H:%M}. Données, périmètre et réglages figés.")
     return {"pptx": pptx_evenement, "xlsx": xlsx_evenement, "pdf": pdf_evenement}[rapport.format](analyse)
 
 

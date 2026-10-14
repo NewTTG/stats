@@ -113,6 +113,7 @@ APPLICATION = [
     # Création / modification : ouvertes à tous, sans droit evenements.* particulier.
     ('evenements:nouveau', {}, 200), ('evenements:modifier', {'pk': 1}, 200), ('evenements:reseau', {}, 200),
     ('evenements:supprimer', {'pk': 1}, 405), ('evenements:memoriser_periode', {'pk': 1}, 405),
+    ('evenements:enregistrer_edition', {'pk': 1}, 405),
     # Réseau : consultation ouverte à qui voit tout le réseau ; déclaration / modification : droits referentiel.*.
     ('reseau:liste', {}, 200), ('reseau:fiche', {'code': 'AAA100'}, 200),
     ('reseau:nouveau', {}, 403), ('reseau:modifier', {'code': 'AAA100'}, 403), ('reseau:supprimer', {'code': 'AAA100'}, 405),

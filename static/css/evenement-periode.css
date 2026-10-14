@@ -13,6 +13,10 @@
 .periode-evenement label small { font-weight: 400; }
 .periode-evenement input[type="date"] { width: 170px; background: #fff; }
 .periode-evenement select { width: 130px; background: #fff; }
+.periode-evenement select[data-comparaison], .periode-evenement select[data-edition] { width: 100%; max-width: 720px; }
+.comparaison-evenement { min-width: 0; margin: 16px 0 0; padding: 14px; border: 1px solid var(--bord); border-radius: 10px; }
+.comparaison-evenement legend { padding: 0 6px; font-weight: 600; }
+[data-reference-lignes] { display: grid; gap: 8px; margin: 12px 0; }
 .periode-sep { width: 8px; }
 .periode-duree { min-width: 70px; padding-bottom: 11px; color: var(--texte-2); font-size: 12px; font-variant-numeric: tabular-nums; }
 .periode-ligne .periode-retirer { margin-left: auto; margin-bottom: 6px; }

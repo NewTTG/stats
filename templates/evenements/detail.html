@@ -28,11 +28,18 @@
 <section class="carte periode-evenement" aria-labelledby="titre-periode">
   <div class="periode-entete">
     <h2 id="titre-periode">Période analysée</h2>
-    <p class="aide">Heure de Nouméa, heures pleines. Comparée aux mêmes jours et heures des {{ evenement.semaines_reference }} semaines précédentes.</p>
+    <p class="aide">Heure de Nouméa, heures pleines. La fin du créneau est exclue.</p>
   </div>
   {% if erreur_periode %}<div class="erreur" role="alert">{{ erreur_periode }}</div>{% endif %}
   <form method="get" data-periode>
     <input type="hidden" name="niveau" value="{{ niveau }}">
+    <label>Édition analysée
+      <select name="edition_id" data-edition>
+        <option value="direct"{% if not archive %} selected{% endif %}>Nouvelle édition / données actuelles</option>
+        {% for e in editions %}<option value="{{ e.pk }}"{% if archive.pk == e.pk %} selected{% endif %}>{{ e.nom }} — enregistrée le {{ e.cree_le|date:"d/m/Y" }}</option>{% endfor %}
+      </select>
+    </label>
+    {% if archive %}<p class="avertissement">Données enregistrées le {{ archive.cree_le|date:"d/m/Y à H:i" }}. Les déplacements ou modifications ultérieurs ne modifient pas cette édition. La carte présente le périmètre enregistré.</p>{% endif %}
     <fieldset class="periode-simple" data-mode-simple{% if saisie.detail %} hidden disabled{% endif %}>
       <legend class="sr-only">Jours consécutifs, même plage horaire</legend>
       <label><span>Du</span><input type="date" name="du" value="{{ saisie.du }}" data-du></label>
@@ -58,6 +65,33 @@
       </div>
       <button type="button" class="bouton secondaire petit" data-ajouter>+ Ajouter un jour</button>
     </fieldset>
+    <fieldset class="comparaison-evenement">
+      <legend>Comparer à</legend>
+      <label>Référence
+        <select name="comparaison" data-comparaison>
+          <option value="auto"{% if comparaison == 'auto' %} selected{% endif %}>Édition de l'année précédente, sinon mêmes dates l'année précédente</option>
+          <option value="calendrier"{% if comparaison == 'calendrier' %} selected{% endif %}>Mêmes dates l'année précédente</option>
+          <option value="personnalisee"{% if comparaison == 'personnalisee' %} selected{% endif %}>Dates et heures personnalisées</option>
+          <option value="semaines"{% if comparaison == 'semaines' %} selected{% endif %}>Moyenne des {{ evenement.semaines_reference }} semaines précédentes</option>
+          {% for e in editions %}<option value="{{ e.pk }}"{% if comparaison == e.pk|stringformat:'s' %} selected{% endif %}>{{ e.nom }} — édition enregistrée</option>{% endfor %}
+        </select>
+      </label>
+      <div data-reference-personnalisee{% if comparaison != 'personnalisee' %} hidden{% endif %}>
+        <input type="hidden" name="ref_detail" value="1">
+        <div data-reference-lignes>
+          {% for jour, de, a in ref_lignes %}
+          <div class="periode-ligne" data-reference-ligne>
+            <label>Jour de référence <input type="date" name="ref_jour" value="{{ jour }}"></label>
+            <label>De <select name="ref_de">{% include "evenements/_heures.html" with heures=heures_debut valeur=de %}</select></label>
+            <label>À <select name="ref_a">{% include "evenements/_heures.html" with heures=heures_fin valeur=a %}</select></label>
+            <button type="button" class="periode-retirer" data-reference-retirer aria-label="Retirer ce jour de référence">×</button>
+          </div>
+          {% endfor %}
+        </div>
+        <button type="button" class="bouton secondaire petit" data-reference-ajouter>+ Ajouter un jour de référence</button>
+      </div>
+      {% if creneaux %}<p class="aide">{{ origine_reference }}<br><strong>Référence : {{ reference_libelle|default:"mêmes jours et heures des semaines précédentes (dates détaillées dans les résultats)" }}</strong></p>{% endif %}
+    </fieldset>
     <div class="periode-actions">
       <label class="periode-bascule"><input type="checkbox" data-bascule-detail{% if saisie.detail %} checked{% endif %}> Heures différentes selon les jours</label>
       {% if decalages %}<nav class="periode-decalages" aria-label="Même période décalée">{% for libelle, lien in decalages %}<a href="{{ lien }}">{{ libelle }}</a>{% endfor %}</nav>{% endif %}
@@ -72,11 +106,25 @@
   {% endif %}
 </section>
 
+{% if analyse and peut_archiver %}
+<section class="carte">
+  <h2>Conserver cette édition</h2>
+  <p>Enregistrez l'édition après la fin de l'événement, une fois les données chargées et avant de modifier ses sites ou remorques. Ses résultats et son périmètre seront conservés pour les prochaines comparaisons.</p>
+  <p class="aide">Pour une édition passée recréée aujourd'hui, vérifiez vous-même les sites et remorques : leur affectation historique n'est pas reconstituée.</p>
+  <form method="post" action="{% url 'evenements:enregistrer_edition' evenement.pk %}">{% csrf_token %}
+    {% for nom, valeur in parametres_periode %}<input type="hidden" name="{{ nom }}" value="{{ valeur }}">{% endfor %}
+    <label>Nom de l'édition <input name="nom_edition" maxlength="128" required placeholder="Ex. Carnaval 2026"></label>
+    <button class="bouton" type="submit">Enregistrer définitivement cette édition</button>
+  </form>
+</section>
+{% endif %}
+
 {% if not creneaux and not erreur_periode %}<p class="vide">Choisissez la période à analyser : par exemple le jour et les heures de la dernière édition.</p>{% endif %}
 
 {% if erreur %}<div class="erreur">{{ erreur }}</div>{% endif %}
 
 {% if analyse %}
+<p class="avertissement"><strong>Référence utilisée :</strong> {{ analyse.reference_libelle }}</p>
 <div class="barre-evenement">
   <nav class="onglets" aria-label="Niveau d'analyse">{% for code, libelle in niveaux.items %}<a href="?{% if periode_url %}{{ periode_url }}&amp;{% endif %}niveau={{ code }}" class="{% if code == niveau %}actif{% endif %}"{% if code == niveau %} aria-current="page"{% endif %}>Par {{ libelle|lower }}</a>{% endfor %}</nav>
   <div class="boutons">
@@ -113,7 +161,7 @@
   </table></div>
   {% if bloc.res.instants %}
   <h3>Courbes horaires</h3>
-  <p class="aide" data-legende-courbes>Vert : événement · ocre : référence · zone grise : min–max des semaines de référence.</p>
+  <p class="aide" data-legende-courbes>Vert : événement · ocre : référence{% if comparaison == 'semaines' %} · zone grise : min–max des semaines de référence{% else %} · heures alignées par rang dans chaque période{% endif %}.</p>
   {{ bloc.graphiques|json_script:bloc.id }}
   <div class="graphiques courbes" data-source="{{ bloc.id }}"></div>
   {% endif %}
@@ -162,6 +210,7 @@
 <script src="{% static 'vendor/leaflet-1.9.4/leaflet.js' %}" defer></script>
 <script src="{% static 'js/evenement-zone.js' %}" defer></script>
 <script src="{% static 'js/evenement-periode.js' %}" defer></script>
+<script src="{% static 'js/evenement-comparaison.js' %}" defer></script>
 {% if blocs %}
 <script src="{% static 'vendor/echarts-5.6.0.min.js' %}"></script>
 <script src="{% static 'js/kpi.js' %}"></script>

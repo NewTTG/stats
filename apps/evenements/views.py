@@ -24,7 +24,7 @@ from apps.rapports.contenu import LIBELLES_REGLE
 from . import acces
 from .acces import evenements_visibles
 from .analyse import NIVEAUX, AnalyseImpossible, analyser
-from . import periode
+from . import archives, periode
 from .edition import EvenementForm, groupes_kpi, nb_kpis_principaux, reseau_pour_carte, zone_pour_carte
 from .models import Creneau, Evenement
 
@@ -82,29 +82,69 @@ def detail(request, pk):
     if niveau not in NIVEAUX:
         niveau = "secteur"
     creneaux, saisie, erreur_periode = _periode_demandee(request, evenement)
+    editions = list(archives.visibles(evenement, request.user))
+    archive = None
+    choix_edition = request.GET.get("edition_id", "")
+    if choix_edition and choix_edition != "direct":
+        archive = get_object_or_404(archives.visibles(evenement, request.user), pk=choix_edition) if choix_edition.isdecimal() else None
+        if archive is None:
+            erreur_periode = "Édition inconnue."
+    elif not choix_edition and not any(k in request.GET for k in ("du", "jour", "debut")) and editions:
+        archive = editions[0]
+    if archive and not any(k in request.GET for k in ("du", "jour", "debut")):
+        creneaux = archives.creneaux(archive)
+        saisie = periode.saisie(creneaux)
+    reference, archive_reference, origine_reference = [], None, ""
+    try:
+        if creneaux:
+            reference, archive_reference, origine_reference = archives.choix_reference(
+                evenement, request.user, request.GET, creneaux)
+    except periode.PeriodeInvalide as e:
+        erreur_periode = str(e)
     parametres = periode.parametres(creneaux)
+    comparaison_params = [("comparaison", request.GET["comparaison"])] if "comparaison" in request.GET else []
+    if archive:
+        comparaison_params.append(("edition_id", str(archive.pk)))
+    elif choix_edition == "direct":
+        comparaison_params.append(("edition_id", "direct"))
+    if request.GET.get("comparaison") == "personnalisee":
+        comparaison_params += [(k, v) for k, vs in request.GET.lists() if k.startswith("ref_") for v in vs]
+    parametres_complets = parametres + comparaison_params
+    ref_saisie = periode.saisie(reference or [])
+    ref_lignes = (ref_saisie.lignes if ref_saisie.detail else
+                  [(d.date().isoformat(), str(d.hour), str(f.hour or 24)) for d, f in (reference or [])])
+    if request.GET.get("comparaison") == "personnalisee" and erreur_periode:
+        ref_lignes = list(zip_longest(request.GET.getlist("ref_jour"), request.GET.getlist("ref_de"),
+                                     request.GET.getlist("ref_a"), fillvalue=""))
     url = reverse("evenements:detail", args=[evenement.pk])
     contexte = {
         "evenement": evenement, "niveau": niveau, "niveaux": NIVEAUX, "regles": LIBELLES_REGLE,
-        "zone": zone_pour_carte(evenement),
+        "zone": archive.donnees["zone"] if archive else zone_pour_carte(evenement),
+        "archive": archive, "editions": editions, "comparaison": request.GET.get("comparaison", "auto"),
+        "reference": reference, "origine_reference": origine_reference,
+        "reference_libelle": archives.libelle(reference or []), "ref_lignes": ref_lignes or [("", "", "")],
+        "peut_archiver": request.user.has_perm("evenements.change_evenement") and voit_tout_le_reseau(request.user) and not archive,
         "carte_tuiles": settings.CARTE_TUILES_URL, "carte_attribution": settings.CARTE_TUILES_ATTRIBUTION,
         "creneaux": creneaux, "saisie": saisie, "erreur_periode": erreur_periode,
         "lignes_detail": saisie.lignes or [("", "", "")],
         "heures_debut": periode.HEURES_DEBUT, "heures_fin": periode.HEURES_FIN,
-        "periode_url": urlencode(parametres),
-        "parametres_periode": parametres,
+        "periode_url": urlencode(parametres_complets),
+        "parametres_periode": parametres_complets,
         "decalages": [(libelle, f"{url}?{urlencode(periode.parametres(periode.decaler(creneaux, mois, jours)) + [('niveau', niveau)])}")
                       for libelle, mois, jours in periode.DECALAGES] if creneaux else [],
         "peut_memoriser": bool(creneaux) and creneaux != periode.memorises(evenement),
     }
-    if not creneaux:  # rien à analyser : on demande la période
+    if not creneaux or erreur_periode:  # rien à analyser : on demande la période
         return render(request, "evenements/detail.html", contexte)
     trace = {'evenement': evenement.pk, 'niveau': niveau,
-             'creneaux': [[d.isoformat(), f.isoformat()] for d, f in creneaux]}
+             'creneaux': [[d.isoformat(), f.isoformat()] for d, f in creneaux],
+             'comparaison': comparaison_params}
     demande = suivi.commencer(request.user, 'evenement', evenement.nom, trace) if request.method == 'GET' else None
     contexte['suivi'] = str(demande.pk) if demande else ''
     try:
-        analyse = analyser(evenement, request.user, moteur_kpi(), niveau=niveau, creneaux=creneaux)
+        engine = archives.moteur_pour_analyse(moteur_kpi, archive, archive_reference)
+        analyse = analyser(evenement, request.user, engine, niveau=niveau, creneaux=creneaux,
+                           reference=reference, archive=archive, archive_reference=archive_reference)
         JournalAudit.objects.create(utilisateur=request.user, action="analyse_evenement", requete=trace)
         contexte["analyse"] = analyse
         contexte["blocs"] = [{"res": r, "graphiques": _graphiques(r), "id": f"courbes-{r.techno}"}
@@ -148,6 +188,39 @@ def memoriser_periode(request, pk):
 
 
 # ------------------------------------------------------------------ création / modification
+
+@login_required
+@require_POST
+def enregistrer_edition(request, pk):
+    _exiger(request, "change")
+    if not voit_tout_le_reseau(request.user):
+        raise PermissionDenied
+    evenement = get_object_or_404(evenements_visibles(request.user), pk=pk)
+    try:
+        plages = periode.lire(request.POST)[0]
+        # Une archive portant déjà ce nom n'est jamais remplacée silencieusement.
+        with transaction.atomic():
+            evenement = Evenement.objects.select_for_update().get(pk=pk)
+            if evenement.editions.filter(nom=request.POST.get("nom_edition", "").strip()).exists():
+                raise AnalyseImpossible("Ce nom d'édition existe déjà. Choisissez un autre nom pour une nouvelle archive.")
+            archive = archives.enregistrer(evenement, request.user, moteur_kpi(), plages,
+                                           request.POST.get("nom_edition", ""))
+            JournalAudit.objects.create(utilisateur=request.user, action="enregistrement_edition",
+                                        requete={"evenement": pk, "edition": archive.pk})
+    except (periode.PeriodeInvalide, AnalyseImpossible) as e:
+        messages.error(request, str(e))
+        return redirect("evenements:detail", pk)
+    except (BaseKpiNonConfiguree, SQLAlchemyError):
+        journal.exception("Enregistrement de l'édition %s : source indisponible", pk)
+        messages.error(request, MESSAGE_BASE_INDISPONIBLE)
+        return redirect("evenements:detail", pk)
+    messages.success(request, "Édition enregistrée : ses données, sites et remorques sont conservés indépendamment des prochaines éditions.")
+    return redirect(f"{reverse('evenements:detail', args=[pk])}?edition_id={archive.pk}")
+
+def _exiger(request, droit):
+    if not request.user.has_perm(f"evenements.{droit}_evenement"):
+        raise PermissionDenied
+
 
 @login_required
 @require_http_methods(["GET", "HEAD", "POST"])

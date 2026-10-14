@@ -71,11 +71,14 @@ def _plage(jour: date, de: int, a: int) -> tuple[datetime, datetime]:
 
 
 def _controler(creneaux: Creneaux) -> Creneaux:
+    creneaux = sorted(creneaux)
     if len(creneaux) > MAX_CRENEAUX:
         raise PeriodeInvalide(f"{MAX_CRENEAUX} jours au plus.")
     if sum((f - d for d, f in creneaux), timedelta()) > timedelta(hours=MAX_HEURES):
         raise PeriodeInvalide("Période trop longue : 31 jours cumulés au plus.")
-    return sorted(creneaux)
+    if any(fin > debut for (_, fin), (debut, _) in zip(creneaux, creneaux[1:])):
+        raise PeriodeInvalide("Les créneaux ne doivent pas se chevaucher.")
+    return creneaux
 
 
 def _heure_pleine(dt: datetime, fin: bool) -> datetime:

@@ -122,14 +122,14 @@ def pptx_evenement(analyse: Analyse) -> bytes:
     deck.titre(e.nom, [
         *([e.type] if e.type else []),
         f"{nb} créneau{'x' if nb > 1 else ''} {periode}",
-        f"Référence : {analyse.semaines} semaines précédentes. Analyse par {niveau.lower()}.",
+        f"Référence : {analyse.reference_libelle or str(analyse.semaines) + ' semaines précédentes'}. Analyse par {niveau.lower()}.",
     ])
     deck.texte("Périmètre analysé", [
         "Créneaux :",
         *(f"   • {JOURS[d.weekday()]} {d:%d/%m/%Y %H:%M} → {f:%H:%M}" + (f" (le {f:%d/%m})" if f.date() != d.date() else "")
           for d, f in analyse.creneaux),
         "",
-        f"Référence : mêmes jours et mêmes heures des {analyse.semaines} semaines précédentes.",
+        f"Référence : {analyse.reference_libelle or str(analyse.semaines) + ' semaines précédentes'}.",
         f"Cellules : {cellules or 'aucune'}.",
         f"Anomalies et classement par {niveau.lower()}.",
     ])
@@ -167,7 +167,7 @@ def xlsx_evenement(analyse: Analyse) -> bytes:
     ws.title = "Synthèse"
     ws["A1"] = analyse.evenement.nom
     ws["A1"].font = Font(bold=True, size=14, color="14284B")
-    ws["A2"] = (f"Référence : {analyse.semaines} semaines précédentes. Analyse par {analyse.niveau}. Créneaux : "
+    ws["A2"] = (f"Référence : {analyse.reference_libelle or str(analyse.semaines) + ' semaines précédentes'}. Analyse par {analyse.niveau}. Créneaux : "
                 + " ; ".join(f"{d:%d/%m/%Y %H:%M} → {f:%d/%m/%Y %H:%M}" for d, f in analyse.creneaux))
     _entete(ws, 4, ["Techno", "KPI", "Unité", "Événement", "Référence", "Écart %", "Statut"])
     ligne = 4
