@@ -1,0 +1,37 @@
+{% extends 'admin/change_list.html' %}
+{% comment %}Référentiel réseau : état actuel et rechargement, puis l'historique des imports (liste standard).{% endcomment %}
+{% block breadcrumbs %}<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Accueil</a> › Référentiel réseau</div>{% endblock %}
+{% block page_intro %}<p class="page-intro">Sites lus dans le xlsx (onglet Site_File) ; secteurs et cellules déduits des noms de cellules. Chaque chargement est conservé ci-dessous avec ses ajouts, suppressions et anomalies.</p>{% endblock %}
+{% block content %}
+<div class="ref-grille">
+  <section class="panneau" aria-labelledby="etat-titre">
+    <header class="panneau-entete"><h2 id="etat-titre">État actuel</h2>{% if etat.dernier %}<span class="panneau-meta">Import du {{ etat.dernier.date|date:"d/m/Y H:i" }}</span>{% endif %}</header>
+    <dl class="chiffres">
+      <div><dt>Sites</dt><dd><a href="{% url 'admin:referentiel_site_changelist' %}">{{ etat.sites }}</a></dd></div>
+      <div><dt>Secteurs</dt><dd><a href="{% url 'admin:referentiel_secteur_changelist' %}">{{ etat.secteurs }}</a></dd></div>
+      <div><dt>Cellules LTE</dt><dd><a href="{% url 'admin:referentiel_cellule_changelist' %}?techno__exact=LTE">{{ etat.cellules_lte }}</a></dd></div>
+      <div><dt>Cellules WCDMA</dt><dd><a href="{% url 'admin:referentiel_cellule_changelist' %}?techno__exact=WCDMA">{{ etat.cellules_wcdma }}</a></dd></div>
+      <div><dt>Non rattachées</dt><dd><a href="{% url 'admin:referentiel_cellule_changelist' %}?rattachement=non">{{ etat.non_rattachees }}</a></dd></div>
+      <div><dt>Sites à 4 secteurs datés</dt><dd>{{ etat.quatre_secteurs }}</dd></div>
+    </dl>
+    <footer class="panneau-pied"><p>{% if etat.dernier %}Dernier fichier : {{ etat.dernier.fichier }}{% if etat.dernier.auteur %} · par {{ etat.dernier.auteur }}{% endif %} · {{ etat.dernier.anomalies|length }} anomalie{{ etat.dernier.anomalies|length|pluralize }} · <a href="{% url 'admin:referentiel_importreferentiel_change' etat.dernier.pk %}">détail</a>{% else %}Aucun import enregistré.{% endif %}</p></footer>
+  </section>
+  {% if peut_recharger %}
+  <section class="panneau" id="recharger" aria-labelledby="recharger-titre">
+    <header class="panneau-entete"><h2 id="recharger-titre">Recharger le référentiel</h2></header>
+    <form class="formulaire-compact" method="post" action="{% url 'admin:referentiel_importreferentiel_recharger' %}" enctype="multipart/form-data" data-confirmer="Recharger le référentiel ? Les sites absents du fichier seront supprimés.">
+      {% csrf_token %}
+      <p class="aide-champ">Fichier de référence : <strong>{{ fichier_courant|default:"aucun sur le serveur" }}</strong></p>
+      {% with f=form_rechargement %}
+      <div class="champ"><label for="{{ f.fichier.id_for_label }}">{{ f.fichier.label }}</label>{{ f.fichier }}<p class="aide-champ">{{ f.fichier.help_text }}</p></div>
+      <div class="champ case{% if not base_kpi %} indisponible{% endif %}">{{ f.cellules_kpi }}<label for="{{ f.cellules_kpi.id_for_label }}">{{ f.cellules_kpi.label }}<small>{% if base_kpi %}{{ f.cellules_kpi.help_text }}{% else %}Base KPI non configurée.{% endif %}</small></label></div>
+      <div class="champ case{% if not base_kpi %} indisponible{% endif %}">{{ f.bascules }}<label for="{{ f.bascules.id_for_label }}">{{ f.bascules.label }}<small>{{ f.bascules.help_text }}</small></label></div>
+      {% endwith %}
+      <div class="formulaire-actions"><button type="submit" class="bouton primaire" data-libelle-attente="Rechargement en cours…">Recharger maintenant</button></div>
+    </form>
+  </section>
+  {% endif %}
+</div>
+<h2 class="titre-section">Historique des imports</h2>
+{{ block.super }}
+{% endblock %}

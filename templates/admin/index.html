@@ -1,28 +1,74 @@
-{% extends "admin/index.html" %}
-{% block nav-breadcrumbs %}{% include 'admin/_navigation.html' %}{% endblock %}
+{% extends "admin/base_site.html" %}
 {% block bodyclass %}{{ block.super }} admin-dashboard{% endblock %}
+{% block nav-sidebar %}{% include "admin/nav_sidebar.html" %}{% endblock %}
+{% block breadcrumbs %}<div class="breadcrumbs">Vue d’ensemble</div>{% endblock %}
+{% block content_title %}<div class="page-entete"><div><h1>Vue d’ensemble</h1><p>Activité des 7 derniers jours, heure de Nouméa.</p></div>{% if peut_suivi %}<div class="page-actions"><a class="bouton" href="{% url 'admin:comptes_demandesuivie_changelist' %}">Suivi des demandes</a></div>{% endif %}</div>{% endblock %}
 {% block content %}
 <div id="content-main">
-  <header class="admin-intro"><div><p class="admin-eyebrow">PILOTAGE DE L’APPLICATION</p><h2>Comprendre les demandes.<br>Améliorer les réponses.</h2><p>Retrouvez les parcours utilisateurs et les points de blocage.</p></div>{% if peut_suivi %}<a class="admin-button primary" href="{% url 'admin:comptes_demandesuivie_changelist' %}">Explorer les demandes <span aria-hidden="true">→</span></a>{% endif %}</header>
   {% if suivi_stats %}
-  <section aria-labelledby="activite-titre"><div class="admin-section-heading"><h2 id="activite-titre">L’activité en un regard</h2><span>7 derniers jours · heure de Nouméa</span></div>
-    <div class="admin-metrics">
-      <a href="{% url 'admin:comptes_demandesuivie_changelist' %}?creee_le__gte={{ suivi_depuis|urlencode }}"><span>Demandes reçues</span><strong>{{ suivi_stats.total }}</strong><small>Toutes les tentatives</small></a>
-      <a href="{% url 'admin:comptes_demandesuivie_changelist' %}?statut__exact=reussie&amp;creee_le__gte={{ suivi_depuis|urlencode }}"><span>Abouties</span><strong>{{ suivi_stats.reussies }}</strong><small>Résultat ou fichier disponible</small></a>
-      <a href="{% url 'admin:comptes_demandesuivie_changelist' %}?suite=sans_suite&amp;creee_le__gte={{ suivi_depuis|urlencode }}"><span>À préciser</span><strong>{{ suivi_stats.a_preciser }}</strong><small>Aucune réponse enregistrée</small></a>
-      <a href="{% url 'admin:comptes_demandesuivie_changelist' %}?statut__exact=erreur&amp;creee_le__gte={{ suivi_depuis|urlencode }}"><span>En échec</span><strong>{{ suivi_stats.erreurs }}</strong><small>Blocages à examiner</small></a>
-      <a href="{% url 'admin:comptes_demandesuivie_changelist' %}?statut__exact=sans_donnees&amp;creee_le__gte={{ suivi_depuis|urlencode }}"><span>Sans données</span><strong>{{ suivi_stats.sans_donnees }}</strong><small>Recherche comprise, résultat vide</small></a>
-    </div>
-  </section>
-  <section class="admin-panel" aria-labelledby="demandes-titre"><div class="admin-section-heading"><div><h2 id="demandes-titre">Dernières demandes</h2><p>Ouvrez une demande pour suivre ses précisions et son résultat.</p></div><a href="{% url 'admin:comptes_demandesuivie_changelist' %}">Tout voir →</a></div>
-    {% include 'admin/suivi/table.html' with demandes=dernieres_demandes %}
+  <section class="indicateurs" aria-label="Demandes des 7 derniers jours">
+    <a href="{% url 'admin:comptes_demandesuivie_changelist' %}?creee_le__gte={{ suivi_depuis|urlencode }}"><span>Demandes</span><strong>{{ suivi_stats.total }}</strong><small>Toutes les tentatives</small></a>
+    <a href="{% url 'admin:comptes_demandesuivie_changelist' %}?statut__exact=reussie&amp;creee_le__gte={{ suivi_depuis|urlencode }}"><span>Abouties</span><strong>{{ suivi_stats.reussies }}</strong><small>{% if suivi_stats.taux is not None %}{{ suivi_stats.taux }} % des demandes{% else %}Aucune demande{% endif %}</small></a>
+    <a href="{% url 'admin:comptes_demandesuivie_changelist' %}?suite=sans_suite&amp;creee_le__gte={{ suivi_depuis|urlencode }}"><span>À préciser</span><strong>{{ suivi_stats.a_preciser }}</strong><small>Question sans réponse</small></a>
+    <a href="{% url 'admin:comptes_demandesuivie_changelist' %}?statut__exact=sans_donnees&amp;creee_le__gte={{ suivi_depuis|urlencode }}"><span>Sans données</span><strong>{{ suivi_stats.sans_donnees }}</strong><small>Comprise, résultat vide</small></a>
+    <a href="{% url 'admin:comptes_demandesuivie_changelist' %}?statut__exact=erreur&amp;creee_le__gte={{ suivi_depuis|urlencode }}"{% if suivi_stats.erreurs %} class="critique"{% endif %}><span>En échec</span><strong>{{ suivi_stats.erreurs }}</strong><small>Blocages à examiner</small></a>
   </section>
   {% endif %}
-  {% if acces_rapides %}<section class="admin-shortcuts" aria-labelledby="raccourcis-titre"><div class="admin-section-heading"><h2 id="raccourcis-titre">Accès rapides</h2><span>Gérer et configurer</span></div><ul class="cartes-admin">
-    {% for carte in acces_rapides %}<li><a class="carte-admin" href="{{ carte.url }}"><span class="carte-admin-titre">{{ carte.titre }}{% if carte.compteur is not None %}<span class="carte-admin-compteur{% if not carte.compteur %} nul{% endif %}" title="{{ carte.compteur }} à compléter">{{ carte.compteur }}</span>{% endif %}</span><span>{{ carte.description }}</span><span class="carte-fleche" aria-hidden="true">→</span></a></li>{% endfor %}
-  </ul></section>{% endif %}
-  <section class="admin-directory"><div class="admin-section-heading"><h2>Toutes les rubriques</h2><span>Configuration de l’application</span></div>{% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}</section>
-  {% if rappels_commandes %}<details class="admin-maintenance"><summary>Maintenance et opérations serveur</summary><p>Commandes à lancer depuis la racine du dépôt (avec Docker : <code>docker compose exec app …</code>).</p><dl>{% for libelle, commande in rappels_commandes %}<dt>{{ libelle }}</dt><dd><code>{{ commande }}</code></dd>{% endfor %}</dl>{% if referentiel %}<p>{% if referentiel.import %}Dernier import : {{ referentiel.import.date|date:"d/m/Y H:i" }} · {{ referentiel.import.fichier }}{% else %}Aucun import du référentiel.{% endif %} <a href="{{ referentiel.url }}">Historique des imports</a></p>{% endif %}</details>{% endif %}
+
+  <div class="tdb-grille">
+    <div class="tdb-principal">
+      {% if suivi_stats %}
+      <section class="panneau" aria-labelledby="demandes-titre">
+        <header class="panneau-entete"><h2 id="demandes-titre">Dernières demandes</h2><a href="{% url 'admin:comptes_demandesuivie_changelist' %}">Tout voir</a></header>
+        {% include 'admin/suivi/table.html' with demandes=dernieres_demandes %}
+      </section>
+      {% endif %}
+      {% if referentiel %}
+      <section class="panneau" aria-labelledby="referentiel-titre">
+        <header class="panneau-entete"><h2 id="referentiel-titre">Référentiel réseau</h2><a href="{{ referentiel.url }}">Imports et rechargement</a></header>
+        <dl class="chiffres">
+          <div><dt>Sites</dt><dd>{{ referentiel.sites }}</dd></div>
+          <div><dt>Secteurs</dt><dd>{{ referentiel.secteurs }}</dd></div>
+          <div><dt>Cellules LTE</dt><dd>{{ referentiel.cellules_lte }}</dd></div>
+          <div><dt>Cellules WCDMA</dt><dd>{{ referentiel.cellules_wcdma }}</dd></div>
+          <div><dt>Non rattachées</dt><dd>{% if referentiel.non_rattachees %}<a href="{{ referentiel.url_non_rattachees }}">{{ referentiel.non_rattachees }}</a>{% else %}0{% endif %}</dd></div>
+        </dl>
+        <footer class="panneau-pied">
+          <p>{% if referentiel.import %}Dernier import le {{ referentiel.import.date|date:"d/m/Y à H:i" }} · {{ referentiel.import.fichier }}{% if referentiel.import.auteur %} · {{ referentiel.import.auteur }}{% endif %}{% else %}Aucun import du référentiel.{% endif %}</p>
+          {% if referentiel.peut_recharger %}<a class="bouton" href="{{ referentiel.url }}#recharger">Recharger le référentiel</a>{% endif %}
+        </footer>
+      </section>
+      {% endif %}
+    </div>
+    <div class="tdb-cote">
+      {% if a_traiter %}
+      <section class="panneau" aria-labelledby="traiter-titre">
+        <header class="panneau-entete"><h2 id="traiter-titre">À traiter</h2></header>
+        <ul class="liste-compteurs">
+          {% for ligne in a_traiter %}<li><a href="{{ ligne.url }}"><span>{{ ligne.libelle }}</span><span class="compteur{% if ligne.nombre %} {{ ligne.gravite }}{% endif %}">{{ ligne.nombre }}</span></a></li>{% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+      {% if acces_rapides %}
+      <section class="panneau" aria-labelledby="raccourcis-titre">
+        <header class="panneau-entete"><h2 id="raccourcis-titre">Accès rapides</h2></header>
+        <ul class="liste-liens">
+          {% for carte in acces_rapides %}<li><a href="{{ carte.url }}"><strong>{% if carte.ajout %}+ {% endif %}{{ carte.titre }}</strong><span>{{ carte.description }}</span></a></li>{% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if rappels_commandes %}
+  <details class="panneau admin-maintenance">
+    <summary>Opérations en ligne de commande</summary>
+    <p>À lancer depuis la racine du dépôt (avec Docker : <code>docker compose exec app …</code>).</p>
+    <table class="table-simple">
+      <tbody>{% for libelle, commande in rappels_commandes %}<tr><th scope="row">{{ libelle }}</th><td><code>{{ commande }}</code></td></tr>{% endfor %}</tbody>
+    </table>
+  </details>
+  {% endif %}
 </div>
 {% endblock %}
 {% block sidebar %}{% endblock %}

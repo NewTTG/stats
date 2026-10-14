@@ -139,6 +139,10 @@ LOGOUT_REDIRECT_URL = "kpi:requete" if ACCES_ANONYME else "login"
 
 KPI_CATALOGUE_PATH = BASE_DIR / "config" / "kpi_catalogue.yaml"
 
+# Référentiel réseau rechargé depuis l'administration : dernier xlsx déposé (MEDIA_ROOT/referentiel/),
+# sinon ce fichier.
+REFERENTIEL_XLSX = Path(env("REFERENTIEL_XLSX") or BASE_DIR / "OPT_Network_Database_V2.xlsx")
+
 # Modèle PowerPoint (charte) : utilisé s'il existe, sinon charte dessinée par le code.
 PPTX_MODELE = env("PPTX_MODELE") or BASE_DIR / "config" / "modele_rapport.pptx"
 # Dispositions du modèle par rôle (premier nom trouvé ; sinon dispositions standard).

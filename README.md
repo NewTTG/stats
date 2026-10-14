@@ -286,15 +286,23 @@ et redémarrer l’application et le worker. En déploiement, exécuter aussi
 - **Administration** (/admin), à part des statistiques : lien « Administration » en haut à
   droite pour un compte administrateur, « Accès administrateur » (/connexion) en pied de page
   sinon ; les pages des statistiques n'affichent aucun détail technique à un utilisateur
-  (commande de la démo, configuration de la base KPI). Espace aux couleurs de l'application,
-  lien « ← Retour aux statistiques » : tableau de bord avec accès rapides (créer un événement,
-  événements sans créneau à compléter, seuils KPI, périmètres, comptes, journal d'audit) et
-  rappel des commandes à lancer sur le serveur ; sections rangées par usage : **événements**
-  (cellules, créneaux, semaines de référence), KPI (**seuils KPI**, **réglages de détection
-  d'anomalies**), comptes et périmètres (utilisateurs, groupes, périmètres d'accès, journal
-  d'audit), référentiel réseau (sites / secteurs / cellules, historique des imports), rapports,
-  tâches de fond. La liste des utilisateurs masque par défaut les sessions visiteur (filtre
-  « Type de compte »).
+  (commande de la démo, configuration de la base KPI). Mise en page d'outil d'administration :
+  menu latéral fixe par usage (pilotage, analyse, référentiel réseau, comptes et accès,
+  système), barre supérieure avec fil d'Ariane, « ← Retour aux statistiques » et menu du
+  compte ; listes compactes avec recherche et filtres en menus déroulants au-dessus du
+  tableau ; thèmes clair et sombre. Le tableau de bord réunit les indicateurs des demandes,
+  les dernières demandes, les points **à traiter** (événements sans créneau, précisions sans
+  réponse, échecs, rapports et tâches en erreur), l'état du référentiel et des accès rapides.
+  La liste des utilisateurs masque par défaut les sessions visiteur (filtre « Type de compte »).
+- **Recharger le référentiel** (Référentiel réseau › Chargement et imports) : volumes actuels
+  (sites, secteurs, cellules LTE / WCDMA, cellules non rattachées), puis rechargement en un
+  clic : relit le xlsx de référence ou une nouvelle version déposée dans le formulaire (qui
+  devient la référence si l'import réussit), avec au choix les cellules de la base KPI et la
+  détection des passages de 3 à 4 secteurs (dates vides seulement). Même traitement que
+  `import_referentiel --cellules-kpi` puis `detecter_bascules --enregistrer` ; chaque
+  chargement est historisé (ajouts, suppressions, anomalies). Fichier de référence par
+  défaut : `REFERENTIEL_XLSX` (sinon `OPT_Network_Database_V2.xlsx` à la racine). Droit
+  requis : « ajouter un import du référentiel » (super-utilisateurs).
 
 ### Suivi des demandes et administration
 

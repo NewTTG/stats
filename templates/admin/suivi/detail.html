@@ -3,18 +3,20 @@
 {% block bodyclass %}{{ block.super }} suivi-detail{% endblock %}
 {% block extrahead %}{{ block.super }}<script src="{% static 'js/suivi-demandes.js' %}" defer></script>{% endblock %}
 {% block breadcrumbs %}<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Administration</a> › <a href="{% url 'admin:comptes_demandesuivie_changelist' %}">Suivi des demandes</a> › Demande sélectionnée</div>{% endblock %}
+{% block content_title %}<div class="page-entete"><div><h1>Détail de la demande</h1><p class="suivi-entete-meta">{{ original.utilisateur|default:"Compte supprimé" }} · {{ original.creee_le|date:"d/m/Y H:i:s" }} (heure de Nouméa) · Identifiant : {{ original.pk }}</p></div><div class="page-actions"><a class="bouton" href="{% url 'admin:comptes_demandesuivie_changelist' %}">← Toutes les demandes</a></div></div>{% endblock %}
 {% block content %}
-<header class="admin-intro compact"><div><p class="admin-eyebrow">DÉTAIL DE LA DEMANDE</p><h2>{{ original|truncatechars:160 }}</h2><p>{{ original.utilisateur|default:"Compte supprimé" }} · {{ original.creee_le|date:"d/m/Y H:i:s" }} · heure de Nouméa</p><p class="admin-muted">Identifiant : {{ original.pk }}</p></div><a class="admin-button" href="{% url 'admin:comptes_demandesuivie_changelist' %}">← Toutes les demandes</a></header>
 <div class="suivi-layout"><section aria-label="Demande sélectionnée et historique">
 {% include 'admin/suivi/etape.html' with e=original %}
-<section class="admin-panel suivi-ameliorations" aria-labelledby="titre-ameliorations">
-  <h2 id="titre-ameliorations">Pistes d’amélioration</h2>
-  <p>Ces pistes reposent sur la trace enregistrée et restent à vérifier. Un traitement abouti ne garantit pas que la question a été bien comprise.</p>
+<section class="panneau suivi-ameliorations" aria-labelledby="titre-ameliorations">
+  <header class="panneau-entete"><h2 id="titre-ameliorations">Pistes d’amélioration</h2></header>
+  <div class="panneau-corps">
+  <p class="admin-muted">Déduites de la trace enregistrée, à vérifier : un traitement abouti ne garantit pas que la question a été bien comprise.</p>
   <ul>{% for piste in pistes %}<li>{{ piste }}</li>{% empty %}<li>Aucune difficulté détectée automatiquement. Vous pouvez décrire ci-dessous le comportement attendu.</li>{% endfor %}</ul>
   <label for="texte-transmission"><strong>Texte à transmettre pour améliorer cette demande</strong></label>
-  <p id="aide-transmission">Complétez le comportement attendu, puis copiez le texte dans votre échange avec l’assistant. Vos modifications restent dans cette page jusqu’à son rechargement.</p>
+  <p id="aide-transmission" class="admin-muted">Complétez le comportement attendu, puis copiez le texte. Vos modifications restent dans cette page jusqu’à son rechargement.</p>
   <textarea id="texte-transmission" rows="14" aria-describedby="aide-transmission">{{ texte_transmission }}</textarea>
-  <div class="suivi-actions"><button type="button" class="admin-button" data-copier-demande>Copier la demande et les pistes</button><span role="status" aria-live="polite" data-statut-copie></span></div>
+  <div class="suivi-actions"><button type="button" class="bouton primaire" data-copier-demande>Copier la demande et les pistes</button><span role="status" aria-live="polite" data-statut-copie></span></div>
+  </div>
 </section>
 {% if etapes.paginator.count %}
 <details class="suivi-historique"{% if historique_ouvert %} open{% endif %}>
@@ -24,7 +26,8 @@
   {% if etapes.has_other_pages %}<nav class="admin-pagination" aria-label="Étapes du parcours">{% if etapes.has_previous %}<a href="?page={{ etapes.previous_page_number }}">← Précédentes</a>{% endif %}<span>Page {{ etapes.number }} / {{ etapes.paginator.num_pages }}</span>{% if etapes.has_next %}<a href="?page={{ etapes.next_page_number }}">Suivantes →</a>{% endif %}</nav>{% endif %}
 </details>
 {% endif %}
-</section><aside class="suivi-aside"><section class="admin-panel"><p class="admin-eyebrow">ISSUE DU PARCOURS</p><h2>{% if aboutie %}Un résultat a été obtenu{% else %}Aucun succès enregistré{% endif %}</h2><p>{{ nombre_etapes }} étape{{ nombre_etapes|pluralize }} dans ce parcours. Chaque étape conserve son propre résultat. Une question sans réponse enregistrée ne permet pas de conclure à un abandon.</p><p>Cette page présente l’interprétation au moment de la demande ; les corrections du moteur ne réécrivent pas l’historique.</p></section>
-{% if peut_rapports %}<section class="admin-panel"><h2>Rapports du parcours</h2>{% for r in rapports %}<div class="suivi-rapport"><strong>{{ r.titre }}</strong><p>{{ r.get_format_display }} · {{ r.get_statut_display }}<br>{{ r.creee_le|date:"d/m/Y H:i" }}</p>{% if r.message %}<p>{{ r.message }}</p>{% endif %}{% if r.statut == 'termine' and r.fichier %}<a class="admin-button" href="{% url 'admin:rapports_rapport_telecharger' r.pk %}">Télécharger {{ r.get_format_display }}</a>{% endif %}<a href="{% url 'admin:rapports_rapport_change' r.pk %}">Détails du rapport →</a></div>{% empty %}<p>Aucun rapport généré pour ce parcours.</p>{% endfor %}</section>{% endif %}
+</section><aside class="suivi-aside">
+<section class="panneau"><header class="panneau-entete"><h2>Issue du parcours</h2></header><div class="panneau-corps"><p class="issue"><span class="etat etat-{% if aboutie %}reussie{% else %}a_preciser{% endif %}">{% if aboutie %}Un résultat a été obtenu{% else %}Aucun succès enregistré{% endif %}</span></p><p>{{ nombre_etapes }} étape{{ nombre_etapes|pluralize }} dans ce parcours, chacune avec son propre résultat. Une question sans réponse enregistrée ne permet pas de conclure à un abandon.</p><p>Interprétation au moment de la demande : les corrections du moteur ne réécrivent pas l’historique.</p></div></section>
+{% if peut_rapports %}<section class="panneau"><header class="panneau-entete"><h2>Rapports du parcours</h2></header><div class="panneau-corps">{% for r in rapports %}<div class="suivi-rapport"><strong>{{ r.titre }}</strong><p class="admin-muted">{{ r.get_format_display }} · {{ r.get_statut_display }} · {{ r.creee_le|date:"d/m/Y H:i" }}</p>{% if r.message %}<p>{{ r.message }}</p>{% endif %}{% if r.statut == 'termine' and r.fichier %}<a class="bouton" href="{% url 'admin:rapports_rapport_telecharger' r.pk %}">Télécharger {{ r.get_format_display }}</a>{% endif %}<a href="{% url 'admin:rapports_rapport_change' r.pk %}">Détails du rapport</a></div>{% empty %}<p>Aucun rapport généré pour ce parcours.</p>{% endfor %}</div></section>{% endif %}
 </aside></div>
 {% endblock %}
