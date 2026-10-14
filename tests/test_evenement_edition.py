@@ -4,10 +4,12 @@ renvoie vers ces pages. La période se choisit sur la page de l'événement (tes
 
 import pandas as pd
 import pytest
-from django.contrib.auth.models import Permission, User
+from django.contrib.auth.models import Group, Permission, User
 from django.urls import reverse
 
+from apps.comptes.models import Perimetre
 from apps.evenements.models import Evenement
+from apps.kpi.recherche.lieux import ResolveurLieux
 from apps.referentiel.importation import importer
 from apps.referentiel.models import Secteur
 
@@ -114,16 +116,101 @@ def test_droits(client, referentiel):  # noqa: F811
     e = Evenement.objects.create(nom="Concert", sites=["AAA100"])
     lecteur = User.objects.create_user("lecteur", password="x", is_staff=True)
     lecteur.user_permissions.add(Permission.objects.get(codename="view_evenement"))
+    lecteur.groups.add(Group.objects.create(name="Analyste"))
     client.force_login(lecteur)
+    # Création et modification ouvertes à tous ; suppression : droit Django ou créateur.
     for url in [reverse("evenements:reseau"), reverse("evenements:nouveau"),
                 reverse("evenements:modifier", args=[e.pk])]:
-        assert client.get(url).status_code == 403
+        assert client.get(url).status_code == 200
+    assert client.put(reverse("evenements:modifier", args=[e.pk])).status_code == 405
     assert client.post(reverse("evenements:supprimer", args=[e.pk])).status_code == 403
     html = client.get(reverse("evenements:liste")).content.decode()
-    assert reverse("evenements:nouveau") not in html
+    assert reverse("evenements:nouveau") in html and reverse("evenements:modifier", args=[e.pk]) in html
+    assert reverse("evenements:modifier", args=[e.pk]) in client.get(
+        reverse("evenements:detail", args=[e.pk])).content.decode()
+    assert "Supprimer l'événement" not in client.get(reverse("evenements:modifier", args=[e.pk])).content.decode()
     # Consultation seule dans l'administration : page standard de Django, sans redirection.
     reponse = client.get(reverse("admin:evenements_evenement_change", args=[e.pk]))
     assert reponse.status_code == 200 and "Concert" in reponse.content.decode()
+
+
+# ------------------------------------------------------------------ public / privé
+
+@pytest.fixture
+def analystes():
+    groupe = Group.objects.create(name="Analyste")  # tout le réseau, sans droit evenements.*
+    comptes = [User.objects.create_user(nom) for nom in ("alice", "bruno")]
+    for u in comptes:
+        u.groups.add(groupe)
+    return comptes
+
+
+def test_public_par_defaut(client, referentiel, analystes):  # noqa: F811
+    alice, bruno = analystes
+    client.force_login(alice)
+    html = client.get(reverse(URL_AJOUT)).content.decode()
+    assert 'name="public" value="public" checked' in html and 'name="public" value="prive">' in html
+    assert client.post(reverse(URL_AJOUT), _donnees()).status_code == 302
+    e = Evenement.objects.get()
+    assert e.public and e.cree_par == alice
+    # Un autre utilisateur le voit et le modifie, sans pouvoir le rendre privé.
+    client.force_login(bruno)
+    url = reverse("evenements:modifier", args=[e.pk])
+    assert 'name="public"' not in client.get(url).content.decode()
+    assert client.post(url, _donnees(type="Concert", public="prive")).status_code == 302
+    e.refresh_from_db()
+    assert (e.type, e.public, e.cree_par) == ("Concert", True, alice)
+    assert client.post(reverse("evenements:supprimer", args=[e.pk])).status_code == 403
+    # Le créateur, lui, le rend privé puis le supprime.
+    client.force_login(alice)
+    assert client.post(url, _donnees(public="prive")).status_code == 302
+    e.refresh_from_db()
+    assert not e.public
+    assert client.post(reverse("evenements:supprimer", args=[e.pk])).status_code == 302
+    assert not Evenement.objects.exists()
+
+
+def test_evenement_prive(client, referentiel, analystes):  # noqa: F811
+    alice, bruno = analystes
+    client.force_login(alice)
+    client.post(reverse(URL_AJOUT), _donnees(public="prive"))
+    e = Evenement.objects.get()
+    assert not e.public
+    assert "Privé" in client.get(reverse("evenements:liste")).content.decode()
+    assert "Privé" in client.get(reverse("evenements:detail", args=[e.pk])).content.decode()
+    assert 'name="public" value="prive" checked' in client.get(
+        reverse("evenements:modifier", args=[e.pk])).content.decode()
+    # Invisible des autres, administrateurs compris, et de leur recherche.
+    admin = User.objects.create_superuser("admin")
+    for autre in (bruno, admin):
+        client.force_login(autre)
+        assert "Foire de Bourail" not in client.get(reverse("evenements:liste")).content.decode()
+        for nom in ("detail", "modifier", "supprimer"):
+            methode = client.post if nom == "supprimer" else client.get
+            assert methode(reverse(f"evenements:{nom}", args=[e.pk])).status_code == 404
+        assert not ResolveurLieux(autre).evenements.entrees
+    assert ResolveurLieux(alice).evenements.entrees
+
+
+def test_perimetre_restreint(client, referentiel):  # noqa: F811
+    """Sans tout le réseau : carte limitée au périmètre ; ses propres événements toujours visibles."""
+    lecteur = User.objects.create_user("lec")
+    Perimetre.objects.create(nom="Paita", communes=["PAITA"]).utilisateurs.add(lecteur)
+    client.force_login(lecteur)
+    donnees = client.get(reverse("evenements:reseau")).json()
+    assert [s["code"] for s in donnees["sites"]] == ["BBB200"] and donnees["libres"] == []
+    noumea = Evenement.objects.create(nom="Noumea", sites=["AAA100"])
+    client.post(reverse(URL_AJOUT), _donnees(sites="BBB200", secteurs="", cellules="", public="prive"))
+    perso = Evenement.objects.get(nom="Foire de Bourail")
+    html = client.get(reverse("evenements:liste")).content.decode()
+    assert "Foire de Bourail" in html and "Noumea" not in html
+    assert client.get(reverse("evenements:modifier", args=[noumea.pk])).status_code == 404
+    # Même hors de tout périmètre, on retrouve les siens.
+    sans = User.objects.create_user("sans")
+    perso.cree_par = sans
+    perso.save()
+    client.force_login(sans)
+    assert "Foire de Bourail" in client.get(reverse("evenements:liste")).content.decode()
 
 
 # ------------------------------------------------------------------ azimut des secteurs

@@ -7,24 +7,21 @@
     <p class="sous-titre">Foires, concerts, manifestations : trafic et qualité sur la période choisie, comparés aux mêmes
       jours et heures des semaines précédentes.</p>
   </div>
-  {% if perms.evenements.add_evenement %}
   <div class="boutons"><a class="bouton" href="{% url 'evenements:nouveau' %}">+ Nouvel événement</a></div>
-  {% endif %}
 </div>
 <form class="list-toolbar" method="get" role="search"><div><label class="sr-only" for="event-search">Rechercher un événement</label><input type="search" id="event-search" name="recherche" value="{{ recherche }}" placeholder="Rechercher un événement…"></div><button class="bouton secondaire" type="submit">Rechercher</button>{% if recherche %}<a href="{% url 'evenements:liste' %}">Effacer le filtre</a>{% endif %}</form>
 <section class="carte">
   {% if evenements %}
   <div class="table-defil"><table class="liste-evenements">
-    <thead><tr><th scope="col">Événement</th><th scope="col">Type</th><th scope="col">Dernière période mémorisée</th>{% if perms.evenements.change_evenement %}<th scope="col"><span class="sr-only">Actions</span></th>{% endif %}</tr></thead>
+    <thead><tr><th scope="col">Événement</th><th scope="col">Type</th><th scope="col">Dernière période mémorisée</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
     <tbody>{% for e in evenements %}
-      <tr><td><a href="{% url 'evenements:detail' e.pk %}">{{ e.nom }}</a></td><td>{{ e.type|default:"Non renseigné" }}</td>
+      <tr><td><a href="{% url 'evenements:detail' e.pk %}">{{ e.nom }}</a>{% if not e.public %} <span class="etiquette prive" title="Visible par vous seul">Privé</span>{% endif %}</td><td>{{ e.type|default:"Non renseigné" }}</td>
         <td>{% if e.debut %}{{ e.debut|date:"d/m/Y H:i" }}{% if e.nb_creneaux > 1 %} <span class="aide">({{ e.nb_creneaux }} créneaux)</span>{% endif %}{% else %}<span class="aide">À choisir à l'ouverture</span>{% endif %}</td>
-        {% if perms.evenements.change_evenement %}<td class="nombre"><a href="{% url 'evenements:modifier' e.pk %}">Modifier</a></td>{% endif %}</tr>
+        <td class="nombre"><a href="{% url 'evenements:modifier' e.pk %}">Modifier</a></td></tr>
     {% endfor %}</tbody>
   </table></div>
   {% else %}
-  <p class="vide">{% if recherche %}Aucun événement ne correspond à votre recherche.{% else %}Aucun événement pour le moment.{% endif %}{% if not perms.evenements.add_evenement %} Les événements sont
-    créés par l'administrateur de l'application.{% endif %}</p>
+  <p class="vide">{% if recherche %}Aucun événement ne correspond à votre recherche.{% else %}Aucun événement pour le moment.{% endif %}</p>
   {% endif %}
 </section>
 {% endblock %}

@@ -19,6 +19,8 @@ import difflib
 import re
 from collections import defaultdict
 
+from django.db.models import Q
+
 from apps.comptes.acces import cellules_autorisees
 from apps.evenements.models import Evenement
 from apps.referentiel.models import Cellule, Secteur, Site
@@ -63,6 +65,7 @@ class ResolveurLieux:
             if any(a is not None for a in par_techno):
                 autorisees = set().union(*(a or set() for a in par_techno))
         self.restreint = autorisees is not None
+        self.user = user
         self._charger(autorisees)
 
     # ------------------------------------------------------------ chargement
@@ -161,7 +164,12 @@ class ResolveurLieux:
         self.mots_generiques = defaultdict(list)  # « foire », « fête » : seulement avec une commune
         mots_communes = {m for k in self.toutes_communes.entrees for m in k}
         secteurs_visibles = {s.code for s in self.secteurs.values()}
-        for e in Evenement.objects.all():
+        # Événements privés : ceux de l'utilisateur seulement.
+        visibles = Q(public=True)
+        if self.user is not None and self.user.is_authenticated:
+            visibles |= Q(cree_par=self.user)
+        evenements = Evenement.objects.filter(visibles)
+        for e in evenements:
             if autorisees is not None and not (set(e.cellules) & autorisees or set(e.sites) & set(self.sites)
                                                or set(e.secteurs) & secteurs_visibles
                                                or set(e.cellules_deployees()) & autorisees):
