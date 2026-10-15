@@ -1,0 +1,17 @@
+<details class="choix-graphiques" data-choix-graphiques>
+  <summary>Choisir les graphiques <span class="aide" data-compteur-graphes></span></summary>
+  <p class="aide">Les indicateurs nécessaires sont ajoutés automatiquement.</p>
+  <label class="recherche-graphes">Rechercher un graphique
+    <input type="search" data-recherche-graphes placeholder="Ex. débit, coupures, 3G, 4G…">
+  </label>
+  <label class="choix-personnalise"><input type="checkbox" name="graphiques_personnalises" value="1"{% if selection != None %} checked{% endif %}> Utiliser ma sélection de graphiques</label>
+  <div class="bibliotheque-graphes">
+    {% for g in graphes %}
+    <label class="vignette-graphe" data-vignette-graphe>
+      <input type="checkbox" name="graphes" value="{{ g.code }}"{% if g.code in selection %} checked{% endif %}>
+      <span><strong>{{ g.titre }}</strong><small>{% if g.techno == 'LTE' %}4G{% else %}3G{% endif %} · {{ g.series|length }} série{{ g.series|length|pluralize }} · {% for s in g.series %}{% if s.type == 'ligne' %}Courbe{% elif s.type == 'barres' %}Barres{% elif s.type == 'aire' %}Surface{% else %}Barres empilées{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</small></span>
+    </label>
+    {% empty %}<p>Aucun graphique disponible pour vos indicateurs autorisés.</p>{% endfor %}
+  </div>
+  <p class="aide" data-graphes-vides hidden>Aucun graphique ne correspond à la recherche.</p>
+</details>

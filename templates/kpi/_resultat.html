@@ -1,4 +1,11 @@
 {% load l10n kpi_extras %}
+{% if graphiques_sur_mesure %}
+<form method="get" action="{% url 'kpi:requete' %}" class="carte composition-resultat">
+  {% for cle, valeurs in composition_caches %}{% for v in valeurs %}<input type="hidden" name="{{ cle }}" value="{{ v }}">{% endfor %}{% endfor %}
+  {% include "kpi/_choix_graphes.html" with graphes=graphiques_sur_mesure selection=selection_graphes %}
+  <button type="submit" class="bouton secondaire petit">Appliquer les graphiques</button>
+</form>
+{% endif %}
 {% for a in avertissements %}<div class="avertissement">{{ a }}</div>{% endfor %}
 {% if not blocs and not avertissements %}<div class="avertissement">Aucun KPI sélectionné pour les technologies choisies.</div>{% endif %}
 

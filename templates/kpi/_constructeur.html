@@ -11,18 +11,20 @@ période -> « periode » ou « debut » / « fin ». Les options vides ne sont 
       <label class="choix-rapport">
         <input type="radio" name="intention" value="{{ r.code }}"{% if forloop.first %} checked{% endif %}>
         <span class="icone">{% include "kpi/_icone.html" with nom=r.icone %}</span>
-        <span class="texte"><strong>{{ r.titre }}</strong><span>{{ r.description }}</span></span>
+        <span class="texte"><strong>{{ r.titre }}</strong><span>{{ r.description }}</span><small>{{ r.nombre_graphes }} graphiques composés</small></span>
         <span class="sr-only">Contient : {{ r.contenu }}</span>
       </label>
       {% endfor %}
       <label class="choix-rapport">
         <input type="radio" name="intention" value=""{% if not rapports_types %} checked{% endif %}>
         <span class="icone">{% include "kpi/_icone.html" with nom="sur_mesure" %}</span>
-        <span class="texte"><strong>Sur mesure</strong><span>Choisir les indicateurs un par un</span></span>
+        <span class="texte"><strong>Sur mesure</strong><span>Choisir les graphiques et les indicateurs</span></span>
       </label>
     </div>
+    {% include "kpi/_choix_graphes.html" with graphes=graphiques_sur_mesure selection=selection_graphes %}
+    {{ rapports_types|json_script:"rapports-composition" }}
     <details class="sur-mesure" id="sur-mesure">
-      <summary>Indicateurs sur mesure <span class="aide">cochés, ils remplacent le rapport choisi</span></summary>
+      <summary>Indicateurs complémentaires <span class="aide">cartes, courbes individuelles et tableau</span></summary>
       <div class="liste-kpi">
         {% for g in kpis_sur_mesure %}
         <fieldset><legend><span class="badge-techno {{ g.techno }}">{% if g.techno == "LTE" %}4G{% else %}3G{% endif %}</span> {{ g.nom }}</legend>

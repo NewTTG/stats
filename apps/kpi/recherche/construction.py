@@ -27,7 +27,8 @@ LIBELLES_DONNEES = {"heure": "horaires", "jour": "journalières"}
 JOURS_DETAIL_HORAIRE = 7
 # Paramètres GET explicites reconnus (priment sur le texte).
 PARAMETRES = ("techno", "kpis", "intention", "perimetre_type", "perimetre_valeurs", "periode", "debut", "fin",
-              "granularite_temps", "granularite_espace", "fenetre_horaire", "donnees")
+              "granularite_temps", "granularite_espace", "fenetre_horaire", "donnees",
+              "graphes", "graphiques_personnalises")
 QUESTION_PERIODE = ["hier", "7j", "semaine_derniere", "mois_dernier", "mois_courant"]
 
 
@@ -304,7 +305,7 @@ def parametres_explicites(get) -> dict:
     """Paramètres GET explicites présents et non vides (listes pour techno / kpis / intention)."""
     sortie = {}
     for cle in PARAMETRES:
-        if cle in ("techno", "kpis", "intention"):
+        if cle in ("techno", "kpis", "intention", "graphes"):
             valeurs = [v for v in get.getlist(cle) if v]
             if valeurs:
                 sortie[cle] = valeurs

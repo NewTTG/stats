@@ -22,7 +22,7 @@ ORDRE_SECTIONS = ["evenements", "kpi", "comptes", "auth", "referentiel", "rappor
 # Ordre des modèles dans une section (les autres suivent, par ordre alphabétique).
 ORDRE_MODELES = [
     "Evenement",
-    "SeuilKpi", "ColonneKpi", "ReglagesAnomalies",
+    "ModeleRapport", "Graphique", "SeuilKpi", "ColonneKpi", "ReglagesAnomalies",
     "User", "Group", "Perimetre", "DemandeSuivie", "JournalAudit",
     "Site", "Secteur", "Cellule", "ImportReferentiel",
     "RapportPlanifie", "Rapport",
@@ -41,6 +41,10 @@ REGROUPEMENTS = {
 # Raccourcis du tableau de bord : (titre, description, modèle, page, paramètres de la liste).
 # Un raccourci n'est affiché que si l'utilisateur a le droit correspondant.
 ACCES_RAPIDES = [
+    ("Rapports et accueil", "Choisir les graphiques et les rapports proposés sur l’accueil",
+     "kpi.ModeleRapport", "changelist", {}),
+    ("Graphiques", "Indicateurs, courbes, barres, surfaces et axes",
+     "kpi.Graphique", "changelist", {}),
     ("Créer un événement", "Page de l’application : carte des secteurs, KPI",
      "evenements.Evenement", "add", {}),
     ("KPI : noms et seuils", "Noms affichés, catégories, descriptions et seuils",
@@ -61,13 +65,16 @@ NAVIGATION = [
     ("Pilotage", ["index", "comptes.DemandeSuivie", "rapports.Rapport", "rapports.RapportPlanifie",
                   "comptes.JournalAudit"]),
     ("Analyse", ["evenements.Evenement", "evenements.ReglagesAnomalies"]),
-    ("Gestion des KPI", ["kpi.SeuilKpi", "kpi.ColonneKpi"]),
+    ("Graphiques et rapports", ["kpi.ModeleRapport", "kpi.Graphique", "kpi.SeuilKpi"]),
+    ("Données techniques", ["kpi.ColonneKpi"]),
     ("Référentiel réseau", ["referentiel.ImportReferentiel", "referentiel.Site", "referentiel.Secteur",
                             "referentiel.Cellule"]),
     ("Comptes et accès", ["auth.User", "auth.Group", "comptes.Perimetre"]),
     ("Système", ["processus", "django_q.Schedule", "django_q.OrmQ", "django_q.Failure", "django_q.Success"]),
 ]
 LIBELLES_NAVIGATION = {
+    "kpi.ModeleRapport": "Rapports et accueil",
+    "kpi.Graphique": "Graphiques",
     "referentiel.ImportReferentiel": "Chargement et imports",
     "evenements.ReglagesAnomalies": "Détection d'anomalies",
     "comptes.DemandeSuivie": "Suivi des demandes",
