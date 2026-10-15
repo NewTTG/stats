@@ -300,22 +300,25 @@ et redémarrer l’application et le worker. En déploiement, exécuter aussi
   | Data 4G | volume data, débit DL, PRB DL, utilisateurs connectés |
   | Qualité de service | taux d'accès 4G, accès voix / data 3G, coupures E-RAB, coupures voix / data 3G |
   | Utilisateurs 4G | utilisateurs connectés (pic RRC, estimation) |
-  | 4G détaillée : trafic et charge | disponibilité, motifs RRC, PRB DL/UL, utilisateurs (pic, moyenne, actifs, programmés), bande de base, volumes et débits cellule DL/UL, signalisation, agrégation de porteuses, CSFB |
-  | 4G détaillée : accessibilité | paging, RACH, taux d'accès, PUCCH, RRC (et causes d'échec), S1, E-RAB initial, ajout et modification d'E-RAB |
-  | 4G détaillée : débit et qualité radio | débits utilisateur (dont CA), latence, MIMO, modulation DL/UL, CQI, agrégation de porteuses, interférences, SINR, pertes de paquets, BLER |
-  | 4G détaillée : coupures | rétablissement RRC, coupures UE / E-RAB (eNodeB, cœur, actives), causes eNodeB |
-  | 4G détaillée : mobilité | HO intra / inter-fréquence et d'équilibrage de charge (préparation, exécution), rejets entrants, continuité de session |
+  | Trafic et charge détaillés | 4G : disponibilité, motifs RRC, PRB, utilisateurs (pic, moyenne, actifs, programmés), bande de base, volumes et débits cellule, signalisation, CA, CSFB ; 3G : disponibilité, RSSI, SMS, trafic voix (par codec), appels et appels CSFB, sessions et utilisateurs data, volumes et débits R99 / HSDPA / HSUPA / FACH, bande passante |
+  | Accessibilité détaillée | 4G : paging, RACH, taux d'accès, PUCCH, RRC (et causes d'échec), S1, E-RAB ; 3G : paging, RRC signalisation / voix / data (échecs, blocages, causes), resélections 2G → 3G, accès voix, CSFB, data, HSDPA / HSUPA, refus d'admission et de RAB par ressource, partage de charge |
+  | 4G : débit et qualité radio | débits utilisateur (dont CA), latence, MIMO, modulation DL/UL, CQI, agrégation de porteuses, interférences, SINR, pertes de paquets, BLER |
+  | Coupures détaillées | 4G : rétablissement RRC, coupures UE / E-RAB (eNodeB, cœur, actives), causes eNodeB ; 3G : coupures signalisation, RRC voix / data, appels voix (et causes), NAS, data |
+  | Mobilité détaillée | 4G : HO intra / inter-fréquence et d'équilibrage de charge, rejets entrants, continuité de session ; 3G : active set, soft handover, changements de cellule HSDPA / HSUPA, HO inter-fréquence, HO voix vers la 2G |
   | Sur mesure | indicateurs cochés un par un |
 
-  Les rapports **4G détaillée** reprennent l'outil Excel « LTE_SQL_Access » (onglets *Base*
-  et *KPI*) : ses 140 colonnes 4G sous des noms lisibles (`kpis_detailles` de
-  `config/kpi_catalogue.yaml`) et ses 56 graphiques (`config/graphes.yaml`), construits de la
-  même façon : plusieurs KPI par graphique, volumes et tentatives en **barres**, parts et
-  causes en **barres empilées**, taux en **courbes**, sur l'axe principal ou secondaire, **un
-  graphique par entité** (liste « Site », « Cellule »… quand le résultat est regroupé). La
+  Les rapports **détaillés** reprennent les outils Excel « LTE_SQL_Access » et
+  « WCDMA_SQL_Access » (onglets *Base* et *KPI*) : leurs colonnes 4G (140) et 3G (123) sous des
+  noms lisibles (`kpis_detailles` de `config/kpi_catalogue.yaml`) et leurs graphiques (56 en 4G,
+  43 en 3G, plus 2 pour les colonnes que l'outil ne trace pas : `config/graphes.yaml`), construits
+  de la même façon : plusieurs KPI par graphique, volumes et tentatives en **barres**, parts et
+  causes en **barres empilées**, taux en **courbes** (ou **aires**, « Surface » de l'outil), sur
+  l'axe principal ou secondaire, **un graphique par entité** (liste « Site », « Cellule »… quand
+  le résultat est regroupé). Ils couvrent 3G et 4G (puce Techno pour n'en garder qu'une) ; la
   légende donne la valeur de chaque KPI sur toute la période. Un graphique s'affiche dès que
   tous ses KPI sont demandés (rapport détaillé, sur mesure ou recherche : « SINR », « CQI »,
-  « BLER », « MIMO », « modulation », « latence », « paging », « RACH », « HO inter-fréquence »…).
+  « BLER », « MIMO », « modulation », « latence », « paging », « RACH », « HO inter-fréquence »,
+  « RSSI », « soft handover », « IRAT », « HSUPA », « taux de blocage »…).
   Les KPI détaillés tracés dans un graphique n'ont pas de carte, de courbe ni de classement à
   part (ils restent dans le tableau et les exports) et ne sont pas analysés par défaut dans
   les événements.

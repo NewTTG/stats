@@ -1,15 +1,17 @@
-# Graphiques thématiques : plusieurs KPI sur un même graphique, comme dans l'outil Excel
-# « LTE_SQL_Access » (onglet Base). Un graphique par entité (cellule, site, commune ou réseau).
+# Graphiques thématiques : plusieurs KPI d'une techno sur un même graphique, comme dans les
+# outils Excel « LTE_SQL_Access » et « WCDMA_SQL_Access » (onglet Base). Un graphique par
+# entité (cellule, site, commune ou réseau).
 #
 # series : KPI tracés, dans l'ordre de la légende.
 #   type  barres          histogramme (« Histo » dans l'Excel)
 #         barres_empilees histogramme cumulé (« Histo_cumul » : parts, causes, motifs)
 #         ligne           courbe
+#         aire            courbe remplie (« Surface »)
 #   axe   gauche (axe principal, défaut) ou droite (axe secondaire)
 # Le titre de chaque axe est l'unité de ses KPI.
 #
-# Un graphique s'affiche quand tous ses KPI sont dans le résultat ; les rapports « 4G
-# détaillée » (config/recherche.yaml, clé graphes) demandent tous les KPI d'un thème.
+# Un graphique s'affiche quand tous ses KPI sont dans le résultat ; les rapports détaillés
+# (config/recherche.yaml, clé graphes) demandent tous les KPI d'un thème.
 
 themes:
   trafic: Trafic et charge
@@ -19,6 +21,7 @@ themes:
   mobilite: Mobilité
 
 graphes:
+  # ================================================================== 4G (outil LTE_SQL_Access)
   # ------------------------------------------------------------------ Trafic et charge
   - code: lte_disponibilite
     titre: Disponibilité et verrouillages
@@ -452,3 +455,363 @@ graphes:
       - {kpi: lte_continuite_4g, type: barres_empilees}
       - {kpi: lte_continuite_3g, type: barres_empilees}
       - {kpi: lte_continuite_2g, type: barres_empilees}
+
+  # ================================================================== 3G (outil WCDMA_SQL_Access)
+  # ------------------------------------------------------------------ Trafic et charge
+  - code: wcdma_disponibilite
+    titre: Disponibilité
+    theme: trafic
+    series:
+      - {kpi: wcdma_cell_availability, type: barres}
+
+  - code: wcdma_rssi
+    titre: RSSI et charge UL
+    theme: trafic
+    series:
+      - {kpi: wcdma_rssi, type: barres}
+      - {kpi: wcdma_charge_ul, type: ligne, axe: droite}
+
+  - code: wcdma_sms
+    titre: SMS
+    theme: trafic
+    series:
+      - {kpi: wcdma_sms, type: barres}
+
+  - code: wcdma_trafic_voix
+    titre: Trafic voix
+    theme: trafic
+    series:
+      - {kpi: wcdma_speech_traffic, type: barres}
+      - {kpi: wcdma_trafic_voix_best, type: ligne}
+
+  - code: wcdma_trafic_voix_codec
+    titre: Trafic voix par codec
+    theme: trafic
+    series:
+      - {kpi: wcdma_trafic_voix_amr_sm, type: barres_empilees}
+      - {kpi: wcdma_trafic_voix_amr_mm, type: barres_empilees}
+
+  - code: wcdma_appels
+    titre: Appels voix et appels CSFB
+    theme: trafic
+    series:
+      - {kpi: wcdma_appels_voix, type: ligne}
+      - {kpi: wcdma_appels_csfb, type: barres}
+
+  - code: wcdma_sessions_data
+    titre: Sessions data par type
+    theme: trafic
+    series:
+      - {kpi: wcdma_sessions_r99, type: barres_empilees}
+      - {kpi: wcdma_sessions_hs_r99, type: barres_empilees}
+      - {kpi: wcdma_sessions_hs_eul, type: barres_empilees}
+
+  - code: wcdma_utilisateurs_data
+    titre: Utilisateurs data
+    theme: trafic
+    series:
+      - {kpi: wcdma_refus_eul_tti2, type: barres}
+      - {kpi: wcdma_utilisateurs_hs, type: ligne, axe: droite}
+      - {kpi: wcdma_utilisateurs_hs_r99, type: ligne, axe: droite}
+      - {kpi: wcdma_utilisateurs_eul, type: ligne, axe: droite}
+      - {kpi: wcdma_utilisateurs_eul_tti2, type: ligne, axe: droite}
+
+  - code: wcdma_volume_dch_dl
+    titre: Volume et débit R99 DL
+    theme: trafic
+    series:
+      - {kpi: wcdma_payload_dch_dl, type: barres}
+      - {kpi: wcdma_debit_r99_dl, type: ligne, axe: droite}
+
+  - code: wcdma_volume_dch_ul
+    titre: Volume et débit R99 UL
+    theme: trafic
+    series:
+      - {kpi: wcdma_payload_dch_ul, type: barres}
+      - {kpi: wcdma_debit_r99_ul, type: ligne, axe: droite}
+
+  - code: wcdma_volume_hsdpa
+    titre: Volume et débit HSDPA
+    theme: trafic
+    series:
+      - {kpi: wcdma_payload_hs, type: barres}
+      - {kpi: wcdma_hs_user_thp, type: ligne, axe: droite}
+
+  - code: wcdma_volume_eul
+    titre: Volume et débit HSUPA (EUL)
+    theme: trafic
+    series:
+      - {kpi: wcdma_payload_eul, type: barres}
+      - {kpi: wcdma_debit_eul, type: ligne, axe: droite}
+
+  - code: wcdma_volume_fach
+    titre: Volume data FACH
+    theme: trafic
+    series:
+      - {kpi: wcdma_payload_fach_dl, type: barres}
+      - {kpi: wcdma_payload_fach_ul, type: barres}
+
+  - code: wcdma_bande_passante
+    titre: Bande passante data de la cellule
+    theme: trafic
+    series:
+      - {kpi: wcdma_bande_passante_dl, type: ligne}
+      - {kpi: wcdma_bande_passante_ul, type: ligne}
+
+  # ------------------------------------------------------------------ Accessibilité
+  - code: wcdma_paging
+    titre: Pagings
+    theme: accessibilite
+    series:
+      - {kpi: wcdma_paging, type: barres}
+      - {kpi: wcdma_paging_echec, type: ligne, axe: droite}
+
+  - code: wcdma_rrc_signalisation
+    titre: Accès RRC de signalisation
+    theme: accessibilite
+    series:
+      - {kpi: wcdma_rrc_sig_tentatives, type: barres}
+      - {kpi: wcdma_rrc_sig_basse_priorite, type: barres}
+      - {kpi: wcdma_rrc_sig_sr, type: ligne, axe: droite}
+
+  - code: wcdma_reselection_irat
+    titre: Resélections 2G vers 3G
+    theme: accessibilite
+    series:
+      - {kpi: wcdma_reselection_irat_tentatives, type: barres}
+      - {kpi: wcdma_reselection_irat_sr, type: ligne, axe: droite}
+
+  - code: wcdma_acces_voix
+    titre: Taux d'accès voix
+    theme: accessibilite
+    series:
+      - {kpi: wcdma_rrc_cs_tentatives, type: aire}
+      - {kpi: wcdma_tentatives_voix, type: barres}
+      - {kpi: wcdma_cssr_cs, type: ligne, axe: droite}
+      - {kpi: wcdma_nas_cs_sr, type: ligne, axe: droite}
+
+  - code: wcdma_acces_csfb
+    titre: Taux d'accès des appels CSFB
+    theme: accessibilite
+    series:
+      - {kpi: wcdma_csfb_rrc_tentatives, type: ligne}
+      - {kpi: wcdma_csfb_rab_tentatives, type: ligne}
+      - {kpi: wcdma_cssr_csfb, type: barres, axe: droite}
+      - {kpi: wcdma_nas_csfb_sr, type: aire, axe: droite}
+
+  - code: wcdma_acces_data
+    titre: Taux d'accès data
+    theme: accessibilite
+    series:
+      - {kpi: wcdma_rrc_ps_tentatives, type: aire}
+      - {kpi: wcdma_rab_ps_tentatives, type: barres}
+      - {kpi: wcdma_cssr_ps, type: ligne, axe: droite}
+      - {kpi: wcdma_nas_ps_sr, type: ligne, axe: droite}
+
+  - code: wcdma_acces_hspa
+    titre: Taux d'accès HSDPA / HSUPA
+    theme: accessibilite
+    series:
+      - {kpi: wcdma_cssr_hs, type: ligne}
+      - {kpi: wcdma_cssr_eul, type: ligne}
+
+  - code: wcdma_rrc_echecs
+    titre: Échecs RRC par cause
+    theme: accessibilite
+    series:
+      - {kpi: wcdma_rrc_echec_charge_processeur, type: barres_empilees}
+      - {kpi: wcdma_rrc_echec_controle_flux, type: barres_empilees}
+      - {kpi: wcdma_rrc_echec_admission, type: barres_empilees}
+      - {kpi: wcdma_rrc_echec_apres_admission, type: barres_empilees}
+      - {kpi: wcdma_rrc_echec_blocage_noeud, type: barres_empilees}
+      - {kpi: wcdma_rrc_echec_transport, type: barres_empilees}
+      - {kpi: wcdma_rrc_echec_radio, type: barres_empilees}
+      - {kpi: wcdma_rrc_echec, type: ligne}
+
+  - code: wcdma_admission_refus
+    titre: Refus d'admission RRC par ressource
+    theme: accessibilite
+    series:
+      - {kpi: wcdma_admission_refus_dl_codes, type: barres_empilees}
+      - {kpi: wcdma_admission_refus_dl_materiel, type: barres_empilees}
+      - {kpi: wcdma_admission_refus_dl_puissance, type: barres_empilees}
+      - {kpi: wcdma_admission_refus_ul_materiel, type: barres_empilees}
+      - {kpi: wcdma_admission_refus_limite_connexions, type: barres_empilees}
+
+  - code: wcdma_rrc_voix
+    titre: Accès RRC voix
+    theme: accessibilite
+    series:
+      - {kpi: wcdma_rrc_cs_tentatives, type: barres}
+      - {kpi: wcdma_rrc_cs_echec, type: ligne, axe: droite}
+      - {kpi: wcdma_rrc_cs_blocage, type: ligne, axe: droite}
+
+  - code: wcdma_rrc_data
+    titre: Accès RRC data
+    theme: accessibilite
+    series:
+      - {kpi: wcdma_rrc_ps_tentatives, type: barres}
+      - {kpi: wcdma_rrc_ps_echec, type: ligne, axe: droite}
+      - {kpi: wcdma_rrc_ps_blocage, type: ligne, axe: droite}
+
+  - code: wcdma_rab_refus
+    titre: Refus de RAB par ressource
+    theme: accessibilite
+    series:
+      - {kpi: wcdma_rab_refus_dl_ase, type: barres_empilees}
+      - {kpi: wcdma_rab_refus_dl_codes, type: barres_empilees}
+      - {kpi: wcdma_rab_refus_dl_materiel, type: barres_empilees}
+      - {kpi: wcdma_rab_refus_dl_puissance, type: barres_empilees}
+      - {kpi: wcdma_rab_refus_ul_ase, type: barres_empilees}
+      - {kpi: wcdma_rab_refus_ul_materiel, type: barres_empilees}
+
+  - code: wcdma_rab_voix
+    titre: Accès RAB voix
+    theme: accessibilite
+    series:
+      - {kpi: wcdma_tentatives_voix, type: barres}
+      - {kpi: wcdma_rab_cs_echec, type: ligne, axe: droite}
+      - {kpi: wcdma_rab_cs_blocage, type: ligne, axe: droite}
+
+  - code: wcdma_rab_data
+    titre: Accès RAB data
+    theme: accessibilite
+    series:
+      - {kpi: wcdma_rab_ps_tentatives, type: barres}
+      - {kpi: wcdma_rab_ps_echec, type: ligne, axe: droite}
+      - {kpi: wcdma_rab_ps_blocage, type: ligne, axe: droite}
+
+  - code: wcdma_ifls
+    titre: Partage de charge inter-fréquence
+    theme: accessibilite
+    series:
+      - {kpi: wcdma_ifls_tentatives, type: barres}
+      - {kpi: wcdma_ifls_sr, type: ligne, axe: droite}
+
+  - code: wcdma_ifls_hs_entrants
+    titre: Partage de charge HSDPA entrant
+    theme: accessibilite
+    series:
+      - {kpi: wcdma_ifls_hs_entrants_tentatives, type: barres}
+      - {kpi: wcdma_ifls_hs_entrants_sr, type: ligne, axe: droite}
+
+  - code: wcdma_ifls_hs_sortants
+    titre: Partage de charge HSDPA sortant
+    theme: accessibilite
+    series:
+      - {kpi: wcdma_ifls_hs_sortants_tentatives, type: barres}
+      - {kpi: wcdma_ifls_hs_sortants_sr, type: ligne, axe: droite}
+
+  # ------------------------------------------------------------------ Coupures
+  - code: wcdma_coupures_signalisation
+    titre: Coupures des connexions de signalisation
+    theme: retainability
+    series:
+      - {kpi: wcdma_rrc_sig_etablies, type: barres}
+      - {kpi: wcdma_rrc_sig_drop, type: ligne, axe: droite}
+
+  - code: wcdma_coupures_rrc_voix
+    titre: Coupures RRC voix
+    theme: retainability
+    series:
+      - {kpi: wcdma_rrc_cs_etablies, type: barres}
+      - {kpi: wcdma_rrc_cs_drop, type: ligne, axe: droite}
+
+  - code: wcdma_coupures_rrc_data
+    titre: Coupures RRC data
+    theme: retainability
+    series:
+      - {kpi: wcdma_rrc_ps_etablies, type: barres}
+      - {kpi: wcdma_rrc_ps_drop, type: ligne, axe: droite}
+
+  - code: wcdma_coupures_voix
+    titre: Coupures des appels voix
+    theme: retainability
+    series:
+      - {kpi: wcdma_appels_voix, type: barres}
+      - {kpi: wcdma_cs_drop, type: ligne, axe: droite}
+      - {kpi: wcdma_nas_cs_drop, type: ligne, axe: droite}
+
+  - code: wcdma_coupures_voix_causes
+    titre: Coupures voix par cause
+    theme: retainability
+    series:
+      - {kpi: wcdma_drop_ifho, type: barres_empilees}
+      - {kpi: wcdma_drop_irat, type: barres_empilees}
+      - {kpi: wcdma_drop_voisinage_manquant, type: barres_empilees}
+      - {kpi: wcdma_drop_perte_synchro, type: barres_empilees}
+      - {kpi: wcdma_drop_congestion, type: barres_empilees}
+      - {kpi: wcdma_drop_sho, type: barres_empilees}
+      - {kpi: wcdma_cs_drop, type: ligne}
+
+  - code: wcdma_coupures_data
+    titre: Coupures data
+    theme: retainability
+    series:
+      - {kpi: wcdma_rab_ps_etablis, type: barres}
+      - {kpi: wcdma_ps_drop, type: ligne, axe: droite}
+      - {kpi: wcdma_nas_ps_drop, type: ligne, axe: droite}
+
+  # ------------------------------------------------------------------ Mobilité
+  - code: wcdma_active_set
+    titre: Active set (soft handover)
+    theme: mobilite
+    series:
+      - {kpi: wcdma_active_set, type: barres}
+      - {kpi: wcdma_active_set_1, type: ligne, axe: droite}
+      - {kpi: wcdma_active_set_2, type: ligne, axe: droite}
+      - {kpi: wcdma_active_set_3, type: ligne, axe: droite}
+
+  - code: wcdma_sho
+    titre: Soft handovers
+    theme: mobilite
+    series:
+      - {kpi: wcdma_sho_voix_tentatives, type: barres_empilees}
+      - {kpi: wcdma_sho_data_tentatives, type: barres_empilees}
+      - {kpi: wcdma_sho_signalisation_tentatives, type: barres_empilees}
+      - {kpi: wcdma_sho_sr, type: ligne, axe: droite}
+
+  - code: wcdma_sho_entrants
+    titre: Soft handovers entrants
+    theme: mobilite
+    series:
+      - {kpi: wcdma_sho_entrants_tentatives, type: barres}
+      - {kpi: wcdma_sho_entrants_sr, type: ligne, axe: droite}
+
+  - code: wcdma_cc_hsdpa
+    titre: Changements de cellule HSDPA
+    theme: mobilite
+    series:
+      - {kpi: wcdma_cc_hs_tentatives, type: barres}
+      - {kpi: wcdma_cc_hs_sr, type: ligne, axe: droite}
+
+  - code: wcdma_cc_hsupa
+    titre: Changements de cellule HSUPA
+    theme: mobilite
+    series:
+      - {kpi: wcdma_cc_eul_tentatives, type: barres}
+      - {kpi: wcdma_cc_eul_sr, type: ligne, axe: droite}
+
+  - code: wcdma_ifho
+    titre: Handover inter-fréquence
+    theme: mobilite
+    series:
+      - {kpi: wcdma_ifho_voix_tentatives, type: barres_empilees}
+      - {kpi: wcdma_ifho_data_tentatives, type: barres_empilees}
+      - {kpi: wcdma_ifho_sr, type: ligne, axe: droite}
+
+  - code: wcdma_ifho_entrants
+    titre: Handover inter-fréquence entrant
+    theme: mobilite
+    series:
+      - {kpi: wcdma_ifho_entrants_tentatives, type: barres}
+      - {kpi: wcdma_ifho_entrants_sr, type: ligne, axe: droite}
+
+  - code: wcdma_irat
+    titre: Handover voix vers la 2G
+    theme: mobilite
+    series:
+      - {kpi: wcdma_irat_voix_tentatives, type: barres_empilees}
+      - {kpi: wcdma_irat_voix_lb_tentatives, type: barres_empilees}
+      - {kpi: wcdma_irat_voix_sr, type: ligne, axe: droite}
+      - {kpi: wcdma_irat_voix_lb_sr, type: ligne, axe: droite}

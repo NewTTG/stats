@@ -1,5 +1,5 @@
-"""KPI 4G détaillés et graphiques thématiques repris de l'outil Excel « LTE_SQL_Access »
-(config/kpi_catalogue.yaml, section kpis_detailles ; config/graphes.yaml)."""
+"""KPI détaillés et graphiques thématiques repris des outils Excel « LTE_SQL_Access » (4G) et
+« WCDMA_SQL_Access » (3G) : config/kpi_catalogue.yaml, section kpis_detailles ; config/graphes.yaml."""
 
 import json
 import re
@@ -17,7 +17,9 @@ from apps.kpi.recherche.vocabulaire import vocabulaire
 from apps.kpi.service import ResultatTechno
 
 from .test_recherche_vues import _html, admin, base_recherche  # noqa: F401  (fixtures)
-from .test_recherche_regles import ref_recherche  # noqa: F401
+from apps.kpi.recherche.regles import interpreter
+
+from .test_recherche_regles import J, ctx, ref_recherche  # noqa: F401
 
 
 @lru_cache
@@ -35,7 +37,7 @@ def _cat():
 def test_kpi_detailles_hors_analyse_par_defaut():
     cat = _cat()
     detailles = [c for c, k in cat.items() if not k.principal]
-    assert len(detailles) > 100 and all(cat[c].techno == "LTE" for c in detailles)
+    assert sum(cat[c].techno == "LTE" for c in detailles) > 100 and sum(cat[c].techno == "WCDMA" for c in detailles) > 100
     assert not set(detailles) & set(kpis_principaux(cat))
     assert cat["lte_payload_dl"].principal and not cat["lte_sinr_pusch"].principal
 
@@ -48,13 +50,18 @@ def test_chaque_kpi_detaille_est_dans_un_graphique():
 def test_graphiques_par_theme():
     g = graphes()
     assert list(g.themes) == ["trafic", "accessibilite", "integrite", "retainability", "mobilite"]
-    assert len(g.graphes) == 56 and all(x.techno == "LTE" for x in g.graphes)
+    assert sum(x.techno == "LTE" for x in g.graphes) == 56 and sum(x.techno == "WCDMA" for x in g.graphes) == 45
     # Construction de l'Excel : tentatives en barres (axe principal), taux en courbe (axe secondaire).
     rrc = next(x for x in g.graphes if x.code == "lte_rrc")
     assert [(s.kpi, s.type, s.axe) for s in rrc.series] == [
         ("lte_rrc_tentatives", "barres", "gauche"), ("lte_rrc_setup_sr", "ligne", "droite")]
     motifs = next(x for x in g.graphes if x.code == "lte_motifs_rrc")
     assert {s.type for s in motifs.series} == {"barres_empilees"}
+    # 3G : « Surface » de l'Excel en aire (tentatives RRC voix derrière les tentatives d'appel).
+    voix = next(x for x in g.graphes if x.code == "wcdma_acces_voix")
+    assert [(s.kpi, s.type, s.axe) for s in voix.series] == [
+        ("wcdma_rrc_cs_tentatives", "aire", "gauche"), ("wcdma_tentatives_voix", "barres", "gauche"),
+        ("wcdma_cssr_cs", "ligne", "droite"), ("wcdma_nas_cs_sr", "ligne", "droite")]
 
 
 def test_graphique_invalide_refuse(tmp_path):
@@ -69,15 +76,35 @@ def test_graphique_invalide_refuse(tmp_path):
         charger_graphes(chemin, _cat())
 
 
-def test_rapports_4g_detailles_par_theme():
+def test_rapports_detailles_par_theme():
     voc = vocabulaire()
-    for code, theme in (("rapport_lte_trafic", "trafic"), ("rapport_lte_mobilite", "mobilite"),
-                        ("rapport_lte_coupures", "retainability")):
+    for code, theme in (("rapport_detail_trafic", "trafic"), ("rapport_detail_mobilite", "mobilite"),
+                        ("rapport_detail_coupures", "retainability")):
         intention = voc.intentions[code]
-        assert intention.rapport and intention.technos_defaut == ["LTE"]
-        assert intention.kpis == {"LTE": graphes().kpis_du_theme(theme)}
+        assert intention.rapport and intention.technos_defaut == ["LTE", "WCDMA"]
+        assert intention.kpis == {t: graphes().kpis_du_theme(theme, t) for t in ("LTE", "WCDMA")}
+    # Débit et qualité radio : 4G seulement (pas de graphique 3G dans ce thème).
+    assert voc.intentions["rapport_detail_integrite"].kpis.keys() == {"LTE"}
     # Les causes de coupure viennent des graphiques (donc du catalogue), pas du vocabulaire.
-    assert "lte_drop_radio" in voc.intentions["rapport_lte_coupures"].kpis["LTE"]
+    assert "lte_drop_radio" in voc.intentions["rapport_detail_coupures"].kpis["LTE"]
+    assert "wcdma_drop_sho" in voc.intentions["rapport_detail_coupures"].kpis["WCDMA"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("texte, techno, kpis", [
+    ("RSSI à Nouméa hier", ["WCDMA"], ["wcdma_rssi"]),
+    ("soft handover à Koné hier", ["WCDMA"], ["wcdma_sho_sr", "wcdma_active_set"]),
+    ("HO IRAT à Nouméa hier", ["WCDMA"], ["wcdma_irat_voix_sr", "wcdma_irat_voix_lb_sr"]),
+    ("taux de blocage 3G à Païta hier", ["WCDMA"], ["wcdma_rrc_cs_blocage", "wcdma_rab_cs_blocage",
+                                                    "wcdma_rrc_ps_blocage", "wcdma_rab_ps_blocage"]),
+    ("paging 3G à Nouméa hier", ["WCDMA"], ["wcdma_paging", "wcdma_paging_echec"]),
+    ("mobilité détaillée 3G à Nouméa hier", ["WCDMA"], None),
+])
+def test_recherche_kpi_3g_detailles(ctx, texte, techno, kpis):  # noqa: F811
+    i = interpreter(texte, J, ctx)
+    assert i.params["techno"] == techno and not i.notes, texte
+    attendu = kpis or graphes().kpis_du_theme("mobilite", "WCDMA")
+    assert i.params["kpis"] == attendu, texte
 
 
 # ------------------------------------------------------------------ moyenne simultanée
@@ -126,6 +153,36 @@ def test_formules_detaillees_sur_les_extraits(fichier):
         pytest.approx(ligne.PayloadDlDrbCa_p.iloc[0], abs=0.1)
 
 
+@pytest.mark.parametrize("fichier", ["wcdma_cell_hour", "wcdma_cell_day"])
+def test_formules_detaillees_3g_sur_les_extraits(fichier):
+    df = _csv(fichier)
+    cat = _cat()
+    causes = [k for k in cat.values() if k.decomposition_de == "wcdma_rrc_echec"]
+    assert len(causes) == 7
+    codes = ["wcdma_rrc_echec", "wcdma_rrc_sig_sr", "wcdma_active_set_1", "wcdma_active_set_2", "wcdma_active_set_3",
+             "wcdma_trafic_voix_best", "wcdma_trafic_voix_amr_sm", "wcdma_trafic_voix_amr_mm"]
+    r = agreger(df, [cat[c] for c in codes] + causes, par=[]).iloc[0]
+    # Les sept causes publiées somment l'échec RRC voix + data + signalisation en horaire ; en
+    # journalier, quelques cellules ont des échecs sans cause (affichés « non ventilé »).
+    total = sum(r[k.code] for k in causes)
+    if fichier == "wcdma_cell_hour":
+        assert total == pytest.approx(r["wcdma_rrc_echec"], abs=0.02)
+    else:
+        assert total <= r["wcdma_rrc_echec"]
+    assert r["wcdma_active_set_1"] + r["wcdma_active_set_2"] + r["wcdma_active_set_3"] == pytest.approx(100, abs=1)
+    assert r["wcdma_trafic_voix_amr_sm"] + r["wcdma_trafic_voix_amr_mm"] == pytest.approx(r["wcdma_trafic_voix_best"])
+    # Signalisation et CSFB : ratios publiés égaux aux compteurs, ligne à ligne en horaire (le
+    # journalier publie parfois une autre valeur sur une cellule : les compteurs font foi).
+    if fichier != "wcdma_cell_hour":
+        return
+    ligne = df[df.RrcSigAtt > 0].iloc[[0]]
+    assert agreger(ligne, [cat["wcdma_rrc_sig_sr"]], par=[]).iloc[0]["wcdma_rrc_sig_sr"] == \
+        pytest.approx(ligne.RrcSuccessSig_p.iloc[0], abs=0.01)
+    ligne = df[df.RabEstAttCsFb > 0].iloc[[0]]
+    assert agreger(ligne, [cat["wcdma_cssr_csfb"]], par=[]).iloc[0]["wcdma_cssr_csfb"] == \
+        pytest.approx(ligne.CssrSpCsfb_p.iloc[0], abs=0.01)
+
+
 @pytest.mark.parametrize("fichier", ["lte_cell_hour", "lte_cell_day"])
 def test_causes_echec_rrc_presque_totales(fichier):
     """Causes publiées ≈ taux d'échec (le reste, faible, est affiché « non ventilé »)."""
@@ -136,11 +193,11 @@ def test_causes_echec_rrc_presque_totales(fichier):
     assert sum(r[k.code] for k in causes) <= r["lte_rrc_echec"] + 1e-6
 
 
-def test_tous_les_kpi_detailles_se_calculent_sur_les_extraits():
+@pytest.mark.parametrize("techno, fichier", [("LTE", "lte_cell_day"), ("WCDMA", "wcdma_cell_day")])
+def test_tous_les_kpi_detailles_se_calculent_sur_les_extraits(techno, fichier):
     cat = charger_catalogue(settings.KPI_CATALOGUE_PATH)
-    kpis = [k for k in cat.values() if not k.principal]
-    df = pd.concat([_csv("lte_cell_day"), pd.to_datetime(_csv("lte_cell_day")["DateDay"]).rename("horodatage")],
-                   axis=1)
+    kpis = [k for k in cat.values() if not k.principal and k.techno == techno]
+    df = pd.concat([_csv(fichier), pd.to_datetime(_csv(fichier)["DateDay"]).rename("horodatage")], axis=1)
     r = agreger(df, kpis, par=[]).iloc[0]
     vides = [k.code for k in kpis if pd.isna(r[k.code])]
     assert vides == []
@@ -179,14 +236,19 @@ def test_graphes_themes_et_kpi_detailles_sans_carte():
 
 
 @pytest.mark.django_db
-def test_rapport_4g_detaille_affiche_les_graphiques(admin, base_recherche):  # noqa: F811
-    html = _html(admin.get("/", {"q": "Nouméa", "intention": "rapport_lte_mobilite", "periode": "semaine_derniere"}))
-    assert "<h1>Mobilité 4G détaillée : Nouméa</h1>" in html
+def test_rapport_detaille_affiche_les_graphiques(admin, base_recherche):  # noqa: F811
+    html = _html(admin.get("/", {"q": "Nouméa", "intention": "rapport_detail_mobilite", "periode": "semaine_derniere"}))
+    assert "<h1>Mobilité détaillée : Nouméa</h1>" in html
+    # Un bloc par techno, chacun avec ses graphiques.
+    assert 'data-graphes-themes="graphes-themes-WCDMA"' in html
+    wcdma = json.loads(re.search(r'<script id="graphes-themes-WCDMA" type="application/json">(.*?)</script>',
+                                 html, re.S)[1])
+    assert "Soft handovers" in [g["titre"] for t in wcdma["themes"] for g in t["graphes"]]
     assert "Graphiques par thème" in html and 'data-graphes-themes="graphes-themes-LTE"' in html
     donnees = json.loads(re.search(r'<script id="graphes-themes-LTE" type="application/json">(.*?)</script>',
                                    html, re.S)[1])
     assert [t["titre"] for t in donnees["themes"]] == ["Mobilité"]
-    assert len(donnees["themes"][0]["graphes"]) == len(graphes().du_theme("mobilite"))
+    assert len(donnees["themes"][0]["graphes"]) == sum(g.techno == "LTE" for g in graphes().du_theme("mobilite"))
     assert any(v is not None for serie in donnees["valeurs"]["lte_ho_intra_sr"] for v in serie)
     # Les KPI détaillés n'ont pas de carte ; le taux de succès HO intra-fréquence (principal), si.
     assert "<span>Taux de succès HO intra-fréquence</span>" in html

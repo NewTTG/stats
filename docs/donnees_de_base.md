@@ -147,3 +147,25 @@ publié (nombre selon l'outil Excel). Quatre colonnes de l'outil sont remplacée
 (`lte_rrc_setup_sr`), `RrcSetupFailRate_p` (`lte_rrc_echec`), `PayloadDlDrbCa_p`
 (`lte_part_payload_dl_ca`).
 
+## 7. KPI 3G détaillés (outil Excel WCDMA_SQL_Access)
+
+Les 123 colonnes 3G des graphiques de l'outil sont reprises dans `kpis_detailles`, avec les
+mêmes règles. Relations vérifiées sur les deux extraits (`tests/test_kpi_detailles.py`) :
+
+| Relation | Écart | Conséquence |
+|---|---|---|
+| `RrcSuccessSig_p = RrcSigEst / RrcSigAtt` | nul en horaire ; quelques cellules en journalier | `wcdma_rrc_sig_sr` calculé sur les compteurs |
+| `CssrSpCsfb_p = RabEstSuccCsfb / RabEstAttCsFb` | nul en horaire | `wcdma_cssr_csfb` calculé sur les compteurs |
+| Σ des 7 causes `RrcRej*_p`, `RrcDeniedAdm_p`, `RrcFail*_p` = échec RRC sur (ReqCs + ReqPs + RrcSigAtt) | nul en horaire ; part non ventilée en journalier | `wcdma_rrc_echec` et ses causes (`decomposition_de`) |
+| `ReqPsSucc / ReqPs = 100 − RrcFailedPs_p − RrcBlockingPs_p` (idem RAB data) | médiane nulle | échecs et blocages pondérés par les tentatives |
+| Σ `ActiveSet*Cell_p` = 100 et `ShoActiveSetSize` = moyenne pondérée des parts | nul | active set pondéré par les connexions RRC voix + data |
+| `SpeechTrafficDayBest_AMR_SM_erlg + …_AMR_MM_erlg = SpeechTrafficDayBest_erlg` | nul | trafic voix par codec |
+
+Limites : `UlLoad_p` vaut 100 % partout et `FailedPaging_p` 0 sur les extraits (repris tels
+quels, à vérifier) ; `SpeechTrafficDayBest_erlg` et `Data_Eul_Users_Tti2` ont des valeurs
+négatives en journalier ; `NoPagingMin` et les utilisateurs data sont des moyennes (somme des
+cellules à chaque horodatage, puis moyenne). Taux NAS, accès HSDPA / HSUPA et coupures RRC / NAS
+sont pondérés par le compteur de tentatives ou d'établissements le plus proche (`approx`). Quatre
+colonnes de l'outil sont remplacées par un calcul équivalent : `RrcSuccessSig_p`, `CssrSp_p`
+(`wcdma_cssr_cs`), `CssrSpCsfb_p`, `CssrPs_p` (`wcdma_cssr_ps`).
+

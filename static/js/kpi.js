@@ -247,7 +247,7 @@
   }
 
   /* Graphiques thématiques (config/graphes.yaml) : plusieurs KPI sur un graphique, barres,
-     barres empilées ou courbes, axe de gauche ou de droite ; un graphique par entité, choisie
+     barres empilées, courbes ou aires, axe de gauche ou de droite ; un graphique par entité, choisie
      dans la liste (data-graphes-entite). */
   /* Bornes d'un axe : depuis 0 s'il porte des barres, cumul des barres empilées, 100 au plus en %. */
   function bornesTheme(series, depuisZero, pourcent) {
@@ -265,7 +265,9 @@
     if (depuisZero) bas = Math.min(0, bas);
     var pas = pasRond((haut - bas) || Math.abs(haut) || 1);
     var min = Math.floor(bas / pas) * pas, max = Math.ceil((haut + pas * 0.15) / pas) * pas;
-    if (pourcent) { min = Math.max(0, min); max = Math.min(100, max); }
+    // En %, borné à [0, 100] sauf si les données en sortent (ratio publié > 100 %, échec négatif).
+    if (pourcent && bas >= 0) min = Math.max(0, min);
+    if (pourcent && haut <= 100) max = Math.min(100, max);
     if (max <= min) {  // valeur constante (ex. disponibilité à 100 %) : la courbe reste en haut
       if (pourcent && max >= 100) min = Math.max(0, max - pas);
       else max = min + pas;
@@ -289,9 +291,11 @@
       var data = donnees.valeurs[s.kpi][n];
       var serie = { name: s.nom + " (" + donnees.syntheses[s.kpi][n] + ")", data: data, axe: s.axe,
                     emphasis: { focus: "series" }, unite: s.unite };
-      if (s.type === "ligne") {
-        return Object.assign(serie, { type: "line", connectNulls: false, showSymbol: data.length < 40, symbolSize: 5,
-                                      lineStyle: { width: 2.2 }, z: 3 });
+      if (s.type === "ligne" || s.type === "aire") {
+        Object.assign(serie, { type: "line", connectNulls: false, showSymbol: data.length < 40, symbolSize: 5,
+                               lineStyle: { width: 2.2 }, z: 3 });
+        if (s.type === "aire") Object.assign(serie, { areaStyle: { opacity: 0.12 }, z: 1 });
+        return serie;
       }
       serie.type = "bar";
       serie.barMaxWidth = 28;

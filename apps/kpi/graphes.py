@@ -13,7 +13,7 @@ from .catalogue import DefinitionKpi
 
 class Serie(BaseModel):
     kpi: str
-    type: Literal["barres", "barres_empilees", "ligne"]
+    type: Literal["barres", "barres_empilees", "ligne", "aire"]
     axe: Literal["gauche", "droite"] = "gauche"
 
 
@@ -36,9 +36,9 @@ class Graphes(BaseModel):
     def du_theme(self, theme: str) -> list[DefinitionGraphe]:
         return [g for g in self.graphes if g.theme == theme]
 
-    def kpis_du_theme(self, theme: str) -> list[str]:
-        """KPI des graphiques d'un thème, dans l'ordre des graphiques (sans doublon)."""
-        return list(dict.fromkeys(c for g in self.du_theme(theme) for c in g.kpis))
+    def kpis_du_theme(self, theme: str, techno: str | None = None) -> list[str]:
+        """KPI des graphiques d'un thème (d'une techno), dans l'ordre des graphiques (sans doublon)."""
+        return list(dict.fromkeys(c for g in self.du_theme(theme) if techno in (None, g.techno) for c in g.kpis))
 
     def couverts(self, techno: str, codes) -> list[DefinitionGraphe]:
         """Graphiques de ``techno`` dont tous les KPI sont parmi ``codes``."""

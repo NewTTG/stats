@@ -1,4 +1,4 @@
-"""Graphiques thématiques des rapports « 4G détaillée » dans Chromium : barres, barres empilées et
+"""Graphiques thématiques des rapports détaillés dans Chromium : barres, barres empilées et
 courbes sur deux axes, un graphique par entité (liste). Facultatif : pip install playwright."""
 import mimetypes
 import os
@@ -74,5 +74,20 @@ def test_graphiques_par_theme_et_par_site(admin, base_recherche):  # noqa: F811
             volume.scroll_into_view_if_needed()
             page.screenshot(path=os.environ["CAPTURE_GRAPHES"], full_page=True)
 
-    _page_resultat(admin, {"q": "Nouméa", "intention": "rapport_lte_trafic", "periode": "semaine_derniere",
+    _page_resultat(admin, {"q": "Nouméa", "intention": "rapport_detail_trafic", "techno": "LTE", "periode": "semaine_derniere",
                            "granularite_espace": "site"}, verifier)
+
+
+def test_graphiques_3g_aires_et_deux_axes(admin, base_recherche):  # noqa: F811
+    def verifier(page):
+        zone = page.locator('[data-graphes-themes="graphes-themes-WCDMA"]')
+        assert zone.locator(".graphique").count() == 17  # thème Accessibilité, 3G
+        option = _option(page, '[data-graphes-themes="graphes-themes-WCDMA"] .graphique[aria-label="Taux d\'accès voix"]')
+        # « Surface » de l'Excel : aire ; tentatives d'appel en barres ; taux sur l'axe de droite.
+        assert [s["type"] for s in option["series"]] == ["line", "bar", "line", "line"]
+        assert "areaStyle" in option["series"][0] and [s["yAxisIndex"] for s in option["series"]] == [0, 0, 1, 1]
+        if os.environ.get("CAPTURE_GRAPHES_3G"):
+            page.screenshot(path=os.environ["CAPTURE_GRAPHES_3G"], full_page=True)
+
+    _page_resultat(admin, {"q": "Nouméa", "intention": "rapport_detail_accessibilite", "techno": "WCDMA",
+                           "periode": "semaine_derniere"}, verifier)
