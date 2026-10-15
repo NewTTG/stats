@@ -1,0 +1,7 @@
+{# Onglets de l'espace courant (config/admin.py, AdminStats.each_context) : une page par onglet, selon les droits. #}
+<nav class="admin-onglets" aria-label="{{ espace.libelle }}">
+  <span class="admin-onglets-titre">{% include "admin/icone.html" with nom=espace.icone %}{{ espace.libelle }}</span>
+  <ul>
+    {% for o in onglets %}<li><a href="{{ o.url }}"{% if o.actif %} aria-current="page"{% endif %}>{{ o.libelle }}{% if o.compteur %}<span class="admin-pastille" title="{{ o.compteur }} à compléter">{{ o.compteur }}</span>{% endif %}</a></li>{% endfor %}
+  </ul>
+</nav>

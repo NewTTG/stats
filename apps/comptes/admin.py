@@ -174,6 +174,7 @@ class DemandeSuivieAdmin(admin.ModelAdmin):
     date_hierarchy = 'creee_le'
     actions = None
     change_list_template = 'admin/suivi/liste.html'
+    ouverture_modale = False  # détail du parcours : page entière (admin/suivi/detail.html)
 
     def has_add_permission(self, request):
         return False

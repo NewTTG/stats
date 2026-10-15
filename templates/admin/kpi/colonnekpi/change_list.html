@@ -1,7 +1,7 @@
 {% extends 'admin/change_list.html' %}
-{% comment %}Gestion des KPI : colonnes lues dans la base KPI, avec nom affiché, catégorie et description.{% endcomment %}
-{% block breadcrumbs %}<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Accueil</a> › Gestion des KPI › Colonnes de la base</div>{% endblock %}
-{% block page_intro %}<p class="page-intro">Colonnes de mesure des tables KPI (journalières et horaires). Donnez à chacune un nom compréhensible par les utilisateurs, rangez-la dans une catégorie et décrivez ce qu'elle mesure ; les modifications de la liste s'enregistrent avec le bouton en bas de page.</p>{% endblock %}
+{% comment %}Référentiel › Colonnes de la base : colonnes lues dans la base KPI, avec nom affiché, catégorie et description.{% endcomment %}
+{% block page_intro %}<p class="page-intro">Colonnes de mesure des tables KPI (journalières et horaires), avec le nom, la catégorie et la description vus par les utilisateurs.</p>
+<details class="page-aide"><summary>En savoir plus</summary><p>Donnez à chaque colonne un nom compréhensible, rangez-la dans une catégorie et décrivez ce qu’elle mesure. Les modifications faites dans la liste s’enregistrent avec le bouton en bas de page ; un clic sur un nom de colonne ouvre la fiche complète dans une fenêtre. Une colonne « proposée » devient un indicateur que les utilisateurs choisissent dans l’application.</p></details>{% endblock %}
 {% block content %}
 <section class="panneau" aria-labelledby="colonnes-titre">
   <header class="panneau-entete"><h2 id="colonnes-titre">Base KPI</h2>{% if etat.vue_le %}<span class="panneau-meta">Lue le {{ etat.vue_le|date:"d/m/Y H:i" }}</span>{% endif %}</header>

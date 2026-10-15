@@ -6,9 +6,6 @@
 
 {% block branding %}
 <div id="site-name"><a href="{% url 'admin:index' %}"><span class="marque-admin-logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 19v-7m7 7V7m7 12V3"/></svg></span>{{ site_header|default:_('Django administration') }}</a></div>
-{% if user.is_anonymous %}
-  {% include "admin/color_theme_toggle.html" %}
-{% endif %}
 {% endblock %}
 
 {% block content_title %}{% if title %}<div class="page-entete"><div><h1>{{ title }}</h1>{% if subtitle %}<p>{{ subtitle }}</p>{% endif %}</div></div>{% endif %}{% endblock %}
@@ -20,11 +17,18 @@
 
 {% block userlinks %}
   {% if site_url %}<a class="retour-statistiques" href="{{ site_url }}">← Retour aux statistiques</a>{% endif %}
-  {% include "admin/color_theme_toggle.html" %}
   <details class="admin-compte">
     <summary><span class="admin-avatar" aria-hidden="true">{{ user.get_username|first|upper }}</span><span class="admin-compte-nom">{% firstof user.get_short_name user.get_username %}</span></summary>
     <div class="admin-compte-menu">
       <p class="admin-compte-identite">{{ user.get_username }}{% if user.email %}<small>{{ user.email }}</small>{% endif %}</p>
+      <fieldset class="admin-theme" aria-label="Thème">
+        <legend>Thème</legend>
+        <div class="admin-theme-choix">
+          <label><input type="radio" name="admin-theme" value="light" data-theme-choix><span>Clair</span></label>
+          <label><input type="radio" name="admin-theme" value="dark" data-theme-choix><span>Sombre</span></label>
+          <label><input type="radio" name="admin-theme" value="auto" data-theme-choix><span>Système</span></label>
+        </div>
+      </fieldset>
       {% if user.has_usable_password %}<a href="{% url 'admin:password_change' %}">{% translate 'Change password' %}</a>{% endif %}
       <form id="logout-form" method="post" action="{% url 'admin:logout' %}">
         {% csrf_token %}

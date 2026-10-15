@@ -1,6 +1,5 @@
 {% extends 'admin/change_list.html' %}
 {% comment %}Référentiel réseau : état actuel et rechargement, puis l'historique des imports (liste standard).{% endcomment %}
-{% block breadcrumbs %}<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Accueil</a> › Référentiel réseau</div>{% endblock %}
 {% block page_intro %}<p class="page-intro">Sites lus dans le xlsx (onglet Site_File) ; secteurs et cellules déduits des noms de cellules. Chaque chargement est conservé ci-dessous avec ses ajouts, suppressions et anomalies.</p>{% endblock %}
 {% block content %}
 <div class="ref-grille">

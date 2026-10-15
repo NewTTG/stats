@@ -72,8 +72,21 @@ class SeuilKpiAdmin(admin.ModelAdmin):
     def changelist_view(self, request, extra_context=None):
         if self.has_view_or_change_permission(request):
             SeuilKpi.synchroniser()
-        contexte = {"title": "KPI : noms et seuils", "titre_page": "KPI : noms et seuils", **(extra_context or {})}
+        contexte = {"title": "KPI : noms et seuils", "titre_page": "KPI : noms et seuils",
+                    "detection": self._detection(request), **(extra_context or {})}
         return super().changelist_view(request, contexte)
+
+    def _detection(self, request):
+        """Carte « Détection d'anomalies » : réglages (une seule ligne) et lien de modification, selon les droits."""
+        from apps.evenements.models import ReglagesAnomalies
+
+        modele_admin = self.admin_site._registry.get(ReglagesAnomalies)
+        if modele_admin is None or not modele_admin.has_view_or_change_permission(request):
+            return None
+        reglages = ReglagesAnomalies.courant()
+        return {"reglages": reglages, "modifiable": modele_admin.has_change_permission(request, reglages),
+                "url": reverse("admin:evenements_reglagesanomalies_change", args=[reglages.pk],
+                               current_app=self.admin_site.name)}
 
     def get_changelist_form(self, request, **kwargs):
         return KpiListeForm

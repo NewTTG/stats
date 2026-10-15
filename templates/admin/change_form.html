@@ -1,0 +1,3 @@
+{% extends "admin/change_form.html" %}
+{% comment %}Fiches : fil d'Ariane de l'espace (config/admin.py). En fenêtre (?_modale=1), la page est affichée seule.{% endcomment %}
+{% block breadcrumbs %}{% if add %}{% include "admin/ariane.html" with fin="Ajout" %}{% else %}{% include "admin/ariane.html" with fin=original|truncatewords:"18" %}{% endif %}{% endblock %}

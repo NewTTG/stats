@@ -1,4 +1,20 @@
 {% extends 'admin/change_list.html' %}
-{% comment %}Gestion des KPI : noms affichés, catégories, descriptions et seuils des KPI du catalogue.{% endcomment %}
-{% block breadcrumbs %}<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Accueil</a> › Gestion des KPI › KPI : noms et seuils</div>{% endblock %}
-{% block page_intro %}<p class="page-intro">Noms, catégories et descriptions vus par les utilisateurs dans toute l'application (choix des indicateurs, résultats, exports, rapports), et seuils d'alerte. Valeurs initiales : celles du catalogue ; l'action « Rétablir » y revient. Pour proposer une colonne de la base qui n'est dans aucun KPI : <a href="{% url 'admin:kpi_colonnekpi_changelist' %}">Colonnes de la base</a>.</p>{% endblock %}
+{% comment %}Référentiel › KPI : noms affichés, catégories, descriptions et seuils des KPI du catalogue ; en tête, les
+réglages de détection d'anomalies (une seule ligne, modifiée en fenêtre).{% endcomment %}
+{% block page_intro %}<p class="page-intro">Noms, catégories, descriptions et seuils d’alerte vus par les utilisateurs dans toute l’application.</p>
+<details class="page-aide"><summary>En savoir plus</summary><p>Les valeurs initiales sont celles du catalogue ; l’action « Rétablir » y revient. Les modifications faites dans la liste s’enregistrent avec le bouton en bas de page ; un clic sur un code ouvre la fiche complète dans une fenêtre. Pour proposer une colonne de la base qui n’est dans aucun KPI : <a href="{% url 'admin:kpi_colonnekpi_changelist' %}">Colonnes de la base</a>.</p></details>{% endblock %}
+{% block content %}
+{% if detection %}{% with r=detection.reglages %}
+<section class="panneau panneau-reglages" aria-labelledby="detection-titre">
+  <header class="panneau-entete"><div><h2 id="detection-titre">Détection d’anomalies</h2><p class="panneau-sous-titre">Seuils appliqués à l’analyse des événements (écarts par rapport à la référence, saturation).</p></div>
+    {% if detection.modifiable %}<a class="bouton" href="{{ detection.url }}" data-modale>Modifier</a>{% endif %}</header>
+  <dl class="chiffres">
+    <div><dt>Écart : écarts-types</dt><dd>{{ r.ecart_sigma|floatformat:"-1" }} σ</dd></div>
+    <div><dt>Écart minimal / référence</dt><dd>{{ r.ecart_pct|floatformat:"-1" }} %</dd></div>
+    <div><dt>Saturation : PRB DL au-dessus de</dt><dd>{{ r.saturation_prb|floatformat:"-1" }} %</dd></div>
+    <div><dt>Saturation : débit DL sous</dt><dd>{{ r.saturation_debit|floatformat:"-1" }} Mbps</dd></div>
+  </dl>
+</section>
+{% endwith %}{% endif %}
+{{ block.super }}
+{% endblock %}

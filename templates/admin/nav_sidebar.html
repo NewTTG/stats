@@ -1,12 +1,7 @@
-{# Menu latéral : marque de l'application, puis rubriques par usage (config/admin.py, NAVIGATION), filtrées selon les droits. #}
+{# Menu latéral : marque, puis un lien par espace (config/admin.py, ESPACES), filtré selon les droits ; les pages d'un espace sont ses onglets. #}
 <nav id="nav-sidebar" aria-label="Menu de l’administration">
   <a class="admin-marque" href="{% url 'admin:index' %}"><span class="marque-admin-logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 19v-7m7 7V7m7 12V3"/></svg></span><span>Stats<span class="brand-dot">.</span><small>Administration</small></span></a>
-  {% for rubrique in navigation %}
-  <div class="admin-rubrique">
-    <p class="admin-rubrique-titre" id="rubrique-{{ forloop.counter }}">{{ rubrique.titre }}</p>
-    <ul aria-labelledby="rubrique-{{ forloop.counter }}">
-      {% for e in rubrique.entrees %}<li>{% if e.url %}<a href="{{ e.url }}"{% if e.actif %} aria-current="page"{% endif %}>{{ e.libelle }}{% if e.compteur %}<span class="admin-pastille" title="{{ e.compteur }} à compléter">{{ e.compteur }}</span>{% endif %}</a>{% else %}<span>{{ e.libelle }}</span>{% endif %}</li>{% endfor %}
-    </ul>
-  </div>
-  {% endfor %}
+  <ul class="admin-espaces">
+    {% for e in navigation %}<li><a href="{{ e.url }}"{% if e.actif %} aria-current="page"{% endif %}>{% include "admin/icone.html" with nom=e.icone %}<span class="admin-espace-nom">{{ e.libelle }}</span>{% if e.compteur %}<span class="admin-pastille" title="{{ e.compteur }} à compléter">{{ e.compteur }}</span>{% endif %}</a></li>{% endfor %}
+  </ul>
 </nav>

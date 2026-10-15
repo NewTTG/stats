@@ -396,8 +396,18 @@ et redémarrer l’application et le worker. En déploiement, exécuter aussi
 ### Suivi des demandes et administration
 
 L’administration propose une vue d’ensemble de l’activité des **7 derniers jours**, un
-accès permanent au **Suivi des demandes** et aux **Rapports générés**, et des pages de
-configuration adaptées aux écrans étroits et aux thèmes clair / sombre.
+accès permanent au **Suivi des demandes** et aux **Rapports**, et des pages de
+configuration adaptées aux écrans étroits et aux thèmes clair / sombre (choix **Clair /
+Sombre / Système** dans le menu du compte).
+
+Le menu latéral compte un lien par **espace**, et les pages d’un espace sont des onglets en
+haut de page (`ESPACES`, `config/admin.py`) : **Rapports** (générés, enregistrés et planifiés),
+**Référentiel** (événements, KPI : noms et seuils, colonnes de la base), **Réseau** (imports et
+rechargement, sites, secteurs, cellules), **Comptes et accès** (utilisateurs, groupes, périmètres,
+journal d’audit) et **Système** (processus du serveur, tâches de fond). Depuis une liste, la
+création et la modification s’ouvrent dans une **fenêtre** : la liste garde ses filtres, sa
+recherche et sa position, et se recharge à l’enregistrement. Les événements (page de
+l’application) et le détail d’une demande suivie s’ouvrent toujours en pleine page.
 
 Chaque recherche soumise conserve son texte, ses paramètres, les éléments compris,
 les mots non reconnus, les questions et toutes les options proposées. Les liens de
@@ -539,7 +549,7 @@ bilan complet ; un indicateur explicite reste prioritaire (« stats du débit »
 
 ### KPI : noms et seuils
 
-Admin → **Gestion des KPI › KPI : noms et seuils** : une ligne par KPI du catalogue YAML,
+Admin → **Référentiel › KPI : noms et seuils** : une ligne par KPI du catalogue YAML,
 initialisée avec ses valeurs. **Nom affiché**, **catégorie**, **description** (info-bulle
 à côté de la valeur, rapports) et **seuils** d'alerte et critique se modifient directement
 dans la liste ; ils remplacent ceux du YAML dans toute l'application (choix des indicateurs,
@@ -550,9 +560,13 @@ ajouté au YAML apparaît à la prochaine ouverture de la page. La recherche en 
 reste pilotée par `config/recherche.yaml` (mots-clés vers codes KPI) : un renommage ne change
 pas les mots reconnus.
 
+En tête de la même page, la carte **Détection d’anomalies** montre les seuils de l’analyse des
+événements (écart minimal en écarts-types et en % de la référence, saturation PRB DL et débit
+DL) ; « Modifier » les règle dans une fenêtre.
+
 ### Colonnes de la base KPI
 
-Admin → **Gestion des KPI › Colonnes de la base** : les colonnes de mesure des tables KPI
+Admin → **Référentiel › Colonnes de la base** : les colonnes de mesure des tables KPI
 (`lte_cell_day` / `_hour`, `wcdma_cell_day` / `_hour`, sans les colonnes cellule et
 horodatage), une ligne par techno et colonne, avec les tables où elle existe (jour, heure)
 et les KPI du catalogue qui l'utilisent (« utilisée par », lien vers la fiche du KPI pour

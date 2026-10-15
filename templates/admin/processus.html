@@ -1,7 +1,7 @@
 {% extends "admin/base_site.html" %}
 {% comment %}Processus lancés par « manage.py superviser » (config/superviseur.py) : état, redémarrage, journaux.{% endcomment %}
 {% block nav-sidebar %}{% include "admin/nav_sidebar.html" %}{% endblock %}
-{% block breadcrumbs %}<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Accueil</a> › Processus du serveur</div>{% endblock %}
+{% block breadcrumbs %}{% include "admin/ariane.html" %}{% endblock %}
 {% block content_title %}<div class="page-entete"><div><h1>Processus du serveur</h1><p>Application web et worker des rapports (exports PowerPoint, Excel, PDF et rapports planifiés), lancés par <code>python manage.py superviser</code>.</p></div></div>{% endblock %}
 {% block content %}
 <div id="content-main">
