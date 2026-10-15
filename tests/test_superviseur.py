@@ -113,6 +113,38 @@ def test_arret(lanceur):
     assert not p.en_marche
 
 
+def test_preparation_avant_l_application(lanceur, tmp_path):
+    """Après un git pull, le redémarrage de l'application applique d'abord les migrations."""
+    trace = tmp_path / "trace.txt"
+
+    def etape(nom, code=0):
+        return [sys.executable, "-c", f"open({str(trace)!r}, 'a').write({nom!r} + chr(10)); raise SystemExit({code})"]
+
+    s = lanceur({"app": DORMIR, "worker": DORMIR})
+    s.etapes = [("dépendances", etape("pip")), ("migrations de la base", etape("migrate", 1)),
+                ("fichiers statiques", etape("collectstatic"))]
+    s.redemarrer(["app", "worker"])
+    assert trace.read_text().split() == ["pip", "migrate", "collectstatic"]  # un échec n'arrête pas la suite
+    assert all(p.en_marche for p in s.processus.values())  # ni le démarrage
+    s.ecrire_etat()
+    preparation = superviseur.lire_etat()["preparation"]
+    assert preparation["ok"] is False and preparation["echecs"] == ["migrations de la base"]
+    assert "échec « migrations de la base »" in superviseur.fin_journal("superviseur")
+    assert "migrations de la base" in superviseur.fin_journal("preparation")
+
+    trace.unlink()
+    superviseur.demander_redemarrage(["worker"], "admin")
+    s.tour()
+    assert not trace.exists()  # worker seul : pas de préparation
+
+
+def test_etapes_de_preparation():
+    etapes = dict(superviseur.preparation())
+    assert etapes["dépendances"][-2:] == ["-r", str(superviseur.settings.BASE_DIR / "requirements.txt")]
+    assert etapes["migrations de la base"][-2:] == ["migrate", "--noinput"]
+    assert etapes["fichiers statiques"][-2:] == ["collectstatic", "--noinput"]
+
+
 def test_commandes(settings):
     cmds = superviseur.commandes(8082)
     assert cmds["app"][-3:] == ["runserver", "0.0.0.0:8082", "--noreload"]
@@ -129,6 +161,7 @@ def _etat_frais(settings, secondes=0):
     (settings.SUPERVISEUR_DIR / "etat.json").write_text(json.dumps({
         "pid": 1234, "demarre_le": battement.isoformat(), "battement": battement.isoformat(),
         "hote": "0.0.0.0", "port": 8082, "serveur": "runserver",
+        "preparation": {"le": battement.isoformat(), "ok": False, "echecs": ["migrations de la base"]},
         "processus": {"app": {"nom": "app", "pid": 11, "en_marche": True, "demarre_le": battement.isoformat(),
                               "redemarrages": 0, "dernier_code": None, "commande": "python manage.py runserver"}},
     }), encoding="utf-8")
@@ -166,6 +199,7 @@ def test_redemarrage_depuis_l_administration(client, settings):
     assert "/admin/processus/" in html  # menu latéral, rubrique Système
     html = client.get("/admin/processus/").content.decode()
     assert "Actif" in html and "0.0.0.0:8082" in html and 'value="tout"' in html
+    assert "Échec : migrations de la base" in html and "Mise à niveau" in html
 
     reponse = client.post("/admin/processus/", {"cible": "tout"}, follow=True)
     assert "Redémarrage demandé" in reponse.content.decode()

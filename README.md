@@ -157,8 +157,17 @@ exécute les redémarrages demandés dans l'administration :
 python manage.py superviser            # application sur 0.0.0.0:8082 + worker ; Ctrl+C arrête tout
 ```
 
+**Mise à niveau automatique** : avant chaque démarrage de l'application (démarrage du serveur,
+**Redémarrer l'application** ou **Tout redémarrer**), le superviseur exécute la procédure de mise
+à jour : `pip install -r requirements.txt` (rapide et sans réseau si rien n'a changé),
+`python manage.py migrate --noinput` puis `python manage.py collectstatic --noinput`. Une mise à
+jour du code se résume donc à `git pull` puis **Tout redémarrer** : plus de page en erreur parce
+qu'une migration (nouvelle colonne) n'a pas été appliquée. Un échec n'empêche pas le démarrage ;
+il est signalé en rouge dans *Processus du serveur* et détaillé dans `data/superviseur/preparation.log`.
+`--sans-preparation` désactive cette étape.
+
 Options : `--port` (défaut 8082, ou `APP_PORT`), `--hote` (défaut `0.0.0.0`), `--serveur`
-(`runserver` sous Windows, `gunicorn` ailleurs), `--sans-worker`. Les sorties ne sont plus dans
+(`runserver` sous Windows, `gunicorn` ailleurs), `--sans-worker`, `--sans-preparation`. Les sorties ne sont plus dans
 une console mais dans `data/superviseur/` (`app.log`, `worker.log`, `superviseur.log` ; au-delà
 de 10 Mo, l'ancien journal passe en `.log.1`). Un seul superviseur à la fois par installation.
 Penser à mettre le nom ou l'adresse du serveur dans `DJANGO_ALLOWED_HOSTS` et, avec
@@ -190,9 +199,9 @@ redémarrer**. La demande est prise en compte en une ou deux secondes et notée 
 d'audit. Redémarrer le worker abandonne le rapport en cours de génération (à relancer) ;
 redémarrer l'application la rend indisponible quelques secondes. Ces boutons ne fonctionnent
 que si les processus ont été lancés par `manage.py superviser` ; sinon la page l'indique.
-À utiliser après une modification de `.env` ou du catalogue KPI, ou si le worker ne traite plus
-les rapports. Après une mise à jour du code (`git pull`, `pip install`, `migrate`,
-`collectstatic`), **Tout redémarrer** suffit également.
+À utiliser après une modification de `.env` ou du catalogue KPI, si le worker ne traite plus
+les rapports, ou après un `git pull` : **Tout redémarrer** applique alors aussi les dépendances,
+les migrations et les fichiers statiques (voir « Mise à niveau automatique »).
 
 ### Avec Docker (serveur)
 
