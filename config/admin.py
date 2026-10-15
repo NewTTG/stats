@@ -8,11 +8,13 @@ from datetime import timedelta
 from urllib.parse import urlencode
 
 from django.apps import apps
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth import REDIRECT_FIELD_NAME
+from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Exists, OuterRef, Q
 from django.http import HttpResponseRedirect
-from django.urls import NoReverseMatch, reverse
+from django.template.response import TemplateResponse
+from django.urls import NoReverseMatch, path, reverse
 from django.utils import timezone
 
 # Sections du tableau de bord et du menu latéral : usage le plus fréquent d'abord, technique en dernier.
@@ -63,7 +65,7 @@ NAVIGATION = [
     ("Référentiel réseau", ["referentiel.ImportReferentiel", "referentiel.Site", "referentiel.Secteur",
                             "referentiel.Cellule"]),
     ("Comptes et accès", ["auth.User", "auth.Group", "comptes.Perimetre"]),
-    ("Système", ["django_q.Schedule", "django_q.OrmQ", "django_q.Failure", "django_q.Success"]),
+    ("Système", ["processus", "django_q.Schedule", "django_q.OrmQ", "django_q.Failure", "django_q.Success"]),
 ]
 LIBELLES_NAVIGATION = {
     "referentiel.ImportReferentiel": "Chargement et imports",
@@ -170,6 +172,11 @@ class AdminStats(admin.AdminSite):
                 if cle == "index":
                     entrees.append({"libelle": "Vue d’ensemble", "url": index, "actif": request.path == index,
                                     "compteur": None})
+                elif cle == "processus":
+                    if request.user.is_superuser:
+                        url = reverse("admin:processus", current_app=self.name)
+                        entrees.append({"libelle": "Processus du serveur", "url": url,
+                                        "actif": request.path == url, "compteur": None})
                 elif cle in modeles:
                     entrees.append(entree(cle))
             if entrees:
@@ -262,6 +269,50 @@ class AdminStats(admin.AdminSite):
             contexte["suivi_stats"] = stats
             contexte["dernieres_demandes"] = DemandeSuivie.objects.select_related("utilisateur")[:10]
         return super().index(request, contexte)
+
+    def get_urls(self):
+        return [path("processus/", self.admin_view(self.processus_view), name="processus")] + super().get_urls()
+
+    def processus_view(self, request):
+        """Application web et worker lancés par ``manage.py superviser`` : état, journaux, redémarrage."""
+        from apps.comptes.models import JournalAudit
+        from config import superviseur
+
+        if not request.user.is_superuser:
+            raise PermissionDenied
+        page = reverse("admin:processus", current_app=self.name)
+        if request.method == "POST":
+            cible = request.POST.get("cible")
+            etat = superviseur.lire_etat()
+            if cible not in superviseur.CIBLES:
+                messages.error(request, "Processus inconnu.")
+            elif not (etat and etat["actif"]):
+                messages.error(request, "Le superviseur ne tourne pas : redémarrage impossible depuis "
+                                        "l'administration (voir « Démarrage automatique » dans le README).")
+            else:
+                noms = superviseur.demander_redemarrage(superviseur.CIBLES[cible], request.user.get_username())
+                JournalAudit.objects.create(utilisateur=request.user, action="redemarrage_processus",
+                                            requete={"processus": superviseur.CIBLES[cible]})
+                libelles = " et ".join(superviseur.PROCESSUS[n].lower() for n in noms)
+                message = f"Redémarrage demandé : {libelles}. Pris en compte dans les secondes qui viennent."
+                if "app" in noms:
+                    message += " L’application sera indisponible quelques secondes : recharger ensuite la page."
+                messages.success(request, message)
+            return HttpResponseRedirect(page)
+        etat = superviseur.lire_etat()
+        processus = list(((etat or {}).get("processus") or {}).values())
+        contexte = {
+            **self.each_context(request),
+            "title": "Processus du serveur",
+            "etat": etat,
+            "processus": processus,
+            "demande": superviseur.demande_en_attente(),
+            "journaux": [(nom, libelle, superviseur.fin_journal(nom))
+                         for nom, libelle in [*superviseur.PROCESSUS.items(), ("superviseur", "Superviseur")]],
+            "repertoire": superviseur.repertoire(),
+        }
+        request.current_app = self.name
+        return TemplateResponse(request, "admin/processus.html", contexte)
 
     def login(self, request, extra_context=None):
         """Une seule porte d'entrée : la page de connexion de l'application (/connexion/).

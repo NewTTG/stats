@@ -352,6 +352,16 @@ code { font-family: var(--font-family-monospace); font-size: 12px; }
 .etat-erreur { color: var(--a-critique); background: var(--a-critique-fond); border-color: var(--a-critique-bord); }
 .etat-en_cours { color: var(--a-info); background: var(--a-info-fond); border-color: var(--a-info-bord); }
 
+/* Processus du serveur (admin/processus.html) */
+dl.chiffres dd.processus-texte { font-size: 15px; letter-spacing: 0; }
+.processus-aide { margin: 14px 22px; color: var(--a-texte-3); font-size: 12.5px; }
+h2.titre-section + .processus-aide { margin: -6px 0 14px; }
+.processus-actions > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.processus-actions form { margin: 0; }
+.table-simple td small { display: block; }
+.processus-journal { margin: 0; padding: 14px 22px; max-height: 360px; overflow: auto; font-size: 11.5px; line-height: 1.5;
+  white-space: pre-wrap; word-break: break-word; background: var(--a-surface-2); color: var(--a-texte); }
+
 /* ------------------------------------------------------------------ tableaux */
 /* En-têtes sur fond vert très clair, lignes fines, survol discret (tableaux de l'application). */
 .table-defilement { overflow-x: auto; }

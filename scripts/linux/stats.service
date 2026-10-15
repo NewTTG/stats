@@ -1,0 +1,22 @@
+# Démarrage automatique (Linux, systemd) : application web sur le port 8082 + worker des rapports.
+# Adapter User et les chemins (racine du dépôt : /opt/stats ici), puis :
+#   sudo cp scripts/linux/stats.service /etc/systemd/system/stats.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now stats
+# Journaux : data/superviseur/*.log (et journalctl -u stats). Redémarrage : administration > Processus.
+[Unit]
+Description=Stats réseau : application web et worker des rapports
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+User=stats
+WorkingDirectory=/opt/stats
+ExecStart=/opt/stats/.venv/bin/python manage.py superviser --port 8082
+# Arrêt propre : le superviseur arrête l'application et le worker (30 s chacun au plus).
+KillMode=mixed
+TimeoutStopSec=90
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
