@@ -224,7 +224,7 @@ class ColonneKpiAdmin(admin.ModelAdmin):
         # Liens vers les KPI lus une seule fois par page (et non une requête par ligne).
         liens = liens_kpi(self.admin_site)
 
-        @admin.display(description="utilisée par (modifier le KPI)")
+        @admin.display(description="utilisée par")
         def utilisee_par(obj):
             codes = usages_colonnes().get((obj.techno, obj.nom), [])
             return format_html_join(", ", "{}", ((liens.get(c, c),) for c in codes)) or "—"

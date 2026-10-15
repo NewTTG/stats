@@ -446,10 +446,20 @@ details.filtre li.selected a::before { content: ""; position: absolute; left: 12
 #changelist input[type="checkbox"] { accent-color: var(--a-accent); }
 /* Colonnes de la base KPI : saisie dans la liste, une ligne par colonne. */
 #changelist table td.field-libelle input[type="text"] { width: 12em; }
-#changelist table td.field-description textarea { width: 14em; min-height: 32px; box-sizing: border-box; padding: 6px 8px; resize: vertical; }
+#changelist table td.field-description textarea { width: 12em; min-height: 32px; box-sizing: border-box; padding: 6px 8px; resize: vertical; }
 #changelist td.field-utilisee_par { min-width: 8em; max-width: 14em; color: var(--a-texte-3); font-size: 11.5px; }
 #changelist td.field-donnees { white-space: nowrap; color: var(--a-texte-2); }
 #changelist th.field-nom { max-width: 15em; overflow-wrap: anywhere; }
+/* KPI : noms et seuils, le nom affiché d'abord ; seuils resserrés. */
+.model-seuilkpi #changelist table td.field-libelle input[type="text"] { width: 17em; }
+.model-seuilkpi #changelist .field-libelle { min-width: 0; }
+.model-seuilkpi #changelist table td :is(input[type="number"], input[type="text"]):is([name$="-alerte"], [name$="-critique"]) { width: 5.5em; }
+.model-seuilkpi #changelist th.field-code { font-size: 12px; overflow-wrap: anywhere; max-width: 13em; }
+/* Colonnes de la base : une ligne par colonne, liens vers les KPI en fin de ligne. */
+.model-colonnekpi #changelist table td.field-libelle input[type="text"] { width: 11em; }
+.model-colonnekpi #changelist .field-libelle { min-width: 0; }
+.model-colonnekpi #changelist td.field-calcul select { width: 8.5em; }
+.model-colonnekpi #changelist td.field-utilisee_par { min-width: 7em; max-width: 11em; }
 #changelist table tbody td img[src*="icon-yes"], #changelist table tbody td img[src*="icon-no"] { width: 14px; height: 14px; }
 #changelist table td input[type="text"], #changelist table td input[type="number"] { width: 7em; height: 32px; min-height: 0; padding: 0 9px; border-radius: 7px; box-sizing: border-box; }
 #changelist table td select { height: 32px; min-height: 0; padding: 0 8px; border-radius: 7px; }
