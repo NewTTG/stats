@@ -8,7 +8,9 @@ serveur : tâche planifiée Windows (scripts/windows/installer_demarrage.ps1) ou
 Échanges avec l'application par fichiers, dans ``SUPERVISEUR_DIR`` (défaut data/superviseur) :
 - ``etat.json`` : écrit par le superviseur toutes les 2 s (PID, démarrages, redémarrages) ;
 - ``demande.json`` : déposé par l'administration, lu puis supprimé par le superviseur ;
-- ``app.log``, ``worker.log``, ``superviseur.log`` : sorties des processus, à la place des consoles.
+- ``app.log``, ``worker.log``, ``superviseur.log`` : sorties des processus, à la place des consoles ;
+- ``preparation.log`` : mise à niveau faite avant chaque démarrage de l'application (dépendances,
+  migrations de la base, fichiers statiques), pour qu'un ``git pull`` suivi d'un redémarrage suffise.
 """
 
 import json
@@ -29,6 +31,7 @@ CIBLES = {"worker": ["worker"], "app": ["app"], "tout": ["app", "worker"]}
 BATTEMENT_S = 2  # écriture de etat.json
 SILENCE_MAX_S = 15  # au-delà sans battement, le superviseur est considéré arrêté
 ARRET_DELAI_S = 30  # arrêt propre attendu avant de forcer
+PREPARATION_DELAI_S = 1800  # durée maximale d'une étape de préparation (grosse migration)
 JOURNAL_MAX_OCTETS = 10 * 1024 * 1024  # au-delà, le journal passe en .log.1 au prochain démarrage
 
 
@@ -66,6 +69,9 @@ def lire_etat():
     for p in (etat.get("processus") or {}).values():
         p["demarre_le"] = _date(p.get("demarre_le"))
         p["libelle"] = PROCESSUS.get(p.get("nom"), p.get("nom"))
+    preparation = etat.get("preparation")
+    if isinstance(preparation, dict):
+        preparation["le"] = _date(preparation.get("le"))
     etat["actif"] = bool(etat["battement"]) and (_maintenant() - etat["battement"]).total_seconds() < SILENCE_MAX_S
     return etat
 
@@ -118,6 +124,20 @@ def commandes(port, hote="0.0.0.0", serveur="runserver", workers_web=3, avec_wor
     if avec_worker:
         resultat["worker"] = [sys.executable, manage, "qcluster"]
     return resultat
+
+
+def preparation():
+    """Étapes lancées avant de démarrer l'application, dans l'ordre de la procédure de mise à jour.
+
+    pip n'interroge pas le dépôt de paquets si les versions installées conviennent : rapide, hors ligne.
+    """
+    manage = str(Path(settings.BASE_DIR) / "manage.py")
+    return [
+        ("dépendances", [sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "-r",
+                         str(Path(settings.BASE_DIR) / "requirements.txt")]),
+        ("migrations de la base", [sys.executable, manage, "migrate", "--noinput"]),
+        ("fichiers statiques", [sys.executable, manage, "collectstatic", "--noinput"]),
+    ]
 
 
 class _TacheWindows:
@@ -195,10 +215,12 @@ class Processus:
 
 
 class Superviseur:
-    def __init__(self, commandes, dossier=None, racine=None, sortie=None):
+    def __init__(self, commandes, dossier=None, racine=None, sortie=None, etapes=()):
         self.dossier = Path(dossier or repertoire())
         self.racine = Path(racine or settings.BASE_DIR)
         self.processus = {nom: Processus(nom, cmd) for nom, cmd in commandes.items()}
+        self.etapes = list(etapes)  # préparation avant chaque démarrage de l'application
+        self.preparation = None  # résultat de la dernière préparation
         self.sortie = sortie or sys.stdout
         self.demarre_le = _maintenant()
         self.arret_demande = False
@@ -283,9 +305,39 @@ class Superviseur:
             except OSError:
                 pass  # plus aucun processus dans le groupe
 
-    def redemarrer(self, p):
-        self.arreter(p)
-        self.demarrer(p)
+    def preparer(self):
+        """Met l'installation à niveau avant de lancer l'application : sans migrations appliquées, toutes
+        les pages plantent après une mise à jour du code. Un échec n'empêche pas le démarrage."""
+        if not self.etapes:
+            return True
+        echecs = []
+        for libelle, commande in self.etapes:
+            self.journal(f"préparation : {libelle}")
+            with self._ouvrir_journal("preparation") as journal:
+                journal.write(f"\n===== {datetime.now().astimezone():%Y-%m-%d %H:%M:%S} {libelle} : "
+                              f"{' '.join(commande)}\n".encode())
+                journal.flush()
+                try:
+                    code = subprocess.run(commande, cwd=self.racine, stdin=subprocess.DEVNULL, stdout=journal,
+                                          stderr=subprocess.STDOUT, timeout=PREPARATION_DELAI_S,
+                                          env={**os.environ, "PYTHONUNBUFFERED": "1"}).returncode
+                except (OSError, subprocess.SubprocessError) as e:
+                    journal.write(f"{e}\n".encode())
+                    code = None
+            if code != 0:
+                echecs.append(libelle)
+                self.journal(f"préparation : échec « {libelle} » (code {code}), voir preparation.log")
+        self.preparation = {"le": _maintenant().isoformat(), "ok": not echecs, "echecs": echecs}
+        return not echecs
+
+    def redemarrer(self, noms):
+        """Arrête les processus, prépare l'installation si l'application en fait partie, puis relance."""
+        for nom in noms:
+            self.arreter(self.processus[nom])
+        if "app" in noms:
+            self.preparer()
+        for nom in noms:
+            self.demarrer(self.processus[nom])
 
     # -------------------------------------------------------------- boucle
     def _prendre_demande(self):
@@ -305,8 +357,7 @@ class Superviseur:
         if demande is not None:
             noms = [n for n in demande.get("processus") or [] if n in self.processus]
             self.journal(f"redémarrage demandé par {demande.get('auteur') or '?'} : {', '.join(noms) or 'rien'}")
-            for nom in noms:
-                self.redemarrer(self.processus[nom])
+            self.redemarrer(noms)
         maintenant = time.monotonic()
         for p in self.processus.values():
             if p.popen is None or p.en_marche:
@@ -330,7 +381,7 @@ class Superviseur:
         try:
             _ecrire_json(self.dossier / "etat.json", {
                 "pid": os.getpid(), "demarre_le": self.demarre_le.isoformat(),
-                "battement": _maintenant().isoformat(), **self.infos,
+                "battement": _maintenant().isoformat(), **self.infos, "preparation": self.preparation,
                 "processus": {nom: p.etat() for nom, p in self.processus.items()},
             })
         except OSError as e:  # Windows : fichier ouvert par un lecteur, réessayé au prochain battement
@@ -354,8 +405,8 @@ class Superviseur:
                     signal.signal(getattr(signal, nom), self._signal)
             (self.dossier / "demande.json").unlink(missing_ok=True)  # demande antérieure au démarrage
             self.journal(f"superviseur démarré (PID {os.getpid()})")
-            for p in self.processus.values():
-                self.demarrer(p)
+            self.ecrire_etat()  # visible comme actif pendant la préparation
+            self.redemarrer(list(self.processus))
             try:
                 while not self.arret_demande:
                     self.tour()

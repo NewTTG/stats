@@ -16,6 +16,10 @@
       <div><dt>Serveur web</dt><dd class="processus-texte">{{ etat.serveur }}</dd></div>
       <div><dt>PID</dt><dd class="processus-texte">{{ etat.pid }}</dd></div>
     </dl>
+    {% if etat.preparation %}
+    <p class="processus-aide">Mise à niveau avant démarrage (dépendances, migrations de la base, fichiers statiques) le {{ etat.preparation.le|date:"d/m/Y à H:i" }} :
+      {% if etat.preparation.ok %}<span class="etat etat-reussie">Réussie</span>{% else %}<span class="etat etat-erreur">Échec : {{ etat.preparation.echecs|join:", " }}</span> voir le journal « Mise à niveau » ci-dessous.{% endif %}</p>
+    {% endif %}
     {% else %}
     <p class="processus-aide">{% if etat %}Dernier signe de vie le {{ etat.battement|date:"d/m/Y à H:i:s" }}.{% endif %}
       L’application et le worker ne sont pas lancés par le superviseur (consoles ouvertes à la main, ou superviseur arrêté) :
@@ -44,7 +48,7 @@
     </div>
     {% if etat.actif %}
     <footer class="panneau-pied processus-actions">
-      <p>Le worker en cours de génération d’un rapport l’abandonne : relancer ce rapport ensuite. Redémarrer l’application coupe les pages en cours de chargement.</p>
+      <p>Le worker en cours de génération d’un rapport l’abandonne : relancer ce rapport ensuite. Redémarrer l’application coupe les pages en cours de chargement ; avant de la relancer, la base est mise à niveau (<code>pip install</code>, <code>migrate</code>, <code>collectstatic</code>) : après un <code>git pull</code>, « Tout redémarrer » suffit.</p>
       <div>
         <form method="post" data-confirmer="Redémarrer le worker des rapports ?">{% csrf_token %}<input type="hidden" name="cible" value="worker"><button type="submit" class="bouton" data-libelle-attente="Demande envoyée…">Redémarrer le worker</button></form>
         <form method="post" data-confirmer="Redémarrer l’application web ? Elle sera indisponible quelques secondes.">{% csrf_token %}<input type="hidden" name="cible" value="app"><button type="submit" class="bouton" data-libelle-attente="Demande envoyée…">Redémarrer l’application</button></form>

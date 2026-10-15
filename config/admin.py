@@ -296,7 +296,8 @@ class AdminStats(admin.AdminSite):
                 libelles = " et ".join(superviseur.PROCESSUS[n].lower() for n in noms)
                 message = f"Redémarrage demandé : {libelles}. Pris en compte dans les secondes qui viennent."
                 if "app" in noms:
-                    message += " L’application sera indisponible quelques secondes : recharger ensuite la page."
+                    message += (" Base mise à niveau avant la relance (migrations…) : l’application sera indisponible"
+                                " quelques secondes, recharger ensuite la page.")
                 messages.success(request, message)
             return HttpResponseRedirect(page)
         etat = superviseur.lire_etat()
@@ -308,7 +309,8 @@ class AdminStats(admin.AdminSite):
             "processus": processus,
             "demande": superviseur.demande_en_attente(),
             "journaux": [(nom, libelle, superviseur.fin_journal(nom))
-                         for nom, libelle in [*superviseur.PROCESSUS.items(), ("superviseur", "Superviseur")]],
+                         for nom, libelle in [*superviseur.PROCESSUS.items(), ("preparation", "Mise à niveau"),
+                                             ("superviseur", "Superviseur")]],
             "repertoire": superviseur.repertoire(),
         }
         request.current_app = self.name

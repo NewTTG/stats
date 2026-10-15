@@ -4,7 +4,7 @@ import os
 
 from django.core.management.base import BaseCommand, CommandError
 
-from config.superviseur import WINDOWS, Superviseur, commandes, repertoire
+from config.superviseur import WINDOWS, Superviseur, commandes, preparation, repertoire
 
 
 class Command(BaseCommand):
@@ -22,13 +22,15 @@ class Command(BaseCommand):
         parser.add_argument("--workers-web", type=int, default=3, help="processus gunicorn (défaut 3)")
         parser.add_argument("--sans-worker", action="store_true",
                             help="application seule (rapports générés pendant la requête : Q_SYNC=1)")
+        parser.add_argument("--sans-preparation", action="store_true",
+                            help="ne pas lancer pip install, migrate et collectstatic avant l'application")
 
     def handle(self, *args, **options):
         if options["serveur"] == "gunicorn" and WINDOWS:
             raise CommandError("gunicorn ne fonctionne pas sous Windows : utiliser --serveur runserver.")
         cmds = commandes(options["port"], options["hote"], options["serveur"], options["workers_web"],
                          avec_worker=not options["sans_worker"])
-        superviseur = Superviseur(cmds)
+        superviseur = Superviseur(cmds, etapes=() if options["sans_preparation"] else preparation())
         superviseur.infos = {"hote": options["hote"], "port": options["port"], "serveur": options["serveur"]}
         self.stdout.write(f"Application sur http://{options['hote']}:{options['port']}/ ; "
                           f"journaux dans {repertoire()}. Ctrl+C pour tout arrêter.")
