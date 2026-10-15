@@ -295,11 +295,13 @@ et redémarrer l’application et le worker. En déploiement, exécuter aussi
 - **Administration** (/admin), à part des statistiques : lien « Administration » en haut à
   droite pour un compte administrateur, « Accès administrateur » (/connexion) en pied de page
   sinon ; les pages des statistiques n'affichent aucun détail technique à un utilisateur
-  (commande de la démo, configuration de la base KPI). Mise en page d'outil d'administration :
-  menu latéral fixe par usage (pilotage, analyse, gestion des KPI, référentiel réseau,
-  comptes et accès, système), barre supérieure avec fil d'Ariane, « ← Retour aux statistiques » et menu du
+  (commande de la démo, configuration de la base KPI). Même identité visuelle que l'application
+  (marque « Stats. », fond vert très clair, accent pétrole, cartes arrondies, boutons, champs et
+  tableaux de l'espace de travail ; static/css/admin.css reprend ses jetons) : menu latéral
+  fixe par usage (pilotage, analyse, gestion des KPI, référentiel réseau, comptes et accès,
+  système), barre supérieure avec fil d'Ariane, « ← Retour aux statistiques » et menu du
   compte ; listes compactes avec recherche et filtres en menus déroulants au-dessus du
-  tableau ; thèmes clair et sombre. Le tableau de bord réunit les indicateurs des demandes,
+  tableau ; thème clair comme l'application, et thème sombre dans les mêmes teintes. Le tableau de bord réunit les indicateurs des demandes,
   les dernières demandes, les points **à traiter** (précisions sans
   réponse, échecs, rapports et tâches en erreur), l'état du référentiel et des accès rapides.
   La liste des utilisateurs masque par défaut les sessions visiteur (filtre « Type de compte »).
