@@ -5,6 +5,7 @@ Déclaré par ``config.apps.AdminStatsConfig`` (``default_site``) : ``admin.site
 """
 
 from datetime import timedelta
+from functools import update_wrapper
 from urllib.parse import urlencode
 
 from django.apps import apps
@@ -17,25 +18,17 @@ from django.template.response import TemplateResponse
 from django.urls import NoReverseMatch, path, reverse
 from django.utils import timezone
 
-# Sections du tableau de bord et du menu latéral : usage le plus fréquent d'abord, technique en dernier.
+# Ordre des sections et des modèles (``get_app_list`` : pages d'application, droits du menu).
 ORDRE_SECTIONS = ["evenements", "kpi", "comptes", "auth", "referentiel", "rapports", "django_q"]
 # Ordre des modèles dans une section (les autres suivent, par ordre alphabétique).
 ORDRE_MODELES = [
-    "Evenement",
-    "ModeleRapport", "Graphique", "SeuilKpi", "ColonneKpi", "ReglagesAnomalies",
+    "Evenement", "ReglagesAnomalies",
+    "ModeleRapport", "Graphique", "SeuilKpi", "ColonneKpi",
     "User", "Group", "Perimetre", "DemandeSuivie", "JournalAudit",
     "Site", "Secteur", "Cellule", "ImportReferentiel",
     "RapportPlanifie", "Rapport",
     "Schedule", "Failure", "Success", "OrmQ",
 ]
-# Regroupements sur le tableau de bord et dans le menu latéral (la page propre à chaque application,
-# ex. /admin/auth/, reste celle de Django) : réglages de détection avec les seuils KPI, utilisateurs
-# et groupes avec les périmètres. Sans droit sur la section cible, le modèle reste à sa place.
-REGROUPEMENTS = {
-    ("evenements", "ReglagesAnomalies"): "kpi",
-    ("auth", "User"): "comptes",
-    ("auth", "Group"): "comptes",
-}
 
 
 # Raccourcis du tableau de bord : (titre, description, modèle, page, paramètres de la liste).
@@ -59,28 +52,38 @@ ACCES_RAPIDES = [
      "comptes.JournalAudit", "changelist", {}),
 ]
 
-# Menu latéral : rubriques par usage. Les modèles sans droit sont omis, une rubrique vide aussi ;
-# un modèle enregistré mais absent d'ici est rangé dans « Autres ».
-NAVIGATION = [
-    ("Pilotage", ["index", "comptes.DemandeSuivie", "rapports.Rapport", "rapports.RapportPlanifie",
-                  "comptes.JournalAudit"]),
-    ("Analyse", ["evenements.Evenement", "evenements.ReglagesAnomalies"]),
-    ("Graphiques et rapports", ["kpi.ModeleRapport", "kpi.Graphique", "kpi.SeuilKpi"]),
-    ("Données techniques", ["kpi.ColonneKpi"]),
-    ("Référentiel réseau", ["referentiel.ImportReferentiel", "referentiel.Site", "referentiel.Secteur",
-                            "referentiel.Cellule"]),
-    ("Comptes et accès", ["auth.User", "auth.Group", "comptes.Perimetre"]),
-    ("Système", ["processus", "django_q.Schedule", "django_q.OrmQ", "django_q.Failure", "django_q.Success"]),
+# Menu latéral : une entrée par espace ; ses pages sont des onglets en haut de page.
+# (clé, titre, icône, [(page, libellé de l'onglet)]) : page = label du modèle, « index » ou « processus ».
+# Un onglet sans libellé appartient à l'espace (menu actif) sans apparaître dans la barre d'onglets.
+# Pages sans droit omises, espace vide omis ; un modèle enregistré absent d'ici est rangé dans « Autres ».
+ESPACES = [
+    ("accueil", "Vue d’ensemble", "accueil", [("index", "Vue d’ensemble")]),
+    ("suivi", "Suivi des demandes", "suivi", [("comptes.DemandeSuivie", "Suivi des demandes")]),
+    ("rapports", "Graphiques et rapports", "rapports", [
+        ("kpi.ModeleRapport", "Rapports et accueil"), ("kpi.Graphique", "Graphiques"),
+        ("rapports.Rapport", "Rapports générés"), ("rapports.RapportPlanifie", "Enregistrés et planifiés")]),
+    ("referentiel", "Référentiel", "referentiel", [
+        ("evenements.Evenement", "Événements"), ("kpi.SeuilKpi", "KPI : noms et seuils"),
+        ("kpi.ColonneKpi", "Colonnes de la base"),
+        ("evenements.ReglagesAnomalies", None)]),  # carte de l'onglet KPI
+    ("reseau", "Réseau", "reseau", [
+        ("referentiel.ImportReferentiel", "Imports et rechargement"), ("referentiel.Site", "Sites"),
+        ("referentiel.Secteur", "Secteurs"), ("referentiel.Cellule", "Cellules")]),
+    ("comptes", "Comptes et accès", "comptes", [
+        ("auth.User", "Utilisateurs"), ("auth.Group", "Groupes"), ("comptes.Perimetre", "Périmètres d’accès"),
+        ("comptes.JournalAudit", "Journal d’audit")]),
+    ("systeme", "Système", "systeme", [
+        ("processus", "Processus du serveur"), ("django_q.Schedule", "Planifications"),
+        ("django_q.OrmQ", "File d’attente"), ("django_q.Failure", "Tâches échouées"),
+        ("django_q.Success", "Tâches réussies")]),
 ]
-LIBELLES_NAVIGATION = {
-    "kpi.ModeleRapport": "Rapports et accueil",
-    "kpi.Graphique": "Graphiques",
-    "referentiel.ImportReferentiel": "Chargement et imports",
-    "evenements.ReglagesAnomalies": "Détection d'anomalies",
-    "comptes.DemandeSuivie": "Suivi des demandes",
-    "kpi.SeuilKpi": "KPI : noms et seuils",
-    "kpi.ColonneKpi": "Colonnes de la base",
-}
+# Page d'une application Django (/admin/<app>/) : remplacée par l'espace qui la regroupe.
+ESPACE_DES_APPLICATIONS = {"evenements": "referentiel", "kpi": "referentiel", "auth": "comptes",
+                           "comptes": "comptes", "referentiel": "reseau", "rapports": "rapports",
+                           "django_q": "systeme"}
+
+# Ouverture en fenêtre (popup) : paramètre ajouté aux pages ouvertes dans la fenêtre de l'administration.
+MODALE_VAR = "_modale"
 
 
 def _colonnes_a_nommer():
@@ -106,28 +109,91 @@ def _rang(liste, valeur):
     return liste.index(valeur) if valeur in liste else len(liste)
 
 
+class ModaleMixin:
+    """Création et modification ouvertes en fenêtre depuis les listes (``static/js/admin.js``).
+
+    Ajouté à chaque ModelAdmin par ``AdminStats.register``. Une page appelée avec ``?_modale=1`` est
+    affichée sans menu ni en-tête (``admin/base.html``) ; une fois l'objet enregistré ou supprimé, la
+    fenêtre se ferme et la liste se recharge à la même position. « Enregistrer et continuer » et
+    « Enregistrer et ajouter un nouveau » restent dans la fenêtre.
+    """
+
+    # ``ouverture_modale = False`` sur un ModelAdmin : ses fiches s'ouvrent en pleine page (redirection vers
+    # l'application, page de détail riche…). Lu avec getattr : le mixin précède la classe dans l'héritage.
+
+    @staticmethod
+    def en_modale(request):
+        return MODALE_VAR in request.GET
+
+    def changelist_view(self, request, extra_context=None):
+        contexte = {"ouverture_modale": getattr(self, "ouverture_modale", True), **(extra_context or {})}
+        return super().changelist_view(request, contexte)
+
+    def _rester_en_modale(self, reponse):
+        if isinstance(reponse, HttpResponseRedirect):
+            url = reponse["Location"]
+            reponse["Location"] = f"{url}{'&' if '?' in url else '?'}{MODALE_VAR}=1"
+        return reponse
+
+    def _fermer_modale(self, request, action):
+        return TemplateResponse(request, "admin/modale_fermer.html", {"action": action})
+
+    def _apres_enregistrement(self, request, reponse):
+        if not self.en_modale(request):
+            return reponse
+        if {"_continue", "_addanother", "_saveasnew"} & set(request.POST):
+            return self._rester_en_modale(reponse)
+        return self._fermer_modale(request, "enregistre")
+
+    def response_add(self, request, obj, post_url_continue=None):
+        return self._apres_enregistrement(request, super().response_add(request, obj, post_url_continue))
+
+    def response_change(self, request, obj):
+        return self._apres_enregistrement(request, super().response_change(request, obj))
+
+    def response_delete(self, request, obj_display, obj_id):
+        reponse = super().response_delete(request, obj_display, obj_id)
+        return self._fermer_modale(request, "supprime") if self.en_modale(request) else reponse
+
+
 class AdminStats(admin.AdminSite):
     site_header = "Stats réseau · Administration"
     site_title = "Stats réseau · Administration"
     index_title = "Tableau de bord"
     site_url = "/"  # lien « ← Retour aux statistiques » de l'en-tête
 
+    def register(self, model_or_iterable, admin_class=None, **options):
+        admin_class = admin_class or admin.ModelAdmin
+        if not issubclass(admin_class, ModaleMixin):
+            admin_class = type(admin_class.__name__, (ModaleMixin, admin_class), {"__module__": admin_class.__module__})
+        return super().register(model_or_iterable, admin_class, **options)
+
+    def admin_view(self, view, cacheable=False):
+        vue = super().admin_view(view, cacheable)
+
+        def vue_encadrable(request, *args, **kwargs):
+            reponse = vue(request, *args, **kwargs)
+            # Fenêtre de l'administration : page affichée dans un cadre de la même origine.
+            if MODALE_VAR in request.GET:
+                reponse["X-Frame-Options"] = "SAMEORIGIN"
+            return reponse
+
+        return update_wrapper(vue_encadrable, vue)
+
     def get_app_list(self, request, app_label=None):
         app_dict = self._build_app_dict(request, app_label)
-        if app_label is None:
-            for (source, nom), cible in REGROUPEMENTS.items():
-                if source not in app_dict or cible not in app_dict:
-                    continue
-                modeles = app_dict[source]["models"]
-                for modele in [m for m in modeles if m["object_name"] == nom]:
-                    modeles.remove(modele)
-                    app_dict[cible]["models"].append(modele)
-                if not modeles:
-                    del app_dict[source]
         app_list = sorted(app_dict.values(), key=lambda a: (_rang(ORDRE_SECTIONS, a["app_label"]), a["name"].lower()))
         for app in app_list:
             app["models"].sort(key=lambda m: (_rang(ORDRE_MODELES, m["object_name"]), m["name"]))
         return app_list
+
+    def app_index(self, request, app_label, extra_context=None):
+        """Page d'une application : remplacée par la première page accessible de l'espace qui la regroupe."""
+        cle = ESPACE_DES_APPLICATIONS.get(app_label)
+        espace = next((e for e in self.espaces(request) if e["cle"] == cle), None)
+        if espace:
+            return HttpResponseRedirect(espace["url"])
+        return super().app_index(request, app_label, extra_context)
 
     def _url(self, modele, page, parametres=None):
         try:
@@ -157,41 +223,63 @@ class AdminStats(admin.AdminSite):
                 cartes.append({"titre": titre, "description": description, "url": url, "ajout": page == "add"})
         return cartes
 
-    def navigation(self, request, app_list):
-        """Rubriques du menu latéral, d'après ``app_list`` (déjà filtrée selon les droits)."""
-        # Clé : label réel du modèle (« auth.User »), même regroupé dans une autre section.
+    def espaces(self, request, app_list=None):
+        """Espaces accessibles (menu latéral), chacun avec ses onglets, selon les droits de l'utilisateur."""
+        if app_list is None:
+            app_list = self.get_app_list(request)
+        # Clé : label du modèle (« auth.User »).
         modeles = {m["model"]._meta.label: m for a in app_list for m in a["models"]}
         index = reverse("admin:index", current_app=self.name)
-        rubriques, ranges = [], set()
-
-        def entree(cle):
-            m = modeles[cle]
-            ranges.add(cle)
-            url = m.get("admin_url")
-            compteur = COMPTEURS_NAVIGATION.get(cle)
-            return {"libelle": LIBELLES_NAVIGATION.get(cle, m["name"]), "url": url,
-                    "actif": bool(url) and request.path.startswith(url),
-                    "compteur": compteur() if compteur else None}
-
-        for titre, cles in NAVIGATION:
-            entrees = []
-            for cle in cles:
-                if cle == "index":
-                    entrees.append({"libelle": "Vue d’ensemble", "url": index, "actif": request.path == index,
-                                    "compteur": None})
-                elif cle == "processus":
-                    if request.user.is_superuser:
-                        url = reverse("admin:processus", current_app=self.name)
-                        entrees.append({"libelle": "Processus du serveur", "url": url,
-                                        "actif": request.path == url, "compteur": None})
-                elif cle in modeles:
-                    entrees.append(entree(cle))
-            if entrees:
-                rubriques.append({"titre": titre, "entrees": entrees})
-        autres = [entree(cle) for cle in modeles if cle not in ranges]
+        ranges = {page for *_, pages in ESPACES for page, _ in pages}
+        definitions = list(ESPACES)
+        autres = [(cle, None) for cle in modeles if cle not in ranges]
         if autres:
-            rubriques.append({"titre": "Autres", "entrees": autres})
-        return rubriques
+            definitions.append(("autres", "Autres", "autres", autres))
+
+        espaces = []
+        for cle, titre, icone, pages in definitions:
+            onglets = []
+            for page, libelle in pages:
+                if page == "index":
+                    url, actif = index, request.path == index
+                elif page == "processus":
+                    if not request.user.is_superuser:
+                        continue
+                    url = reverse("admin:processus", current_app=self.name)
+                    actif = request.path == url
+                elif page in modeles and modeles[page].get("admin_url"):
+                    url = modeles[page]["admin_url"]
+                    actif = request.path.startswith(url)
+                    libelle = libelle if libelle is not None or cle != "autres" else modeles[page]["name"]
+                else:
+                    continue
+                compteur = COMPTEURS_NAVIGATION.get(page)
+                onglets.append({"libelle": libelle, "url": url, "actif": actif,
+                                "compteur": (compteur() or None) if compteur else None})
+            visibles = [o for o in onglets if o["libelle"]]
+            if not visibles:
+                continue
+            espaces.append({
+                "cle": cle, "libelle": titre, "icone": icone, "url": visibles[0]["url"],
+                "actif": any(o["actif"] for o in onglets),
+                "compteur": sum(o["compteur"] or 0 for o in visibles) or None,
+                "onglets": visibles,
+            })
+        return espaces
+
+    def each_context(self, request):
+        contexte = super().each_context(request)
+        espaces = self.espaces(request, contexte.get("available_apps") or [])
+        contexte["navigation"] = espaces
+        courant = next((e for e in espaces if e["actif"]), None)
+        contexte["espace"] = courant
+        # Barre d'onglets : seulement pour un espace à plusieurs pages.
+        contexte["onglets"] = courant["onglets"] if courant and len(courant["onglets"]) > 1 else []
+        contexte["onglet"] = next((o for o in courant["onglets"] if o["actif"]), None) if courant else None
+        contexte["en_modale"] = MODALE_VAR in request.GET
+        contexte["peut_suivi"] = request.user.has_perm("comptes.view_demandesuivie")
+        contexte["peut_rapports"] = request.user.has_perm("rapports.view_rapport")
+        return contexte
 
     def etat_referentiel(self, request):
         """Volumes du référentiel, dernier import et droit de recharger (None sans droit de lecture)."""
@@ -241,13 +329,6 @@ class AdminStats(admin.AdminSite):
             lignes.append(("Tâches de fond échouées", Failure.objects.count(),
                            self._url(Failure, "changelist"), "critique"))
         return [{"libelle": l, "nombre": n, "url": u, "gravite": g} for l, n, u, g in lignes]
-
-    def each_context(self, request):
-        contexte = super().each_context(request)
-        contexte["navigation"] = self.navigation(request, contexte.get("available_apps") or [])
-        contexte["peut_suivi"] = request.user.has_perm("comptes.view_demandesuivie")
-        contexte["peut_rapports"] = request.user.has_perm("rapports.view_rapport")
-        return contexte
 
     def index(self, request, extra_context=None):
         from apps.kpi.source import est_demo

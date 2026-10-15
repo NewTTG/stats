@@ -35,6 +35,7 @@ class EvenementAdmin(admin.ModelAdmin):
     list_display = ["nom", "type", "public", "cree_par", "premier_creneau", "nb_creneaux", "semaines_reference"]
     list_filter = [CreneauxFilter, "type", "public"]
     search_fields = ["nom", "description"]
+    ouverture_modale = False  # fiche : page de l'application (ci-dessous), pas une fenêtre de l'administration
 
     # Création et modification : pages de l'application (/evenements/), avec la carte des secteurs.
     # L'administration garde la liste, la suppression en lot et la consultation seule.
@@ -64,13 +65,33 @@ class EvenementAdmin(admin.ModelAdmin):
 
 @admin.register(ReglagesAnomalies)
 class ReglagesAnomaliesAdmin(admin.ModelAdmin):
+    """Une seule ligne : pas de liste, une carte de l'onglet « KPI : noms et seuils » (kpi/admin.py) ouvre
+    la fiche en fenêtre."""
+
     def has_add_permission(self, request):
         return super().has_add_permission(request) and not ReglagesAnomalies.objects.exists()
 
     def has_delete_permission(self, request, obj=None):
         return False
 
+    def _page_kpi(self, request):
+        from apps.kpi.models import SeuilKpi
+
+        modele_kpi = self.admin_site._registry.get(SeuilKpi)
+        if modele_kpi and modele_kpi.has_view_or_change_permission(request):
+            return reverse("admin:kpi_seuilkpi_changelist", current_app=self.admin_site.name)
+        return None
+
     def changelist_view(self, request, extra_context=None):
-        if self.has_view_or_change_permission(request):
-            ReglagesAnomalies.courant()
-        return super().changelist_view(request, extra_context)
+        if not self.has_view_or_change_permission(request):
+            return super().changelist_view(request, extra_context)  # refus de Django
+        reglages = ReglagesAnomalies.courant()
+        return HttpResponseRedirect(self._page_kpi(request) or reverse(
+            "admin:evenements_reglagesanomalies_change", args=[reglages.pk], current_app=self.admin_site.name))
+
+    def response_change(self, request, obj):
+        reponse = super().response_change(request, obj)
+        page_kpi = self._page_kpi(request)
+        if page_kpi and isinstance(reponse, HttpResponseRedirect) and "_continue" not in request.POST:
+            return HttpResponseRedirect(page_kpi)  # retour à la carte des réglages
+        return reponse

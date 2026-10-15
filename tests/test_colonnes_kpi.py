@@ -78,11 +78,13 @@ def test_page_lue_a_la_premiere_ouverture_puis_editable(client_admin, base):
     assert reponse.context["etat"]["lte"] == 4 and reponse.context["etat"]["a_nommer"] == 5
     # KPI du catalogue qui utilisent la colonne
     assert "Taux de succès d&#x27;établissement RRC" in html
-    # menu latéral : rubrique dédiée, pastille des colonnes à nommer
-    rubriques = {r["titre"]: r["entrees"] for r in reponse.context["navigation"]}
-    assert [e["libelle"] for e in rubriques["Graphiques et rapports"]] == ["Rapports et accueil", "Graphiques", "KPI : noms et seuils"]
-    entree = rubriques["Données techniques"][0]
-    assert entree["actif"] and entree["compteur"] == 5
+    # espace Référentiel : onglet actif, pastille des colonnes à nommer (onglet et menu latéral)
+    espaces = {e["libelle"]: e for e in reponse.context["navigation"]}
+    assert espaces["Référentiel"]["actif"] and espaces["Référentiel"]["compteur"] == 5
+    assert [o["libelle"] for o in reponse.context["onglets"]] == [
+        "Événements", "KPI : noms et seuils", "Colonnes de la base"]
+    onglet = reponse.context["onglet"]
+    assert onglet["libelle"] == "Colonnes de la base" and onglet["compteur"] == 5
     # « utilisée par » : lien vers la fiche du KPI, à modifier
     rrc = SeuilKpi.objects.get(code="lte_rrc_setup_sr")
     assert f'href="{reverse("admin:kpi_seuilkpi_change", args=[rrc.pk])}"' in html

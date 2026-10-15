@@ -1,9 +1,12 @@
 {% extends "admin/change_list.html" %}
 {% load i18n admin_list %}
 {% comment %}
-Listes : titre et actions sur une ligne, puis une barre d'outils (recherche, filtres en menus
+Listes : fil d'Ariane de l'espace, titre et actions sur une ligne, puis une barre d'outils (recherche, filtres en menus
 déroulants) au-dessus du tableau, à la place de la colonne de filtres de Django.
+Fiches ouvertes en fenêtre depuis la liste (classe ouverture-modale, static/js/admin.js).
 {% endcomment %}
+{% block bodyclass %}{{ block.super }}{% if ouverture_modale %} ouverture-modale{% endif %}{% endblock %}
+{% block breadcrumbs %}{% include "admin/ariane.html" %}{% endblock %}
 {% block content_title %}<div class="page-entete"><div><h1>{% firstof titre_page cl.opts.verbose_name_plural|capfirst %}</h1>{% block page_intro %}{% endblock %}</div></div>{% endblock %}
 
 {% block search %}

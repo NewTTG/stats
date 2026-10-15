@@ -1,7 +1,8 @@
 {% load i18n static %}<!DOCTYPE html>
 {% comment %}
-Squelette de l'administration du projet : menu latéral fixe, barre supérieure (fil d'Ariane, compte),
-contenu. Remplace celui de Django en gardant tous ses blocs : les pages standard (listes, formulaires,
+Squelette de l'administration du projet : menu latéral fixe (un lien par espace), barre supérieure
+(fil d'Ariane, compte), onglets de l'espace, contenu. Avec ?_modale=1 (page ouverte en fenêtre depuis une
+liste, cf. config/admin.py, ModaleMixin) : contenu seul. Remplace celui de Django en gardant tous ses blocs : les pages standard (listes, formulaires,
 historique, mot de passe) s'y insèrent sans changement.
 {% endcomment %}
 {% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}
@@ -27,18 +28,18 @@ historique, mot de passe) s'y insèrent sans changement.
 {% block blockbots %}<meta name="robots" content="NONE,NOARCHIVE">{% endblock %}
 </head>
 
-<body class="{% if is_popup %}popup {% endif %}{% if not is_popup and is_nav_sidebar_enabled and has_permission %}avec-menu {% endif %}{% block bodyclass %}{% endblock %}"
+<body class="{% if is_popup %}popup {% endif %}{% if en_modale %}modale {% endif %}{% if not is_popup and not en_modale and is_nav_sidebar_enabled and has_permission %}avec-menu {% endif %}{% block bodyclass %}{% endblock %}"
   data-admin-utc-offset="{% now "Z" %}">
 <a href="#content-start" class="skip-to-content-link">{% translate 'Skip to main content' %}</a>
 <div id="container">
-  {% if not is_popup and is_nav_sidebar_enabled and has_permission %}
+  {% if not is_popup and not en_modale and is_nav_sidebar_enabled and has_permission %}
     {% block nav-sidebar %}
       {% include "admin/nav_sidebar.html" %}
     {% endblock %}
   {% endif %}
 
   <div class="admin-colonne">
-    {% if not is_popup %}
+    {% if not is_popup and not en_modale %}
     {% block header %}
       <header id="header">
         {% if has_permission and is_nav_sidebar_enabled %}<button type="button" class="admin-menu-bouton" aria-controls="nav-sidebar" aria-expanded="false" data-ouvrir-menu><span aria-hidden="true">☰</span><span class="visually-hidden">Menu</span></button>{% endif %}
@@ -73,7 +74,6 @@ historique, mot de passe) s'y insèrent sans changement.
                     {% csrf_token %}
                     <button type="submit">{% translate 'Log out' %}</button>
                 </form>
-                {% include "admin/color_theme_toggle.html" %}
             {% endblock %}
         </div>
         {% endif %}
@@ -81,6 +81,7 @@ historique, mot de passe) s'y insèrent sans changement.
         {% block nav-global %}{% endblock %}
       </header>
     {% endblock %}
+    {% if onglets %}{% include "admin/onglets.html" %}{% endif %}
     {% endif %}
 
     <div class="main" id="main">
@@ -105,7 +106,7 @@ historique, mot de passe) s'y insèrent sans changement.
         </div>
       </main>
     </div>
-    <footer id="footer">{% block footer %}{% endblock %}</footer>
+    {% if not en_modale %}<footer id="footer">{% block footer %}{% endblock %}</footer>{% endif %}
   </div>
 </div>
 

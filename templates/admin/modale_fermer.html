@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+{% comment %}Fin d'une page ouverte en fenêtre (config/admin.py, ModaleMixin) : la page de la liste lit data-modale-action
+au chargement du cadre, ferme la fenêtre et se recharge (static/js/admin.js). Les messages de Django restent en
+session : affichés après le rechargement.{% endcomment %}
+<html lang="fr">
+<head><meta charset="utf-8"><title>{% if action == "supprime" %}Supprimé{% else %}Enregistré{% endif %}</title></head>
+<body data-modale-action="{{ action }}">
+<p>{% if action == "supprime" %}Supprimé.{% else %}Enregistré.{% endif %} <a href="{% url 'admin:index' %}" target="_top">Retour à l’administration</a></p>
+</body>
+</html>

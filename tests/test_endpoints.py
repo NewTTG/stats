@@ -293,7 +293,9 @@ def test_routes_generales_admin(client, ressources, nom, kwargs, statut):
 @pytest.mark.parametrize('app', sorted({app for app, _ in MODELES_ADMIN}))
 def test_sections_admin(client, ressources, app):
     client.force_login(User.objects.create_superuser('admin-section'))
-    assert client.get(reverse('admin:app_list', kwargs={'app_label': app})).status_code == 200
+    # page d'une application : remplacée par l'espace qui la regroupe
+    reponse = client.get(reverse('admin:app_list', kwargs={'app_label': app}), follow=True)
+    assert reponse.status_code == 200 and len(reponse.redirect_chain) == 1
 
 
 def test_admin_sans_permission_ne_modifie_pas_les_reglages(client):
