@@ -43,6 +43,7 @@ from .recherche.ia import disponible as ia_disponible
 from .recherche.interpretation import Demande
 from .recherche.vocabulaire import LIBELLES_TECHNO, kpis_intention, vocabulaire
 from .requete import RequeteKpi
+from .composition import catalogue_graphique, contenu_rapport, modeles_rapports, preparer_selection
 from .service import RequeteRefusee, executer
 from .source import BaseKpiNonConfiguree, MESSAGE_BASE_INDISPONIBLE, est_demo, infos_demo, moteur_kpi
 
@@ -56,7 +57,7 @@ CHAMPS_FORMULAIRE = ("techno", "perimetre_type", "perimetre_valeurs", "debut", "
 # Paramètres remplacés par chaque éditeur de puce / réponse à une question.
 REMPLACES = {
     "techno": ("techno", "kpis"),
-    "kpis": ("kpis", "intention", "techno"),
+    "kpis": ("kpis", "intention", "techno", "graphes", "graphiques_personnalises"),
     "perimetre": ("perimetre_type", "perimetre_valeurs"),
     "periode": ("periode", "debut", "fin"),
     # Changer de données remet à zéro ce qui dépend des heures (cohérent avec le choix).
@@ -178,6 +179,9 @@ def _parametres_resolus(q: str, params: dict):
     get["q"] = q
     if params.get("kpis"):
         get.setlist("kpis", list(params["kpis"]))
+    if params.get("graphes") is not None:
+        get.setlist("graphes", params["graphes"])
+        get["graphiques_personnalises"] = "1"
     if params.get("perimetre"):
         get["perimetre_type"] = params["perimetre"]["type"]
         get["perimetre_valeurs"] = ", ".join(params["perimetre"]["valeurs"])
@@ -235,11 +239,14 @@ def _edition(get, interp, contexte: Contexte) -> dict:
 def _rapports_types(contexte: Contexte) -> list[dict]:
     """Cartes « rapport type » de l'accueil (au moins un KPI visible), dans l'ordre du vocabulaire."""
     sortie = []
-    for i in vocabulaire().rapports:
-        codes = kpis_intention(i, i.technos_defaut, contexte.catalogue)
+    defs = catalogue_graphique(contexte.catalogue)
+    for i in modeles_rapports():
+        if not i.accueil:
+            continue
+        graphes, codes = contenu_rapport(i, contexte.catalogue, defs)
         if codes:
-            sortie.append({"code": i.code, "titre": i.rapport.titre, "description": i.rapport.description,
-                           "icone": i.rapport.icone,
+            sortie.append({"code": i.code, "titre": i.titre, "description": i.description,
+                           "icone": i.icone, "graphes": graphes, "nombre_graphes": len(graphes),
                            "contenu": " · ".join(contexte.catalogue[c].libelle for c in codes)})
     return sortie
 
@@ -389,6 +396,14 @@ def requete(request):
         get["suivi"] = str(demande.pk)
     export = get.pop("export", [None])[0] == "xlsx"
     visibles = kpis_autorises(request.user, set(catalogue()))
+    cat_visible = {c: k for c, k in catalogue().items() if c in visibles}
+    rapport_choisi = None
+    if not get.getlist("kpis") and not get.getlist("graphes") and not get.get("graphiques_personnalises"):
+        rapport_choisi = next((r for r in modeles_rapports() if get.getlist("intention") == [r.code]), None)
+    try:
+        selection_graphes = preparer_selection(get, cat_visible)
+    except ValueError as e:
+        return render(request, "kpi/recherche.html", {"mode": "avance", "erreur": str(e)}, status=400)
     aujourdhui = timezone.localdate()
     q = get.get("q", "").strip()[:300]
     ia_ok = ia_disponible()
@@ -403,6 +418,12 @@ def requete(request):
         interp = (interpreter(q, aujourdhui, contexte, ia=ia) if q
                   else construire(Demande(), contexte, aujourdhui))
         interp = avec_parametres(interp, get, contexte, aujourdhui)
+        if selection_graphes is not None:
+            interp.params["graphes"] = selection_graphes
+        if rapport_choisi and interp.puce("kpis"):
+            origine = vocabulaire().intentions.get(rapport_choisi.code)
+            interp.puce("kpis").libelle = (origine.libelle if origine and origine.rapport and
+                                          rapport_choisi.titre == origine.rapport.titre else rapport_choisi.titre)
         ctx["interp"] = interp
         suivi.interpretation(demande, interp)
         ctx["exemples"] = _exemples(request.user, aujourdhui, contexte)  # texte indicatif de la barre (m10)
@@ -444,6 +465,7 @@ def requete(request):
         ctx["periodes"] = [(c, PRESETS[c]) for c in PERIODES_ACCUEIL]
         ctx["periode_defaut"] = PERIODE_DEFAUT
         ctx["kpis_sur_mesure"] = _kpis_par_techno(contexte.catalogue, set())
+        ctx["graphiques_sur_mesure"] = catalogue_graphique(contexte.catalogue)
         ctx["gran_temps"] = sorted(GRAN_TEMPS, key=lambda g: ("heure", "jour", "semaine", "mois").index(g[0]))
         ctx["gran_espace"], ctx["fenetres"] = GRAN_ESPACE, FENETRES
         ctx["donnees"] = DONNEES_ACCUEIL
@@ -454,7 +476,7 @@ def requete(request):
     if req is not None:
         if ctx["mode"] == "recherche":
             action = "export_excel" if export else "recherche_kpi"
-            trace = {"q": q, "ia": ia, "source": interp.source, "parametres": explicites,
+            trace = {"q": q, "ia": ia, "source": interp.source, "parametres": parametres_explicites(request.GET),
                      "libelle": _libelle_historique(interp), "requete": req.model_dump(mode="json")}
         else:
             action = "export_excel" if export else "requete_kpi"
@@ -483,6 +505,19 @@ def requete(request):
                 return reponse
             ctx["resultat"] = resultat
             ctx["requete"] = req
+            defs = catalogue_graphique(cat_visible)
+            ctx["graphiques_sur_mesure"] = defs
+            selection = req.graphes if req.graphes is not None else [
+                g.code for g in defs if set(g.kpis) <= set(req.kpis)]
+            ctx["selection_graphes"] = selection
+            couverts = {c for g in defs if g.code in selection for c in g.kpis}
+            caches = champs_depuis_requete(req)
+            caches.pop("graphes", None)
+            caches.pop("graphiques_personnalises", None)
+            caches.pop("techno", None)  # les graphiques choisis déterminent les technologies
+            caches["kpis"] = [c for c in req.kpis if c not in couverts]
+            caches["q"] = ""
+            ctx["composition_caches"] = [(k, v if isinstance(v, list) else [v]) for k, v in caches.items()]
             if not interp:  # ancien formulaire : lieu et période dans l'en-tête
                 lieu = ", ".join(req.perimetre.valeurs) or "tout le réseau autorisé"
                 ctx["titre"] = f"Indicateurs sélectionnés : {lieu}"

@@ -577,6 +577,41 @@
   /* Accueil : rapport type + lieu + période. Sans JavaScript, le formulaire fonctionne tel quel ;
      ici : dates précises affichées à la demande, « Sur mesure » ouvert quand on le choisit,
      lieux (sites) suggérés au fil de la saisie, et URL sans paramètres vides. */
+  function choisirGraphiques(zone) {
+    var form = zone.closest("form"), cases = zone.querySelectorAll('input[name="graphes"]');
+    var personnalise = zone.querySelector('input[name="graphiques_personnalises"]');
+    var recherche = zone.querySelector("[data-recherche-graphes]");
+    var modelesNode = document.getElementById("rapports-composition");
+    var modeles = modelesNode ? JSON.parse(modelesNode.textContent) : [];
+    function compteur() {
+      var n = Array.from(cases).filter(function (c) {return c.checked;}).length;
+      zone.querySelector("[data-compteur-graphes]").textContent = "· " + n + " sélectionnés";
+    }
+    function rapport() {
+      var radio = form.querySelector('input[name="intention"]:checked');
+      var modele = modeles.find(function (r) {return radio && r.code === radio.value;});
+      cases.forEach(function (c) {c.checked = !!modele && modele.graphes.includes(c.value);});
+      personnalise.checked = false; compteur();
+    }
+    cases.forEach(function (c) {c.addEventListener("change", function () {personnalise.checked = true; compteur();});});
+    personnalise.addEventListener("change", function () {
+      if (!personnalise.checked) { if (modeles.length) rapport(); else {cases.forEach(function(c) {c.checked=false;}); compteur();} }
+    });
+    recherche.addEventListener("input", function () {
+      var texte = recherche.value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(), n = 0;
+      zone.querySelectorAll("[data-vignette-graphe]").forEach(function (row) {
+        row.hidden = !row.textContent.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes(texte);
+        if (!row.hidden) n++;
+      }); zone.querySelector("[data-graphes-vides]").hidden = n > 0;
+    });
+    form.querySelectorAll('input[name="intention"]').forEach(function (r) {r.addEventListener("change", rapport);});
+    // Les cases précochées montrent le contenu du modèle ; seuls les choix personnalisés sont envoyés.
+    form.addEventListener("formdata", function (e) {
+      if (!personnalise.checked && modeles.length) e.formData.delete("graphes");
+    });
+    if (modeles.length && !personnalise.checked) rapport(); else compteur();
+  }
+
   function constructeur(form) {
     var dates = form.querySelector("#dates-precises");
     var surMesure = form.querySelector("#sur-mesure");
@@ -596,13 +631,17 @@
       r.addEventListener("change", function () { if (r.value === "" && r.checked) surMesure.open = true; });
     });
     kpis.forEach(function (c) {
-      c.addEventListener("change", function () { if (c.checked) radioSurMesure.checked = true; });
+      c.addEventListener("change", function () { if (c.checked) {
+        radioSurMesure.checked = true;
+        var personnalise = form.querySelector('input[name="graphiques_personnalises"]');
+        if (personnalise) personnalise.checked = true;
+      } });
     });
 
     form.addEventListener("submit", function (e) {
       var intention = form.querySelector('input[name="intention"]:checked');
       var surMesureChoisi = !intention || intention.value === "";
-      if (surMesureChoisi && !Array.prototype.some.call(kpis, function (c) { return c.checked; })) {
+      if (surMesureChoisi && !form.querySelector('input[name="graphes"]:checked') && !Array.prototype.some.call(kpis, function (c) { return c.checked; })) {
         e.preventDefault();
         surMesure.open = true;
         surMesure.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -874,6 +913,7 @@
 
   function demarrer() {
     document.documentElement.classList.add("js");
+    document.querySelectorAll("[data-choix-graphiques]").forEach(choisirGraphiques);
     var form = document.getElementById("constructeur");
     if (form) constructeur(form);
     chargerDashboard();

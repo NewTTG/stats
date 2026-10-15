@@ -1,0 +1,9 @@
+{% extends "admin/change_list.html" %}
+{% block content %}
+<div class="module" style="padding:18px;margin-bottom:20px">
+  <h2>Composer les rapports</h2>
+  <p>Ouvrez un rapport pour sélectionner et ordonner ses graphiques. « Proposer sur l’accueil » rend sa carte visible dans le choix des rapports.</p>
+  <p><a href="{% url 'admin:kpi_graphique_changelist' %}">Parcourir et modifier les graphiques →</a></p>
+</div>
+{{ block.super }}
+{% endblock %}

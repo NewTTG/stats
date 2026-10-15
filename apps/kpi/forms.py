@@ -49,6 +49,8 @@ class RequeteForm(forms.Form):
     donnees = forms.ChoiceField(label="Données", choices=[("", "Automatique"), *DONNEES], required=False)
     kpis = forms.MultipleChoiceField(label="KPI", widget=forms.CheckboxSelectMultiple)
     heures = forms.CharField(required=False, widget=forms.HiddenInput)
+    graphes = forms.MultipleChoiceField(required=False, widget=forms.MultipleHiddenInput)
+    graphiques_personnalises = forms.BooleanField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, kpis_visibles=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -56,6 +58,8 @@ class RequeteForm(forms.Form):
         codes = [c for c in cat if kpis_visibles is None or c in kpis_visibles]
         self.fields["kpis"].choices = [(c, f"{cat[c].techno} · {cat[c].libelle} ({cat[c].unite})") for c in codes]
         self.fields["kpis"].initial = [c for c in codes if cat[c].techno == "LTE"][:3]
+        from .composition import catalogue_graphique
+        self.fields["graphes"].choices = [(g.code, g.titre) for g in catalogue_graphique({c: cat[c] for c in codes})]
         # Plage horaire issue d'une recherche en langage libre (ex. « 6-12 ») : acceptée telle quelle.
         fenetre = self.data.get("fenetre_horaire") if self.is_bound else self.initial.get("fenetre_horaire")
         if fenetre_personnalisee(fenetre):
@@ -74,6 +78,7 @@ class RequeteForm(forms.Form):
             "fenetre_horaire": d["fenetre_horaire"],
             "donnees": d["donnees"] or None,
             "kpis": d["kpis"],
+            "graphes": d["graphes"] if d["graphiques_personnalises"] or d["graphes"] else None,
             "heures": [h for h in d["heures"].split(",") if h],
         }
 
@@ -93,6 +98,9 @@ def champs_depuis_requete(req) -> dict:
     }
     if req.donnees:
         champs["donnees"] = req.donnees
+    if req.graphes is not None:
+        champs["graphes"] = req.graphes
+        champs["graphiques_personnalises"] = "1"
     if req.heures:
         champs["heures"] = ",".join(h.isoformat() for h in req.heures)
     return champs

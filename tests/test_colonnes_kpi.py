@@ -80,8 +80,8 @@ def test_page_lue_a_la_premiere_ouverture_puis_editable(client_admin, base):
     assert "Taux de succès d&#x27;établissement RRC" in html
     # menu latéral : rubrique dédiée, pastille des colonnes à nommer
     rubriques = {r["titre"]: r["entrees"] for r in reponse.context["navigation"]}
-    assert [e["libelle"] for e in rubriques["Gestion des KPI"]] == ["KPI : noms et seuils", "Colonnes de la base"]
-    entree = rubriques["Gestion des KPI"][1]
+    assert [e["libelle"] for e in rubriques["Graphiques et rapports"]] == ["Rapports et accueil", "Graphiques", "KPI : noms et seuils"]
+    entree = rubriques["Données techniques"][0]
     assert entree["actif"] and entree["compteur"] == 5
     # « utilisée par » : lien vers la fiche du KPI, à modifier
     rrc = SeuilKpi.objects.get(code="lte_rrc_setup_sr")

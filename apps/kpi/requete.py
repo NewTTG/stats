@@ -60,6 +60,8 @@ class RequeteKpi(BaseModel):
     # Données lues ; vide : déduites du détail temporel et des heures (voir ``resolution``).
     donnees: Donnees | None = None
     kpis: list[str] = Field(min_length=1)
+    # None : graphiques déduits des KPI ; [] : aucun graphique composé.
+    graphes: list[str] | None = None
     comparaison: Comparaison = Field(default_factory=Comparaison)
     # Créneaux exacts de l'accueil, conservés dans les liens et les exports.
     heures: list[datetime] = Field(default_factory=list, max_length=24)
