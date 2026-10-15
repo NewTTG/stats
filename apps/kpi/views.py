@@ -33,7 +33,7 @@ from apps.comptes.models import JournalAudit
 from apps.comptes import suivi
 from apps.rapports.models import RapportPlanifie
 
-from .catalogue import catalogue
+from .catalogue import LIBELLES_CATEGORIE, catalogue
 from .export_excel import construire as construire_excel
 from .forms import DONNEES, FENETRES, GRAN_ESPACE, GRAN_TEMPS, PERIMETRES, RequeteForm, champs_depuis_requete
 from .recherche import Contexte, affichage, avec_parametres, interpreter
@@ -71,9 +71,6 @@ LIBELLES_CHAMP = {"techno": "Techno", "kpis": "Indicateurs", "perimetre": "Lieu"
 PERIODES_ACCUEIL = ("hier", "7j", "semaine_derniere", "mois_courant", "mois_dernier", "30j")
 PERIODE_DEFAUT = "7j"
 DONNEES_ACCUEIL = (("jour", "Journalières", "une valeur par jour"), ("heure", "Horaires", "heure par heure"))
-LIBELLES_CATEGORIE = {"debit": "Débit", "trafic": "Trafic", "accessibilite": "Accessibilité",
-                      "retainability": "Coupures", "congestion": "Congestion", "mobilite": "Mobilité",
-                      "disponibilite": "Disponibilité"}
 
 
 def contexte_global(request):

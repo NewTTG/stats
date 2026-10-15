@@ -296,8 +296,8 @@ et redémarrer l’application et le worker. En déploiement, exécuter aussi
   droite pour un compte administrateur, « Accès administrateur » (/connexion) en pied de page
   sinon ; les pages des statistiques n'affichent aucun détail technique à un utilisateur
   (commande de la démo, configuration de la base KPI). Mise en page d'outil d'administration :
-  menu latéral fixe par usage (pilotage, analyse, référentiel réseau, comptes et accès,
-  système), barre supérieure avec fil d'Ariane, « ← Retour aux statistiques » et menu du
+  menu latéral fixe par usage (pilotage, analyse, gestion des KPI, référentiel réseau,
+  comptes et accès, système), barre supérieure avec fil d'Ariane, « ← Retour aux statistiques » et menu du
   compte ; listes compactes avec recherche et filtres en menus déroulants au-dessus du
   tableau ; thèmes clair et sombre. Le tableau de bord réunit les indicateurs des demandes,
   les dernières demandes, les points **à traiter** (précisions sans
@@ -456,6 +456,23 @@ bilan complet ; un indicateur explicite reste prioritaire (« stats du débit »
   échecs de 0,3 à 2,5 %, +733 %, donc significatif ; 99,7 → 99,6 % reste sous `ecart_min`.
   Pourcentages réglables dans l'admin.
 - Un lecteur restreint ne voit que les cellules et KPI de son périmètre.
+
+### Colonnes de la base KPI
+
+Admin → **Gestion des KPI › Colonnes de la base** : les colonnes de mesure des tables KPI
+(`lte_cell_day` / `_hour`, `wcdma_cell_day` / `_hour`, sans les colonnes cellule et
+horodatage), une ligne par techno et colonne, avec les tables où elle existe (jour, heure)
+et les KPI du catalogue qui l'utilisent. Pour chacune : **nom affiché** aux utilisateurs,
+**catégorie** (celles du catalogue : débit, trafic, accessibilité, coupures, congestion,
+mobilité, disponibilité) et **description**, modifiables directement dans la liste ou dans
+la fiche. Filtres : techno, catégorie (dont « Non classée »), « À nommer », usage par un KPI,
+présence en base ; le menu latéral indique le nombre de colonnes à nommer.
+
+La base KPI est lue (schéma seulement, aucune ligne) à la première ouverture, puis avec le
+bouton **Relire la base KPI** : nouvelles colonnes ajoutées (catégorie reprise des KPI qui
+l'utilisent si elle est unique), colonnes disparues marquées « absente de la base » ; noms,
+catégories et descriptions sont conservés. Relecture : droit « modifier une colonne de la
+base KPI ».
 
 ### Seuils KPI
 

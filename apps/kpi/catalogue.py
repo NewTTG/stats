@@ -1,11 +1,18 @@
 """Chargement et validation du catalogue KPI (YAML versionné)."""
 
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
 import yaml
 from pydantic import BaseModel, Field, model_validator
+
+# Catégories des KPI et des colonnes de la base KPI, dans l'ordre d'affichage.
+LIBELLES_CATEGORIE = {"debit": "Débit", "trafic": "Trafic", "accessibilite": "Accessibilité",
+                      "retainability": "Coupures", "congestion": "Congestion", "mobilite": "Mobilité",
+                      "disponibilite": "Disponibilité"}
+_IDENTIFIANT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
 class Seuils(BaseModel):
@@ -94,6 +101,12 @@ class DefinitionKpi(BaseModel):
         if self.seuils.critique is not None and franchi(self.seuils.critique):
             return "critique"
         return "alerte" if franchi(self.seuils.alerte) else ""
+
+
+def colonnes_utilisees(kpi: DefinitionKpi) -> set[str]:
+    """Identifiants cités par les formules du KPI (colonnes de la table source, sans les
+    composants d'un KPI composite, qui citent les leurs)."""
+    return {nom for expr in (kpi.numerateur, kpi.denominateur) if expr for nom in _IDENTIFIANT.findall(expr)}
 
 
 def kpis_principaux(cat: dict[str, DefinitionKpi]) -> list[str]:

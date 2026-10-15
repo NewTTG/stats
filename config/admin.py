@@ -20,7 +20,7 @@ ORDRE_SECTIONS = ["evenements", "kpi", "comptes", "auth", "referentiel", "rappor
 # Ordre des modèles dans une section (les autres suivent, par ordre alphabétique).
 ORDRE_MODELES = [
     "Evenement",
-    "SeuilKpi", "ReglagesAnomalies",
+    "ColonneKpi", "SeuilKpi", "ReglagesAnomalies",
     "User", "Group", "Perimetre", "DemandeSuivie", "JournalAudit",
     "Site", "Secteur", "Cellule", "ImportReferentiel",
     "RapportPlanifie", "Rapport",
@@ -41,6 +41,8 @@ REGROUPEMENTS = {
 ACCES_RAPIDES = [
     ("Créer un événement", "Page de l’application : carte des secteurs, KPI",
      "evenements.Evenement", "add", {}),
+    ("Colonnes de la base KPI", "Noms affichés, catégories et descriptions",
+     "kpi.ColonneKpi", "changelist", {}),
     ("Seuils KPI", "Seuils d'alerte et critiques",
      "kpi.SeuilKpi", "changelist", {}),
     ("Périmètres d'accès", "Communes, sites, cellules et KPI visibles",
@@ -56,7 +58,8 @@ ACCES_RAPIDES = [
 NAVIGATION = [
     ("Pilotage", ["index", "comptes.DemandeSuivie", "rapports.Rapport", "rapports.RapportPlanifie",
                   "comptes.JournalAudit"]),
-    ("Analyse", ["evenements.Evenement", "kpi.SeuilKpi", "evenements.ReglagesAnomalies"]),
+    ("Analyse", ["evenements.Evenement", "evenements.ReglagesAnomalies"]),
+    ("Gestion des KPI", ["kpi.ColonneKpi", "kpi.SeuilKpi"]),
     ("Référentiel réseau", ["referentiel.ImportReferentiel", "referentiel.Site", "referentiel.Secteur",
                             "referentiel.Cellule"]),
     ("Comptes et accès", ["auth.User", "auth.Group", "comptes.Perimetre"]),
@@ -66,7 +69,18 @@ LIBELLES_NAVIGATION = {
     "referentiel.ImportReferentiel": "Chargement et imports",
     "evenements.ReglagesAnomalies": "Détection d'anomalies",
     "comptes.DemandeSuivie": "Suivi des demandes",
+    "kpi.ColonneKpi": "Colonnes de la base",
 }
+
+
+def _colonnes_a_nommer():
+    from apps.kpi.models import ColonneKpi
+
+    return ColonneKpi.objects.filter(presente=True, libelle="").count()
+
+
+# Pastille du menu latéral : nombre d'éléments à compléter (rien si zéro).
+COMPTEURS_NAVIGATION = {"kpi.ColonneKpi": _colonnes_a_nommer}
 
 # Opérations faites en ligne de commande, depuis la racine du dépôt (rappel réservé à l'administration).
 RAPPELS_COMMANDES = [
@@ -144,8 +158,10 @@ class AdminStats(admin.AdminSite):
             m = modeles[cle]
             ranges.add(cle)
             url = m.get("admin_url")
+            compteur = COMPTEURS_NAVIGATION.get(cle)
             return {"libelle": LIBELLES_NAVIGATION.get(cle, m["name"]), "url": url,
-                    "actif": bool(url) and request.path.startswith(url), "compteur": None}
+                    "actif": bool(url) and request.path.startswith(url),
+                    "compteur": compteur() if compteur else None}
 
         for titre, cles in NAVIGATION:
             entrees = []

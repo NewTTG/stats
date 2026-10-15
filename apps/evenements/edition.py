@@ -7,7 +7,7 @@ import re
 from django import forms
 from django.db.models import Count
 
-from apps.kpi.catalogue import catalogue_yaml, kpis_principaux
+from apps.kpi.catalogue import LIBELLES_CATEGORIE, catalogue_yaml, kpis_principaux
 from apps.referentiel.models import Cellule, Secteur, Site
 
 from . import mobiles
@@ -15,9 +15,6 @@ from .models import Evenement
 
 _SEPARATEURS = re.compile(r"[\s,;]+")
 LIBELLES_TECHNO = {"LTE": "4G (LTE)", "WCDMA": "3G (WCDMA)"}
-LIBELLES_CATEGORIE = {"debit": "Débit", "trafic": "Trafic", "accessibilite": "Accessibilité",
-                      "retainability": "Coupures", "congestion": "Congestion", "mobilite": "Mobilité",
-                      "disponibilite": "Disponibilité"}
 
 
 class ListeCodes(forms.CharField):
