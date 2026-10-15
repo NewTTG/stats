@@ -1,6 +1,7 @@
 """Accueil : indicateurs réels du périmètre autorisé, sans données inventées."""
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from urllib.parse import urlencode
 
@@ -11,7 +12,7 @@ from .catalogue import catalogue
 from .forms import champs_depuis_requete
 from .recherche.affichage import conversion, formater, valeur
 from .requete import RequeteKpi
-from .service import RequeteRefusee, executer
+from .service import RequeteRefusee, completer, preparer as preparer_requete
 from .source import (
     MESSAGE_BASE_INDISPONIBLE, BaseKpiNonConfiguree, dernieres_heures, est_demo,
     infos_demo, moteur_kpi,
@@ -45,6 +46,36 @@ def preparer(aujourd_hui, selection="24h"):
            "cartes": [], "graphiques": [], "avertissements": [], "periodes": []}
 
 
+def _delai_depasse(exc) -> bool:
+    return isinstance(getattr(exc, "orig", None), ConnectionTimeout)
+
+
+def _lancer(lots, parallele):
+    """(sorties, None) ou (None, erreur SQL) pour chaque lot de calculs, dans l'ordre.
+
+    En parallèle, chaque lot a son fil et sa connexion du pool : un serveur injoignable
+    fait attendre un seul délai de connexion, pas un par techno. Séquentiellement (SQLite :
+    fichier local de démonstration, ou base en mémoire à connexion unique), les lots
+    restants ne sont pas tentés après un délai de connexion dépassé.
+    """
+    def lancer(calculs):
+        try:
+            return [calcul() for calcul in calculs], None
+        except SQLAlchemyError as exc:
+            return None, exc
+
+    if parallele and len(lots) > 1:
+        with ThreadPoolExecutor(max_workers=len(lots)) as pool:
+            return list(pool.map(lancer, lots))
+    sorties = []
+    for calculs in lots:
+        if sorties and sorties[-1][1] is not None and _delai_depasse(sorties[-1][1]):
+            sorties.append(sorties[-1])
+        else:
+            sorties.append(lancer(calculs))
+    return sorties
+
+
 def construire(user, aujourd_hui, selection="24h"):
     ctx = preparer(aujourd_hui, selection)
     selection, debut, fin = ctx["selection"], ctx["debut"], ctx["fin"]
@@ -63,7 +94,7 @@ def construire(user, aujourd_hui, selection="24h"):
         log.warning("Tableau de bord : source KPI indisponible", exc_info=True)
         ctx["message"] = "Les indicateurs sont momentanément indisponibles. Vous pouvez toujours préparer un rapport."
         return ctx
-    par_techno, requetes = {}, {}
+    par_techno, requetes, preparees, delai = {}, {}, [], False
     for techno in dict.fromkeys(cat[i[0]].techno for i in indicateurs):
         try:
             heures = []
@@ -79,29 +110,41 @@ def construire(user, aujourd_hui, selection="24h"):
                              periode={"debut": debut_techno, "fin": fin_techno}, heures=heures,
                              granularite_temps="jour" if selection == "7j" else "heure",
                              kpis=[i[0] for i in indicateurs if cat[i[0]].techno == techno])
-            resultat = executer(req, user, engine)
+            resultat, calculs = preparer_requete(req, user, engine)
         except (RequeteRefusee, SQLAlchemyError) as exc:
-            if isinstance(getattr(exc, "orig", None), ConnectionTimeout):
-                # LTE et WCDMA partagent la connexion : ne pas attendre un second
-                # timeout. Une prochaine consultation pourra réessayer normalement.
-                log.warning(
-                    "Tableau de bord : délai de connexion à la base KPI dépassé. "
-                    "Vérifier KPI_DB_HOST/KPI_DB_PORT, le réseau/VPN et PostgreSQL."
-                )
-                if par_techno:
-                    ctx["avertissements"].append(MESSAGE_BASE_INDISPONIBLE)
-                else:
-                    ctx["message"] = MESSAGE_BASE_INDISPONIBLE
+            if _delai_depasse(exc):  # technos suivantes non tentées : un seul délai d'attente
+                delai = True
                 break
             log.warning("Tableau de bord : source %s indisponible", techno, exc_info=True)
             ctx["avertissements"].append(f"{techno} : les indicateurs sont momentanément indisponibles.")
             continue
+        preparees.append((techno, req, heures, resultat, calculs))
+
+    # Lectures LTE et WCDMA simultanées : la page attend la plus longue, pas leur somme.
+    sorties = _lancer([calculs for *_, calculs in preparees], parallele=engine.dialect.name == "postgresql")
+    for (techno, req, heures, resultat, _), (sortie, exc) in zip(preparees, sorties):
+        if exc is not None:
+            if _delai_depasse(exc):
+                delai = True
+            else:
+                log.warning("Tableau de bord : source %s indisponible", techno, exc_info=exc)
+                ctx["avertissements"].append(f"{techno} : les indicateurs sont momentanément indisponibles.")
+            continue
+        for s in sortie:
+            completer(resultat, s)
         ctx["avertissements"].extend(resultat.avertissements)
         par_techno.update((r.techno, r) for r in resultat.par_techno)
         requetes[techno] = req
         if heures:
             ctx["periodes"].append({"techno": "4G" if techno == "LTE" else "3G",
                                     "debut": heures[0], "fin": heures[-1], "nombre": len(heures)})
+    if delai:
+        log.warning("Tableau de bord : délai de connexion à la base KPI dépassé. "
+                    "Vérifier KPI_DB_HOST/KPI_DB_PORT, le réseau/VPN et PostgreSQL.")
+        if par_techno:
+            ctx["avertissements"].append(MESSAGE_BASE_INDISPONIBLE)
+        else:
+            ctx["message"] = MESSAGE_BASE_INDISPONIBLE
     if ctx["periodes"]:
         ctx["debut"] = min(p["debut"].date() for p in ctx["periodes"])
         ctx["fin"] = max(p["fin"].date() for p in ctx["periodes"])

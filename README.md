@@ -246,6 +246,8 @@ indexées, dans une CTE récursive, plutôt qu'un `DISTINCT` sans borne sur l'hi
 Le même périmètre effectif filtre chaque recherche. Les trous, les bases anciennes et
 les fraîcheurs différentes de 3G et 4G restent pris en compte. La démo SQLite conserve
 la requête portable. L'application ne modifie pas la base KPI en lecture seule.
+Sur PostgreSQL, les lectures de compteurs LTE et WCDMA du dashboard sont lancées en
+parallèle : la page attend la plus longue des deux, et non plus leur somme.
 
 Les anciennes requêtes, les nouvelles et les lectures de compteurs du dashboard sont
 comparables avec [`docs/sql/dashboard-performances.sql`](docs/sql/dashboard-performances.sql).

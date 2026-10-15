@@ -67,6 +67,46 @@ Le script vise le périmètre global de l'administrateur. Pour un lecteur restre
 ajouter le filtre de cellules dans les deux MAX et dans la lecture des compteurs.
 Le code applique ces filtres automatiquement via des paramètres liés.
 
+## Lecture des compteurs (traces du 16 octobre 2026)
+
+Après le correctif de la découverte, celle-ci ne dépasse plus une seconde. Les lectures
+des compteurs, elles, durent 7,822 s (LTE) et 6,947 s (WCDMA) pour un dashboard de
+15,205 s : elles s'enchaînaient et représentaient 97 % du temps.
+
+Le 14 octobre, ces mêmes lectures (SQL inchangé) prenaient moins d'une seconde chacune.
+La différence la plus probable : l'ancienne découverte parcourait toute la table juste
+avant, ce qui laissait les pages des dernières heures en mémoire. Désormais la lecture
+des 24 heures (environ 48 000 lignes larges de 144 colonnes, soit quelque 8 000 blocs
+pour LTE) trouve des pages froides. Les deux durées sont proportionnelles au nombre de
+blocs lus (LTE/WCDMA ≈ 1,2), pas au volume renvoyé : le débit réseau n'explique pas
+l'écart, puisque le même volume passait en moins d'une seconde le 14.
+
+Correctif : sur PostgreSQL, l'accueil lance les lectures LTE et WCDMA en parallèle
+(une connexion du pool chacune). La page attend la plus longue et non plus leur somme :
+environ 8 s au lieu de 15 s d'après ces traces. Droits, périmètre et référentiel sont
+résolus avant, dans le fil de la requête ; les fils ne lisent que la base KPI ou le
+cache. Serveur injoignable : un seul délai de connexion est attendu (en 24 h, la
+découverte LTE échoue et WCDMA n'est pas tentée ; sinon les deux tentatives sont
+simultanées). La base de démonstration SQLite reste lue séquentiellement.
+
+À confirmer sur le serveur KPI avec le bloc « compteurs » de
+[sql/dashboard-performances.sql](sql/dashboard-performances.sql), lancé de préférence
+après `SET track_io_timing = on` : au premier passage, un grand nombre de
+`shared read` et un `I/O Timings` proche de la durée totale confirment des pages
+froides ; un second passage aussitôt après doit être nettement plus rapide
+(`shared hit`). Un `Seq Scan` sur la table indiquerait au contraire un mauvais plan.
+
+Les 8 s restantes ne dépendent pas de l'application tant que chaque consultation
+relit les 24 heures. Pistes, à décider :
+
+- côté base (administrateur) : mémoire disponible pour le cache, `pg_prewarm` des
+  dernières heures, ou réduction des index (un par colonne) qui alourdissent les
+  insertions et occupent le cache ;
+- côté application : mémoriser les sommes numérateur / dénominateur par heure, puis
+  ne relire que les heures récentes. Une consultation ne lirait plus qu'une ou deux
+  heures. Il faut alors borner la durée pendant laquelle une heure ancienne corrigée
+  en source peut rester affichée (voir « Cache local » plus haut).
+
 ## Cache local et synchronisation par heure
 
 Le cache existant conserve les heures découvertes et les résultats calculés sur
