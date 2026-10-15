@@ -20,7 +20,7 @@ ORDRE_SECTIONS = ["evenements", "kpi", "comptes", "auth", "referentiel", "rappor
 # Ordre des modèles dans une section (les autres suivent, par ordre alphabétique).
 ORDRE_MODELES = [
     "Evenement",
-    "ColonneKpi", "SeuilKpi", "ReglagesAnomalies",
+    "SeuilKpi", "ColonneKpi", "ReglagesAnomalies",
     "User", "Group", "Perimetre", "DemandeSuivie", "JournalAudit",
     "Site", "Secteur", "Cellule", "ImportReferentiel",
     "RapportPlanifie", "Rapport",
@@ -41,10 +41,10 @@ REGROUPEMENTS = {
 ACCES_RAPIDES = [
     ("Créer un événement", "Page de l’application : carte des secteurs, KPI",
      "evenements.Evenement", "add", {}),
-    ("Colonnes de la base KPI", "Noms affichés, catégories et descriptions",
-     "kpi.ColonneKpi", "changelist", {}),
-    ("Seuils KPI", "Seuils d'alerte et critiques",
+    ("KPI : noms et seuils", "Noms affichés, catégories, descriptions et seuils",
      "kpi.SeuilKpi", "changelist", {}),
+    ("Colonnes de la base KPI", "Noms, descriptions, indicateurs proposés",
+     "kpi.ColonneKpi", "changelist", {}),
     ("Périmètres d'accès", "Communes, sites, cellules et KPI visibles",
      "comptes.Perimetre", "changelist", {}),
     ("Comptes utilisateurs", "Comptes avec mot de passe",
@@ -59,7 +59,7 @@ NAVIGATION = [
     ("Pilotage", ["index", "comptes.DemandeSuivie", "rapports.Rapport", "rapports.RapportPlanifie",
                   "comptes.JournalAudit"]),
     ("Analyse", ["evenements.Evenement", "evenements.ReglagesAnomalies"]),
-    ("Gestion des KPI", ["kpi.ColonneKpi", "kpi.SeuilKpi"]),
+    ("Gestion des KPI", ["kpi.SeuilKpi", "kpi.ColonneKpi"]),
     ("Référentiel réseau", ["referentiel.ImportReferentiel", "referentiel.Site", "referentiel.Secteur",
                             "referentiel.Cellule"]),
     ("Comptes et accès", ["auth.User", "auth.Group", "comptes.Perimetre"]),
@@ -69,6 +69,7 @@ LIBELLES_NAVIGATION = {
     "referentiel.ImportReferentiel": "Chargement et imports",
     "evenements.ReglagesAnomalies": "Détection d'anomalies",
     "comptes.DemandeSuivie": "Suivi des demandes",
+    "kpi.SeuilKpi": "KPI : noms et seuils",
     "kpi.ColonneKpi": "Colonnes de la base",
 }
 

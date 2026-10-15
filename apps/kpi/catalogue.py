@@ -13,6 +13,8 @@ LIBELLES_CATEGORIE = {"debit": "Débit", "trafic": "Trafic", "accessibilite": "A
                       "retainability": "Coupures", "congestion": "Congestion", "mobilite": "Mobilité",
                       "disponibilite": "Disponibilité"}
 _IDENTIFIANT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+# Code des colonnes de la base proposées aux utilisateurs dans l'admin (``ColonneKpi.code``).
+PREFIXE_COLONNE = "col_"
 
 
 class Seuils(BaseModel):
@@ -110,10 +112,12 @@ def colonnes_utilisees(kpi: DefinitionKpi) -> set[str]:
 
 
 def kpis_principaux(cat: dict[str, DefinitionKpi]) -> list[str]:
-    """KPI analysés par défaut (événements) : sans les causes (``decomposition_de``) ni les
-    composants des KPI composites (cités dans un ``produit_de``), qui restent sélectionnables."""
+    """KPI analysés par défaut (événements) : sans les causes (``decomposition_de``), les
+    composants des KPI composites (cités dans un ``produit_de``) ni les colonnes proposées dans
+    l'admin, qui restent sélectionnables."""
     composants = {c for k in cat.values() for c in (k.produit_de or [])}
-    return [c for c, k in cat.items() if not k.decomposition_de and c not in composants]
+    return [c for c, k in cat.items()
+            if not k.decomposition_de and c not in composants and not c.startswith(PREFIXE_COLONNE)]
 
 
 def charger_catalogue(chemin: Path) -> dict[str, DefinitionKpi]:
@@ -151,12 +155,15 @@ def catalogue_yaml() -> dict[str, DefinitionKpi]:
 
 
 def catalogue() -> dict[str, DefinitionKpi]:
-    """Catalogue YAML, avec les seuils réglés dans l'admin (table ``SeuilKpi``)."""
-    from .models import SeuilKpi
+    """Catalogue de l'application : KPI du YAML avec les réglages de l'admin (nom affiché, catégorie,
+    description, seuils : table ``SeuilKpi``), puis colonnes de la base proposées aux utilisateurs
+    (table ``ColonneKpi``)."""
+    from .models import ColonneKpi, SeuilKpi
 
     base = catalogue_yaml()
     reglages = {s.code: s for s in SeuilKpi.objects.filter(code__in=list(base))}
-    return {
-        code: k.model_copy(update={"seuils": Seuils(alerte=r.alerte, critique=r.critique)}) if (r := reglages.get(code)) else k
-        for code, k in base.items()
-    }
+    cat = {code: r.appliquer(k) if (r := reglages.get(code)) else k for code, k in base.items()}
+    for colonne in ColonneKpi.objects.filter(proposee=True, presente=True):
+        if (k := colonne.definition()) is not None and k.code not in cat:
+            cat[k.code] = k
+    return cat

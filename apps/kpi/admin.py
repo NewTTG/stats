@@ -7,29 +7,76 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.http import HttpResponseRedirect
 from django.urls import path, reverse
+from django.utils.html import format_html, format_html_join
 
 from .catalogue import LIBELLES_CATEGORIE, catalogue_yaml, colonnes_utilisees
-from .models import ColonneKpi, SeuilKpi
+from .models import SENS, ColonneKpi, SeuilKpi
 from .source import BaseKpiNonConfiguree
 
 journal = logging.getLogger(__name__)
 
-SENS = {"haut_est_mieux": "↑ plus haut est mieux", "bas_est_mieux": "↓ plus bas est mieux"}
+class TechnoKpiFilter(admin.SimpleListFilter):
+    title = "techno"
+    parameter_name = "techno"
+
+    def lookups(self, request, model_admin):
+        return ColonneKpi.TECHNOS
+
+    def queryset(self, request, queryset):
+        if not self.value():
+            return queryset
+        codes = [c for c, k in catalogue_yaml().items() if k.techno == self.value()]
+        return queryset.filter(code__in=codes)
+
+
+class KpiListeForm(forms.ModelForm):
+    """Saisie dans la liste des KPI : nom obligatoire, champs resserrés."""
+
+    class Meta:
+        model = SeuilKpi
+        fields = ["libelle", "categorie", "description", "alerte", "critique"]
+        widgets = {
+            "libelle": forms.TextInput(attrs={"size": 26, "placeholder": "Nom affiché"}),
+            "description": forms.Textarea(attrs={"rows": 1, "cols": 30, "placeholder": "Description"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["libelle"].required = self.fields["categorie"].required = True
+
+
+class KpiForm(KpiListeForm):
+    class Meta(KpiListeForm.Meta):
+        widgets = {}
 
 
 @admin.register(SeuilKpi)
 class SeuilKpiAdmin(admin.ModelAdmin):
-    list_display = ["code", "libelle", "techno", "unite", "sens", "alerte", "critique", "modifie_le"]
-    list_editable = ["alerte", "critique"]
-    list_filter = []
-    readonly_fields = ["code", "modifie_le"]
-    fields = ["code", "alerte", "critique", "modifie_le"]
+    form = KpiForm
+    list_display = ["code", "libelle", "categorie", "description", "unite", "alerte", "critique"]
+    list_display_links = ["code"]
+    list_editable = ["libelle", "categorie", "description", "alerte", "critique"]
+    list_filter = [TechnoKpiFilter, "categorie"]
+    search_fields = ["code", "libelle", "description"]
+    sortable_by = ["code", "libelle", "categorie"]
+    list_per_page = 200
+    readonly_fields = ["code", "nom_catalogue", "techno", "unite", "sens", "formule", "colonnes", "modifie_le"]
+    fieldsets = [
+        (None, {"fields": ["code", "techno", "unite", "sens", "formule", "colonnes"]}),
+        ("Pour les utilisateurs", {"fields": ["libelle", "nom_catalogue", "categorie", "description"]}),
+        ("Seuils", {"fields": ["alerte", "critique"]}),
+        ("Suivi", {"fields": ["modifie_le"]}),
+    ]
     actions = ["retablir"]
 
     def changelist_view(self, request, extra_context=None):
         if self.has_view_or_change_permission(request):
             SeuilKpi.synchroniser()
-        return super().changelist_view(request, extra_context)
+        contexte = {"title": "KPI : noms et seuils", "titre_page": "KPI : noms et seuils", **(extra_context or {})}
+        return super().changelist_view(request, contexte)
+
+    def get_changelist_form(self, request, **kwargs):
+        return KpiListeForm
 
     def has_add_permission(self, request):
         return False
@@ -37,8 +84,8 @@ class SeuilKpiAdmin(admin.ModelAdmin):
     def _kpi(self, obj):
         return catalogue_yaml().get(obj.code)
 
-    @admin.display(description="libellé")
-    def libelle(self, obj):
+    @admin.display(description="nom dans le catalogue")
+    def nom_catalogue(self, obj):
         return k.libelle if (k := self._kpi(obj)) else "Absent du catalogue"
 
     @admin.display(description="techno")
@@ -51,26 +98,49 @@ class SeuilKpiAdmin(admin.ModelAdmin):
 
     @admin.display(description="sens")
     def sens(self, obj):
-        return SENS.get(k.sens, "") if (k := self._kpi(obj)) else ""
+        return dict(SENS).get(k.sens, "") if (k := self._kpi(obj)) else ""
 
-    @admin.action(description="Rétablir les seuils du catalogue YAML")
+    @admin.display(description="formule")
+    def formule(self, obj):
+        return k.formule if (k := self._kpi(obj)) else ""
+
+    @admin.display(description="colonnes de la base")
+    def colonnes(self, obj):
+        if (k := self._kpi(obj)) is None:
+            return ""
+        noms = sorted({n for c in (k.composants or [k]) for n in colonnes_utilisees(c)})
+        lignes = ColonneKpi.objects.filter(techno=k.techno, nom__in=noms)
+        liens = {c.nom: reverse("admin:kpi_colonnekpi_change", args=[c.pk], current_app=self.admin_site.name)
+                 for c in lignes}
+        return format_html_join(", ", "{}", ((format_html('<a href="{}">{}</a>', liens[n], n) if n in liens else n,)
+                                             for n in noms)) or "—"
+
+    @admin.action(description="Rétablir les valeurs du catalogue YAML (nom, catégorie, description, seuils)")
     def retablir(self, request, queryset):
         cat = catalogue_yaml()
         for s in queryset:
             if s.code in cat:
-                s.alerte, s.critique = cat[s.code].seuils.alerte, cat[s.code].seuils.critique
+                s.retablir(cat[s.code])
                 s.save()
-        messages.success(request, f"{queryset.count()} seuil(s) rétabli(s).")
+        messages.success(request, f"{queryset.count()} KPI rétabli(s).")
 
 
 @lru_cache
 def usages_colonnes() -> dict[tuple[str, str], list[str]]:
-    """(techno, colonne) -> libellés des KPI du catalogue YAML dont les formules la citent."""
+    """(techno, colonne) -> codes des KPI du catalogue YAML dont les formules la citent."""
     usages = {}
     for k in catalogue_yaml().values():
         for nom in colonnes_utilisees(k):
-            usages.setdefault((k.techno, nom), []).append(k.libelle)
+            usages.setdefault((k.techno, nom), []).append(k.code)
     return usages
+
+
+def liens_kpi(admin_site) -> dict[str, str]:
+    """Code -> lien HTML vers la fiche du KPI (nom affiché réglé dans l'admin)."""
+    SeuilKpi.synchroniser()
+    return {s.code: format_html('<a href="{}">{}</a>', reverse("admin:kpi_seuilkpi_change", args=[s.pk],
+                                                              current_app=admin_site.name), s.libelle or s.code)
+            for s in SeuilKpi.objects.all()}
 
 
 class CategorieFilter(admin.SimpleListFilter):
@@ -104,11 +174,14 @@ class UsageFilter(admin.SimpleListFilter):
     parameter_name = "usage"
 
     def lookups(self, request, model_admin):
-        return [("kpi", "Utilisée par un KPI"), ("libre", "Utilisée par aucun KPI")]
+        return [("kpi", "Utilisée par un KPI"), ("libre", "Utilisée par aucun KPI"),
+                ("proposee", "Proposée aux utilisateurs")]
 
     def queryset(self, request, queryset):
         if not self.value():
             return queryset
+        if self.value() == "proposee":
+            return queryset.filter(proposee=True)
         filtre = Q(pk__in=[])
         for techno, nom in usages_colonnes():
             filtre |= Q(techno=techno, nom=nom)
@@ -120,7 +193,7 @@ class ColonneListeForm(forms.ModelForm):
 
     class Meta:
         model = ColonneKpi
-        fields = ["libelle", "categorie", "description"]
+        fields = ["libelle", "categorie", "description", "proposee", "calcul"]
         widgets = {
             "libelle": forms.TextInput(attrs={"size": 26, "placeholder": "Nom affiché"}),
             "description": forms.Textarea(attrs={"rows": 1, "cols": 36, "placeholder": "Description"}),
@@ -129,10 +202,10 @@ class ColonneListeForm(forms.ModelForm):
 
 @admin.register(ColonneKpi)
 class ColonneKpiAdmin(admin.ModelAdmin):
-    list_display = ["nom", "donnees", "libelle", "categorie", "description", "utilisee_par"]
+    list_display = ["nom", "donnees", "libelle", "categorie", "description", "proposee", "calcul", "utilisee_par"]
     list_display_links = ["nom"]
-    sortable_by = ["nom", "libelle", "categorie"]
-    list_editable = ["libelle", "categorie", "description"]
+    sortable_by = ["nom", "libelle", "categorie", "proposee"]
+    list_editable = ["libelle", "categorie", "description", "proposee", "calcul"]
     list_filter = ["techno", CategorieFilter, NommageFilter, UsageFilter, "presente"]
     search_fields = ["nom", "libelle", "description"]
     list_per_page = 100
@@ -140,8 +213,23 @@ class ColonneKpiAdmin(admin.ModelAdmin):
     fieldsets = [
         (None, {"fields": ["nom", "techno", "tables", "type_donnees", "utilisee_par"]}),
         ("Pour les utilisateurs", {"fields": ["libelle", "categorie", "description"]}),
+        ("Indicateur dans l'application", {
+            "fields": ["proposee", "calcul", "unite", "sens"],
+            "description": "Une colonne proposée devient un indicateur que les utilisateurs choisissent dans "
+                           "l'application, sous son nom affiché, à côté des KPI du catalogue."}),
         ("Suivi", {"fields": ["presente", "vue_le", "modifie_le"]}),
     ]
+
+    def get_list_display(self, request):
+        # Liens vers les KPI lus une seule fois par page (et non une requête par ligne).
+        liens = liens_kpi(self.admin_site)
+
+        @admin.display(description="utilisée par (modifier le KPI)")
+        def utilisee_par(obj):
+            codes = usages_colonnes().get((obj.techno, obj.nom), [])
+            return format_html_join(", ", "{}", ((liens.get(c, c),) for c in codes)) or "—"
+
+        return [utilisee_par if nom == "utilisee_par" else nom for nom in self.list_display]
 
     def has_add_permission(self, request):
         return False  # les colonnes viennent de la base KPI (« Relire la base KPI »)
@@ -197,7 +285,9 @@ class ColonneKpiAdmin(admin.ModelAdmin):
 
     @admin.display(description="utilisée par")
     def utilisee_par(self, obj):
-        return ", ".join(usages_colonnes().get((obj.techno, obj.nom), [])) or "—"
+        liens = liens_kpi(self.admin_site)
+        codes = usages_colonnes().get((obj.techno, obj.nom), [])
+        return format_html_join(", ", "{}", ((liens.get(c, c),) for c in codes)) or "—"
 
     @admin.display(description="données")
     def donnees(self, obj):

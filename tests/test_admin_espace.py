@@ -68,7 +68,7 @@ def test_tableau_de_bord(client_admin):
     assert rubriques == ["Pilotage", "Analyse", "Gestion des KPI", "Référentiel réseau", "Comptes et accès", "Système"]
     # raccourcis et points à traiter ; un événement sans période mémorisée n'est plus « à compléter »
     # (la période se choisit à l'affichage)
-    for titre in ["Accès rapides", "À traiter", "Créer un événement", "Seuils KPI", "Périmètres d&#x27;accès",
+    for titre in ["Accès rapides", "À traiter", "Créer un événement", "KPI : noms et seuils", "Périmètres d&#x27;accès",
                   "Comptes utilisateurs", "Journal d&#x27;audit"]:
         assert titre in html
     assert "Événements sans créneau" not in html and "admin-pastille" not in html
@@ -91,7 +91,7 @@ def test_ordre_des_sections(client_admin):
     ]
     modeles = {a["app_label"]: [m["object_name"] for m in a["models"]] for a in reponse.context["app_list"]}
     assert modeles["evenements"] == ["Evenement"]
-    assert modeles["kpi"] == ["ColonneKpi", "SeuilKpi", "ReglagesAnomalies"]
+    assert modeles["kpi"] == ["SeuilKpi", "ColonneKpi", "ReglagesAnomalies"]
     assert modeles["comptes"] == ["User", "Group", "Perimetre", "DemandeSuivie", "JournalAudit"]
     assert modeles["referentiel"] == ["Site", "Secteur", "Cellule", "ImportReferentiel"]
     assert modeles["rapports"] == ["RapportPlanifie", "Rapport"]
@@ -110,11 +110,11 @@ def test_acces_rapides_selon_les_droits(client):
     user.user_permissions.add(Permission.objects.get(codename="view_seuilkpi"))
     client.force_login(user)
     reponse = client.get("/admin/")
-    assert [c["titre"] for c in reponse.context["acces_rapides"]] == ["Seuils KPI"]
+    assert [c["titre"] for c in reponse.context["acces_rapides"]] == ["KPI : noms et seuils"]
     assert [a["app_label"] for a in reponse.context["app_list"]] == ["kpi"]
     # menu et points à traiter limités aux droits ; pas de référentiel sans droit de lecture
     assert [(r["titre"], [e["libelle"] for e in r["entrees"]]) for r in reponse.context["navigation"]] == [
-        ("Pilotage", ["Vue d’ensemble"]), ("Gestion des KPI", ["Seuils KPI"])]
+        ("Pilotage", ["Vue d’ensemble"]), ("Gestion des KPI", ["KPI : noms et seuils"])]
     assert reponse.context["a_traiter"] == [] and reponse.context["referentiel"] is None
     assert "Créer un événement" not in reponse.content.decode()
 
