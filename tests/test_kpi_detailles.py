@@ -250,6 +250,6 @@ def test_rapport_detaille_affiche_les_graphiques(admin, base_recherche):  # noqa
     assert [t["titre"] for t in donnees["themes"]] == ["Mobilité"]
     assert len(donnees["themes"][0]["graphes"]) == sum(g.techno == "LTE" for g in graphes().du_theme("mobilite"))
     assert any(v is not None for serie in donnees["valeurs"]["lte_ho_intra_sr"] for v in serie)
-    # Les KPI détaillés n'ont pas de carte ; le taux de succès HO intra-fréquence (principal), si.
-    assert "<span>Taux de succès HO intra-fréquence</span>" in html
+    # Un rapport composé ne duplique pas les séries choisies en cartes individuelles.
+    assert "<span>Taux de succès HO intra-fréquence</span>" not in html
     assert "<span>Préparations de HO inter-fréquence</span>" not in html

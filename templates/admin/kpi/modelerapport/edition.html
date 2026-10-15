@@ -1,0 +1,13 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/composition.css' %}">{% endblock %}
+{% block form_top %}
+<div class="composition-intro"><p>Choisissez les graphiques de ce rapport, puis leur ordre avec les flèches. Leurs indicateurs sont ajoutés automatiquement aux calculs et au tableau.</p>
+<p><a href="{% url 'admin:kpi_graphique_changelist' %}">Modifier un graphique ou en créer un →</a></p></div>
+{% endblock %}
+{% block after_field_sets %}
+{{ graphiques_details|json_script:"graphiques-details" }}
+{% endblock %}
+{% block admin_change_form_document_ready %}{{ block.super }}
+<script src="{% static 'js/composition.js' %}" defer></script>
+{% endblock %}

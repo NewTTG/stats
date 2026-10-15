@@ -66,8 +66,8 @@ def test_tableau_de_bord(client_admin):
     assert 'id="nav-sidebar"' in html
     reponse = client_admin.get("/admin/")
     espaces = [e["libelle"] for e in reponse.context["navigation"]]
-    assert espaces == ["Vue d’ensemble", "Suivi des demandes", "Rapports", "Référentiel", "Réseau", "Comptes et accès",
-                       "Système"]
+    assert espaces == ["Vue d’ensemble", "Suivi des demandes", "Graphiques et rapports", "Référentiel", "Réseau",
+                       "Comptes et accès", "Système"]
     assert reponse.context["espace"]["cle"] == "accueil" and reponse.context["onglets"] == []
     assert 'class="admin-onglets"' not in html
     # thème : choix explicite dans le menu du compte, plus de bouton de Django qui tourne en boucle
@@ -97,7 +97,7 @@ def test_ordre_des_sections(client_admin):
     ]
     modeles = {a["app_label"]: [m["object_name"] for m in a["models"]] for a in reponse.context["app_list"]}
     assert modeles["evenements"] == ["Evenement", "ReglagesAnomalies"]
-    assert modeles["kpi"] == ["SeuilKpi", "ColonneKpi"]
+    assert modeles["kpi"] == ["ModeleRapport", "Graphique", "SeuilKpi", "ColonneKpi"]
     assert modeles["comptes"] == ["Perimetre", "DemandeSuivie", "JournalAudit"]
     assert modeles["auth"] == ["User", "Group"]
     assert modeles["referentiel"] == ["Site", "Secteur", "Cellule", "ImportReferentiel"]
@@ -112,7 +112,7 @@ def test_ordre_des_sections(client_admin):
     for app, page in [("auth", "admin:auth_user_changelist"), ("comptes", "admin:auth_user_changelist"),
                       ("kpi", "admin:evenements_evenement_changelist"),
                       ("referentiel", "admin:referentiel_importreferentiel_changelist"),
-                      ("rapports", "admin:rapports_rapport_changelist"), ("django_q", "admin:processus")]:
+                      ("rapports", "admin:kpi_modelerapport_changelist"), ("django_q", "admin:processus")]:
         reponse = client_admin.get(reverse("admin:app_list", args=[app]))
         assert (reponse.status_code, reponse["Location"]) == (302, reverse(page)), app
 
@@ -158,7 +158,8 @@ def test_onglets_de_l_espace(client_admin):
     assert ' ouverture-modale"' in html
     # rapports générés et planifiés : un seul espace ; système : processus avec les tâches de fond
     reponse = client_admin.get(reverse("admin:rapports_rapportplanifie_changelist"))
-    assert [o["libelle"] for o in reponse.context["onglets"]] == ["Rapports générés", "Enregistrés et planifiés"]
+    assert [o["libelle"] for o in reponse.context["onglets"]] == [
+        "Rapports et accueil", "Graphiques", "Rapports générés", "Enregistrés et planifiés"]
     reponse = client_admin.get(reverse("admin:processus"))
     assert reponse.context["espace"]["libelle"] == "Système"
     assert [o["libelle"] for o in reponse.context["onglets"]][:2] == ["Processus du serveur", "Planifications"]

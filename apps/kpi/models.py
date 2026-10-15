@@ -1,4 +1,5 @@
 import re
+import uuid
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -7,6 +8,61 @@ from django.utils import timezone
 from .catalogue import LIBELLES_CATEGORIE
 
 SENS = [("haut_est_mieux", "↑ plus haut est mieux"), ("bas_est_mieux", "↓ plus bas est mieux")]
+
+THEMES_GRAPHES = [("trafic", "Trafic et charge"), ("accessibilite", "Accessibilité"),
+                  ("integrite", "Débit et qualité radio"), ("retainability", "Coupures"),
+                  ("mobilite", "Mobilité")]
+TYPES_SERIES = [("ligne", "Courbe"), ("barres", "Barres"),
+                ("barres_empilees", "Barres empilées"), ("aire", "Surface")]
+
+
+class Graphique(models.Model):
+    code = models.CharField(max_length=64, unique=True, default=uuid.uuid4, editable=False)
+    titre = models.CharField("nom du graphique", max_length=160)
+    theme = models.CharField("thème", max_length=32, choices=THEMES_GRAPHES)
+    ordre = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["ordre", "pk"]
+        verbose_name = "graphique"
+
+    def __str__(self):
+        return self.titre
+
+
+class SerieGraphique(models.Model):
+    graphique = models.ForeignKey(Graphique, on_delete=models.CASCADE, related_name="series")
+    kpi = models.CharField("indicateur", max_length=160)
+    type = models.CharField("représentation", max_length=24, choices=TYPES_SERIES, default="ligne")
+    axe = models.CharField(max_length=8, choices=[("gauche", "Gauche"), ("droite", "Droite")], default="gauche")
+    ordre = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["ordre", "pk"]
+        verbose_name = "série"
+
+    def __str__(self):
+        return f"Série {self.ordre + 1}"
+
+
+class ModeleRapport(models.Model):
+    code = models.CharField(max_length=64, unique=True, default=uuid.uuid4, editable=False)
+    titre = models.CharField("nom du rapport", max_length=160)
+    description = models.TextField(blank=True)
+    accueil = models.BooleanField("proposer sur l’accueil", default=True)
+    ordre = models.PositiveIntegerField("position sur l’accueil", default=0)
+    icone = models.CharField(max_length=32, blank=True, default="sur_mesure")
+    # Ordre propre au rapport, indépendant de l'ordre dans la bibliothèque.
+    graphes = models.JSONField("graphiques", default=list, blank=True)
+    kpis = models.JSONField("indicateurs complémentaires", default=list, blank=True)
+
+    class Meta:
+        ordering = ["ordre", "pk"]
+        verbose_name = "rapport et accueil"
+        verbose_name_plural = "rapports et accueil"
+
+    def __str__(self):
+        return self.titre
 
 
 class SeuilKpi(models.Model):

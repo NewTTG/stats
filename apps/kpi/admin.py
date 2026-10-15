@@ -12,6 +12,7 @@ from django.utils.html import format_html, format_html_join
 from .catalogue import LIBELLES_CATEGORIE, catalogue_yaml, colonnes_utilisees
 from .models import SENS, ColonneKpi, SeuilKpi
 from .source import BaseKpiNonConfiguree
+from . import composition_admin  # noqa: F401 — enregistrement des éditeurs
 
 journal = logging.getLogger(__name__)
 

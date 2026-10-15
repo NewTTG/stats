@@ -1,0 +1,9 @@
+{% extends "admin/change_list.html" %}
+{% block content %}
+<div class="module" style="padding:18px;margin-bottom:20px">
+  <h2>Bibliothèque de graphiques</h2>
+  <p>Ouvrez un graphique pour choisir ses indicateurs, ses courbes ou barres et ses axes. Les modèles 3G et 4G de l’Excel sont prêts à personnaliser.</p>
+  <p><a href="{% url 'admin:kpi_modelerapport_changelist' %}">Choisir où les afficher : rapports et accueil →</a></p>
+</div>
+{{ block.super }}
+{% endblock %}

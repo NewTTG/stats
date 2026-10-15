@@ -23,7 +23,7 @@ ORDRE_SECTIONS = ["evenements", "kpi", "comptes", "auth", "referentiel", "rappor
 # Ordre des modèles dans une section (les autres suivent, par ordre alphabétique).
 ORDRE_MODELES = [
     "Evenement", "ReglagesAnomalies",
-    "SeuilKpi", "ColonneKpi",
+    "ModeleRapport", "Graphique", "SeuilKpi", "ColonneKpi",
     "User", "Group", "Perimetre", "DemandeSuivie", "JournalAudit",
     "Site", "Secteur", "Cellule", "ImportReferentiel",
     "RapportPlanifie", "Rapport",
@@ -34,6 +34,10 @@ ORDRE_MODELES = [
 # Raccourcis du tableau de bord : (titre, description, modèle, page, paramètres de la liste).
 # Un raccourci n'est affiché que si l'utilisateur a le droit correspondant.
 ACCES_RAPIDES = [
+    ("Rapports et accueil", "Choisir les graphiques et les rapports proposés sur l’accueil",
+     "kpi.ModeleRapport", "changelist", {}),
+    ("Graphiques", "Indicateurs, courbes, barres, surfaces et axes",
+     "kpi.Graphique", "changelist", {}),
     ("Créer un événement", "Page de l’application : carte des secteurs, KPI",
      "evenements.Evenement", "add", {}),
     ("KPI : noms et seuils", "Noms affichés, catégories, descriptions et seuils",
@@ -55,8 +59,9 @@ ACCES_RAPIDES = [
 ESPACES = [
     ("accueil", "Vue d’ensemble", "accueil", [("index", "Vue d’ensemble")]),
     ("suivi", "Suivi des demandes", "suivi", [("comptes.DemandeSuivie", "Suivi des demandes")]),
-    ("rapports", "Rapports", "rapports", [("rapports.Rapport", "Rapports générés"),
-                                          ("rapports.RapportPlanifie", "Enregistrés et planifiés")]),
+    ("rapports", "Graphiques et rapports", "rapports", [
+        ("kpi.ModeleRapport", "Rapports et accueil"), ("kpi.Graphique", "Graphiques"),
+        ("rapports.Rapport", "Rapports générés"), ("rapports.RapportPlanifie", "Enregistrés et planifiés")]),
     ("referentiel", "Référentiel", "referentiel", [
         ("evenements.Evenement", "Événements"), ("kpi.SeuilKpi", "KPI : noms et seuils"),
         ("kpi.ColonneKpi", "Colonnes de la base"),

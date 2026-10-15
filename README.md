@@ -401,7 +401,8 @@ configuration adaptées aux écrans étroits et aux thèmes clair / sombre (choi
 Sombre / Système** dans le menu du compte).
 
 Le menu latéral compte un lien par **espace**, et les pages d’un espace sont des onglets en
-haut de page (`ESPACES`, `config/admin.py`) : **Rapports** (générés, enregistrés et planifiés),
+haut de page (`ESPACES`, `config/admin.py`) : **Graphiques et rapports** (rapports et accueil,
+graphiques, rapports générés, enregistrés et planifiés),
 **Référentiel** (événements, KPI : noms et seuils, colonnes de la base), **Réseau** (imports et
 rechargement, sites, secteurs, cellules), **Comptes et accès** (utilisateurs, groupes, périmètres,
 journal d’audit) et **Système** (processus du serveur, tâches de fond). Depuis une liste, la
@@ -844,6 +845,45 @@ python scripts/explorer_schema.py   # depuis la racine du dépôt ; lecture seul
 | `tests/` | pytest (données synthétiques uniquement) |
 
 ## Ajouter un KPI
+
+### Configurer les graphiques, les rapports et l’accueil
+
+Dans l’administration, l’espace **Graphiques et rapports** propose :
+
+- **Graphiques** : les 101 modèles 3G/4G issus des fichiers Excel, modifiables ou
+  duplicables. Chaque série permet de choisir un indicateur, une courbe, des
+  barres, des barres empilées ou une surface, puis l’axe gauche/droite et l’ordre.
+  Un aperçu avec des données fictives montre la présentation. Un graphique
+  utilise une seule technologie et une unité compatible par axe.
+- **Rapports et accueil** : choisir et ordonner les graphiques de chaque rapport
+  (Data, Bilan, Appels, rapports détaillés ou nouveau modèle), ajouter des
+  indicateurs complémentaires, renommer le rapport et choisir sa position et sa
+  visibilité sur l’accueil. Les flèches ordonnent les graphiques sélectionnés.
+
+Les libellés, descriptions et seuils des KPI se règlent dans l’espace **Référentiel**
+(onglets **KPI : noms et seuils** et **Colonnes de la base**).
+
+Les modèles sont importés à la première ouverture d’un éditeur par un compte
+ayant le droit de modification ; les modifications sont conservées et prises
+en compte sans redémarrage. Avant cet import, les définitions livrées sont
+utilisées. Le modèle « Appels et voix » est disponible dans l’éditeur et peut
+être activé sur l’accueil.
+
+Depuis **Composer un rapport**, puis **Choisir les graphiques**, une recherche
+permet de choisir directement des graphiques. Les KPI nécessaires sont ajoutés
+automatiquement. Le résultat permet de changer cette sélection ; les filtres,
+les liens et les rapports enregistrés la conservent. Les graphiques composés ne
+sont proposés que si tous leurs indicateurs sont autorisés. Les séries tracées
+ne sont pas dupliquées en cartes/courbes individuelles dans ces rapports.
+
+Cette composition s’applique à l’affichage dans l’application. Les exports PDF
+et PowerPoint conservent actuellement leur présentation par KPI ; l’export Excel
+contient tous les indicateurs calculés. Les valeurs d’un aperçu sont fictives.
+
+Après mise à jour : `python manage.py migrate`, puis redémarrage de l’application
+et du worker (ou **Tout redémarrer** via le superviseur).
+
+### Définir une formule dans le catalogue
 
 Ajouter une entrée dans `config/kpi_catalogue.yaml` :
 

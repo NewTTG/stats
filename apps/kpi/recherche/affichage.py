@@ -168,34 +168,62 @@ def graphiques(res: ResultatTechno, granularite_temps: str, conv=None, exclus=fr
             "nombre": SERIES_PIRES}
 
 
-def graphes_affiches(res: ResultatTechno) -> list:
+def graphes_affiches(res: ResultatTechno, selection=None, bibliotheque=None) -> list:
     """Graphiques thématiques (``config/graphes.yaml``) dont tous les KPI sont dans le résultat."""
-    return definitions_graphes().couverts(res.techno, [k.code for k in res.kpis])
+    couverts = (bibliotheque or definitions_graphes()).couverts(res.techno, [k.code for k in res.kpis])
+    if selection is None:
+        return couverts
+    par_code = {g.code: g for g in couverts}
+    return [par_code[c] for c in selection if c in par_code]
 
 
-def kpis_en_graphes(res: ResultatTechno) -> frozenset[str]:
+def kpis_en_graphes(res: ResultatTechno, selection=None, bibliotheque=None) -> frozenset[str]:
     """KPI détaillés tracés dans un graphique thématique : ni carte, ni courbe, ni classement
     à part (leur valeur sur la période figure dans la légende du graphique)."""
-    detailles = {k.code for k in res.kpis if not k.principal}
-    return frozenset(c for g in graphes_affiches(res) for c in g.kpis if c in detailles)
+    detailles = {k.code for k in res.kpis if not k.principal or selection is not None}
+    return frozenset(c for g in graphes_affiches(res, selection, bibliotheque) for c in g.kpis if c in detailles)
 
 
-def graphes_themes(res: ResultatTechno, granularite_temps: str, conv=None) -> dict | None:
+def graphes_themes(res: ResultatTechno, granularite_temps: str, conv=None, selection=None, bibliotheque=None) -> dict | None:
     """Graphiques thématiques, comme dans l'outil Excel d'origine : un graphique par entité
     (sélecteur), plusieurs KPI en barres, barres empilées ou courbes, sur deux axes.
 
-    Valeurs dans l'unité des cartes (``conv``) ; ``valeurs[kpi][n]`` : série de l'entité n ;
+    Échelles des cartes (``conv``), harmonisées sur un même axe ; ``valeurs[kpi][n]`` : série de l'entité n ;
     ``syntheses[kpi][n]`` : valeur sur toute la période (légende)."""
-    defs = graphes_affiches(res)
+    defs = graphes_affiches(res, selection, bibliotheque)
     table = res.table
     if not defs or table.empty:
         return None
-    conv = conv or conversions(res)
+    conv = dict(conv or conversions(res))
     kpis = {k.code: k for k in res.kpis}
     periodes = sorted(table.index.get_level_values("periode").unique())
     toutes = list(dict.fromkeys(table.index.get_level_values("entite")))
     entites = toutes[:SERIES_MAX]
     codes = list(dict.fromkeys(c for g in defs for c in g.kpis))
+    # Deux volumes sur le même axe doivent conserver la même échelle, même si
+    # leurs cartes individuelles ont été converties séparément en Mo ou Go.
+    parents = {c: c for c in codes}
+
+    def racine(c):
+        while parents[c] != c:
+            c = parents[c]
+        return c
+
+    for g in defs:
+        groupes = {}
+        for s in g.series:
+            cle = (s.axe, kpis[s.kpi].unite)
+            if cle in groupes:
+                parents[racine(s.kpi)] = racine(groupes[cle])
+            else:
+                groupes[cle] = s.kpi
+    echelles = {}
+    for c in codes:
+        cle = racine(c)
+        if cle not in echelles or conv[c][0] > echelles[cle][0]:
+            echelles[cle] = conv[c]
+    for c in codes:
+        conv[c] = echelles[racine(c)]
     valeurs, syntheses = {}, {}
     for code in codes:
         diviseur, unite = conv[code]
@@ -210,11 +238,13 @@ def graphes_themes(res: ResultatTechno, granularite_temps: str, conv=None) -> di
     for g in defs:
         series = [{"kpi": s.kpi, "nom": _court(kpis[s.kpi].libelle), "unite": conv[s.kpi][1], "type": s.type,
                    "axe": s.axe} for s in g.series]
-        themes.setdefault(g.theme, []).append({"code": g.code, "titre": g.titre, "series": series})
+        theme = g.theme if selection is None or len({d.theme for d in defs}) == 1 else "selection"
+        themes.setdefault(theme, []).append({"code": g.code, "titre": g.titre, "series": series})
     return {"periodes": _libelles_periodes(periodes, granularite_temps),
             "periodes_cles": [p.isoformat() for p in periodes],
             "entites": [str(e) for e in entites], "entites_total": len(toutes),
-            "themes": [{"code": t, "titre": noms_themes[t], "graphes": liste} for t, liste in themes.items()],
+            "themes": [{"code": t, "titre": "Graphiques choisis" if t == "selection" else noms_themes[t],
+                        "graphes": liste} for t, liste in themes.items()],
             "valeurs": valeurs, "syntheses": syntheses}
 
 
@@ -341,11 +371,14 @@ def _aucune_donnee_signalee(resultat: Resultat, techno: str) -> bool:
 
 
 def blocs(resultat: Resultat, nombre: int | None = None) -> list[dict]:
+    from ..composition import graphiques_configures
+
+    bibliotheque = graphiques_configures()
     req = resultat.requete
     sortie = []
     for res in resultat.par_techno:
         conv = conversions(res)
-        exclus = kpis_en_graphes(res)
+        exclus = kpis_en_graphes(res, req.graphes, bibliotheque)
         lignes, total = lignes_table(res, req.granularite_temps)
         sortie.append({
             "res": res,
@@ -354,7 +387,7 @@ def blocs(resultat: Resultat, nombre: int | None = None) -> list[dict]:
             "cartes": cartes(res, conv, exclus),
             "graphiques": graphiques(res, req.granularite_temps, conv, exclus),
             "id_graphiques": f"graphiques-{res.techno}",
-            "graphes_themes": graphes_themes(res, req.granularite_temps, conv),
+            "graphes_themes": graphes_themes(res, req.granularite_temps, conv, req.graphes, bibliotheque),
             "id_graphes_themes": f"graphes-themes-{res.techno}",
             "causes": causes(res, req.granularite_temps, req.granularite_espace),
             "classement": classement(res, conv, nombre, exclus) if req.granularite_espace != "global" else [],
