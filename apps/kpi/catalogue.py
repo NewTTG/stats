@@ -11,7 +11,8 @@ from pydantic import BaseModel, Field, model_validator
 # Catégories des KPI et des colonnes de la base KPI, dans l'ordre d'affichage.
 LIBELLES_CATEGORIE = {"debit": "Débit", "trafic": "Trafic", "accessibilite": "Accessibilité",
                       "retainability": "Coupures", "congestion": "Congestion", "mobilite": "Mobilité",
-                      "disponibilite": "Disponibilité"}
+                      "disponibilite": "Disponibilité", "radio": "Qualité radio",
+                      "porteuses": "Agrégation de porteuses"}
 _IDENTIFIANT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 # Code des colonnes de la base proposées aux utilisateurs dans l'admin (``ColonneKpi.code``).
 PREFIXE_COLONNE = "col_"
@@ -28,7 +29,8 @@ class DefinitionKpi(BaseModel):
     techno: Literal["LTE", "WCDMA"]
     unite: str
     categorie: Literal[
-        "debit", "trafic", "accessibilite", "retainability", "congestion", "mobilite", "disponibilite"
+        "debit", "trafic", "accessibilite", "retainability", "congestion", "mobilite", "disponibilite", "radio",
+        "porteuses"
     ]
     # Expressions pandas (DataFrame.eval) évaluées ligne à ligne sur les colonnes source.
     numerateur: str | None = None
@@ -44,8 +46,10 @@ class DefinitionKpi(BaseModel):
     # (analyse d'événement) : évite « +90 % » sur une cause passée de 0,01 à 0,02 %.
     ecart_min: float | None = None
     # somme : ratio de sommes (somme simple sans dénominateur) ; pic : somme des cellules à
-    # chaque horodatage, puis maximum sur le temps (ex. utilisateurs connectés simultanément).
-    agregation: Literal["somme", "pic"] = "somme"
+    # chaque horodatage, puis maximum sur le temps (ex. utilisateurs connectés simultanément) ;
+    # moyenne_simultanee : somme des cellules à chaque horodatage, puis moyenne sur le temps
+    # (ex. nombre moyen d'utilisateurs connectés).
+    agregation: Literal["somme", "pic", "moyenne_simultanee"] = "somme"
     facteur: float = 1.0
     sens: Literal["haut_est_mieux", "bas_est_mieux"]
     seuils: Seuils = Seuils()
@@ -53,6 +57,10 @@ class DefinitionKpi(BaseModel):
     # approx : pondération de substitution, à remplacer par les compteurs bruts.
     qualite: Literal["exact", "reconstruit", "approx"] = "exact"
     note: str | None = None
+    # KPI principal (section ``kpis`` du YAML) : analysé par défaut dans les événements. Les KPI
+    # détaillés (section ``kpis_detailles``) restent sélectionnables et alimentent les graphiques
+    # thématiques (``config/graphes.yaml``).
+    principal: bool = True
     # Définitions résolues de ``produit_de`` (renseignées au chargement du catalogue).
     composants: list["DefinitionKpi"] = Field(default_factory=list, exclude=True, repr=False)
 
@@ -65,9 +73,9 @@ class DefinitionKpi(BaseModel):
                 raise ValueError(f"{self.code} : produit_de demande au moins deux KPI")
         elif self.numerateur is None:
             raise ValueError(f"{self.code} : numerateur ou produit_de requis")
-        if self.pic and (self.denominateur is not None or self.produit_de is not None
-                         or self.decomposition_de is not None):
-            raise ValueError(f"{self.code} : agregation pic demande un numerateur seul "
+        if self.simultane and (self.denominateur is not None or self.produit_de is not None
+                               or self.decomposition_de is not None):
+            raise ValueError(f"{self.code} : agregation {self.agregation} demande un numerateur seul "
                              "(ni denominateur, ni produit_de, ni decomposition_de)")
         return self
 
@@ -77,9 +85,14 @@ class DefinitionKpi(BaseModel):
         return self.agregation == "pic"
 
     @property
+    def simultane(self) -> bool:
+        """Somme des cellules à chaque horodatage, puis maximum (pic) ou moyenne sur le temps."""
+        return self.agregation in ("pic", "moyenne_simultanee")
+
+    @property
     def additif(self) -> bool:
         """KPI de volume sans dénominateur (volume, nombre d'appels, pic d'utilisateurs...) :
-        somme simple, ou pic (``agregation``) ; jamais un ratio."""
+        somme simple, pic ou moyenne simultanée (``agregation``) ; jamais un ratio."""
         return self.denominateur is None and self.produit_de is None
 
     @property
@@ -89,6 +102,8 @@ class DefinitionKpi(BaseModel):
             return " × ".join(self.produit_de)
         if self.pic:
             return f"max_t Σ {self.numerateur}"
+        if self.simultane:
+            return f"moy_t Σ {self.numerateur}"
         if self.denominateur is None:
             return f"Σ {self.numerateur}"
         return f"Σ ({self.numerateur}) / Σ ({self.denominateur})"
@@ -113,17 +128,18 @@ def colonnes_utilisees(kpi: DefinitionKpi) -> set[str]:
 
 def kpis_principaux(cat: dict[str, DefinitionKpi]) -> list[str]:
     """KPI analysés par défaut (événements) : sans les causes (``decomposition_de``), les
-    composants des KPI composites (cités dans un ``produit_de``) ni les colonnes proposées dans
-    l'admin, qui restent sélectionnables."""
+    composants des KPI composites (cités dans un ``produit_de``), les KPI détaillés ni les
+    colonnes proposées dans l'admin, qui restent sélectionnables."""
     composants = {c for k in cat.values() for c in (k.produit_de or [])}
-    return [c for c, k in cat.items()
-            if not k.decomposition_de and c not in composants and not c.startswith(PREFIXE_COLONNE)]
+    return [c for c, k in cat.items() if k.principal and not k.decomposition_de and c not in composants
+            and not c.startswith(PREFIXE_COLONNE)]
 
 
 def charger_catalogue(chemin: Path) -> dict[str, DefinitionKpi]:
     with open(chemin, encoding="utf-8") as f:
         brut = yaml.safe_load(f)
     kpis = [DefinitionKpi(**k) for k in brut["kpis"]]
+    kpis += [DefinitionKpi(**k, principal=False) for k in brut.get("kpis_detailles") or []]
     codes = [k.code for k in kpis]
     doublons = {c for c in codes if codes.count(c) > 1}
     if doublons:

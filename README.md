@@ -300,7 +300,28 @@ et redémarrer l’application et le worker. En déploiement, exécuter aussi
   | Data 4G | volume data, débit DL, PRB DL, utilisateurs connectés |
   | Qualité de service | taux d'accès 4G, accès voix / data 3G, coupures E-RAB, coupures voix / data 3G |
   | Utilisateurs 4G | utilisateurs connectés (pic RRC, estimation) |
+  | Trafic et charge détaillés | 4G : disponibilité, motifs RRC, PRB, utilisateurs (pic, moyenne, actifs, programmés), bande de base, volumes et débits cellule, signalisation, CA, CSFB ; 3G : disponibilité, RSSI, SMS, trafic voix (par codec), appels et appels CSFB, sessions et utilisateurs data, volumes et débits R99 / HSDPA / HSUPA / FACH, bande passante |
+  | Accessibilité détaillée | 4G : paging, RACH, taux d'accès, PUCCH, RRC (et causes d'échec), S1, E-RAB ; 3G : paging, RRC signalisation / voix / data (échecs, blocages, causes), resélections 2G → 3G, accès voix, CSFB, data, HSDPA / HSUPA, refus d'admission et de RAB par ressource, partage de charge |
+  | 4G : débit et qualité radio | débits utilisateur (dont CA), latence, MIMO, modulation DL/UL, CQI, agrégation de porteuses, interférences, SINR, pertes de paquets, BLER |
+  | Coupures détaillées | 4G : rétablissement RRC, coupures UE / E-RAB (eNodeB, cœur, actives), causes eNodeB ; 3G : coupures signalisation, RRC voix / data, appels voix (et causes), NAS, data |
+  | Mobilité détaillée | 4G : HO intra / inter-fréquence et d'équilibrage de charge, rejets entrants, continuité de session ; 3G : active set, soft handover, changements de cellule HSDPA / HSUPA, HO inter-fréquence, HO voix vers la 2G |
   | Sur mesure | indicateurs cochés un par un |
+
+  Les rapports **détaillés** reprennent les outils Excel « LTE_SQL_Access » et
+  « WCDMA_SQL_Access » (onglets *Base* et *KPI*) : leurs colonnes 4G (140) et 3G (123) sous des
+  noms lisibles (`kpis_detailles` de `config/kpi_catalogue.yaml`) et leurs graphiques (56 en 4G,
+  43 en 3G, plus 2 pour les colonnes que l'outil ne trace pas : `config/graphes.yaml`), construits
+  de la même façon : plusieurs KPI par graphique, volumes et tentatives en **barres**, parts et
+  causes en **barres empilées**, taux en **courbes** (ou **aires**, « Surface » de l'outil), sur
+  l'axe principal ou secondaire, **un graphique par entité** (liste « Site », « Cellule »… quand
+  le résultat est regroupé). Ils couvrent 3G et 4G (puce Techno pour n'en garder qu'une) ; la
+  légende donne la valeur de chaque KPI sur toute la période. Un graphique s'affiche dès que
+  tous ses KPI sont demandés (rapport détaillé, sur mesure ou recherche : « SINR », « CQI »,
+  « BLER », « MIMO », « modulation », « latence », « paging », « RACH », « HO inter-fréquence »,
+  « RSSI », « soft handover », « IRAT », « HSUPA », « taux de blocage »…).
+  Les KPI détaillés tracés dans un graphique n'ont pas de carte, de courbe ni de classement à
+  part (ils restent dans le tableau et les exports) et ne sont pas analysés par défaut dans
+  les événements.
 
   Les rapports types sont des intentions de `config/recherche.yaml` (clé `rapport`) : les
   modifier ou en ajouter un ne demande pas de code. Le résultat commence par une
@@ -796,7 +817,7 @@ python scripts/explorer_schema.py   # depuis la racine du dépôt ; lecture seul
 
 | Chemin | Rôle |
 |---|---|
-| `config/` | settings Django, `kpi_catalogue.yaml`, vocabulaire de recherche `recherche.yaml`, site d'administration (`admin.py` : ordre des sections, tableau de bord ; gabarits dans `templates/admin/`) |
+| `config/` | settings Django, `kpi_catalogue.yaml`, graphiques thématiques `graphes.yaml`, vocabulaire de recherche `recherche.yaml`, site d'administration (`admin.py` : ordre des sections, tableau de bord ; gabarits dans `templates/admin/`) |
 | `apps/comptes/` | périmètres d'accès, journal d'audit |
 | `apps/referentiel/` | sites / secteurs / cellules importés du xlsx, décodage des noms de cellules |
 | `apps/kpi/` | modèle de requête (Pydantic), catalogue, moteur de calcul, noms et seuils réglables, colonnes de la base proposées comme indicateurs, écran de recherche |
@@ -831,7 +852,14 @@ les expressions du catalogue sont évaluables.
 
 Pour un compteur de pic (ex. `RrcConnMax_max_nb`, utilisateurs connectés), `agregation: pic`
 (numérateur seul) : somme des cellules à chaque horodatage, puis maximum sur la période,
-au lieu de la somme simple.
+au lieu de la somme simple. `agregation: moyenne_simultanee` : même somme par horodatage,
+puis moyenne sur la période (ex. `RrcConnAvg_nb`, utilisateurs connectés en moyenne).
+
+Un KPI placé dans la section `kpis_detailles` (au lieu de `kpis`) est sélectionnable partout
+mais n'est pas analysé par défaut dans les événements. Pour le tracer avec d'autres KPI,
+l'ajouter à un graphique de `config/graphes.yaml` (type `barres`, `barres_empilees` ou
+`ligne`, axe `gauche` ou `droite`) ; un rapport type peut demander tous les KPI d'un thème
+avec `graphes: <thème>` dans `config/recherche.yaml`.
 
 ## Données
 

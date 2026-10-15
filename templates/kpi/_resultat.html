@@ -102,6 +102,28 @@
   </div>
   {% endif %}
 
+  {% if bloc.graphes_themes %}
+  {% with g=bloc.graphes_themes %}
+  <section class="graphes-themes" aria-labelledby="titre-graphes-{{ bloc.res.techno }}">
+    <div class="visualisation-entete">
+      <div><h3 id="titre-graphes-{{ bloc.res.techno }}">Graphiques par thème</h3>
+        <p class="aide">Plusieurs indicateurs par graphique, unité en haut de chaque axe{% if g.entites|length > 1 %} · un graphique par {{ bloc.espace }}, à choisir dans la liste{% endif %}{% if g.entites_total > g.entites|length %} ({{ g.entites|length }} premiers sur {{ g.entites_total }} ; tous figurent dans le tableau){% endif %}. Entre parenthèses dans la légende : la valeur sur toute la période.</p></div>
+      {% if g.entites|length > 1 %}
+      <label class="choix-entite">{{ bloc.espace|capfirst }}
+        <select data-graphes-entite="{{ bloc.id_graphes_themes }}">
+          {% for e in g.entites %}<option value="{{ forloop.counter0 }}">{{ e }}</option>{% endfor %}
+        </select>
+      </label>
+      {% endif %}
+    </div>
+    {% if g.themes|length > 1 %}<nav class="sommaire themes-graphes" aria-label="Thèmes">{% for t in g.themes %}<a href="#theme-{{ bloc.res.techno }}-{{ t.code }}">{{ t.titre }}</a>{% endfor %}</nav>{% endif %}
+    {{ g|json_script:bloc.id_graphes_themes }}
+    <div class="themes-graphes-zone" data-graphes-themes="{{ bloc.id_graphes_themes }}" data-prefixe="theme-{{ bloc.res.techno }}-"></div>
+    <noscript><p class="aide">Les graphiques nécessitent JavaScript ; le tableau détaillé reste disponible.</p></noscript>
+  </section>
+  {% endwith %}
+  {% endif %}
+
   {% if bloc.graphiques.periodes|length > 1 and bloc.graphiques.kpis %}
   <section class="visualisation" data-visualisation>
     <div class="visualisation-entete">

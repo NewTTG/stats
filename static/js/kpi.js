@@ -246,6 +246,145 @@
     });
   }
 
+  /* Graphiques thématiques (config/graphes.yaml) : plusieurs KPI sur un graphique, barres,
+     barres empilées, courbes ou aires, axe de gauche ou de droite ; un graphique par entité, choisie
+     dans la liste (data-graphes-entite). */
+  /* Bornes d'un axe : depuis 0 s'il porte des barres, cumul des barres empilées, 100 au plus en %. */
+  function bornesTheme(series, depuisZero, pourcent) {
+    var valeurs = [], piles = {};
+    series.forEach(function (s) {
+      s.data.forEach(function (v, i) {
+        if (v === null || v === undefined) return;
+        if (s.stack) piles[i] = (piles[i] || 0) + Math.max(v, 0);
+        else valeurs.push(v);
+      });
+    });
+    Object.keys(piles).forEach(function (i) { valeurs.push(piles[i]); });
+    if (!valeurs.length) return {};
+    var bas = Math.min.apply(null, valeurs), haut = Math.max.apply(null, valeurs);
+    if (depuisZero) bas = Math.min(0, bas);
+    var pas = pasRond((haut - bas) || Math.abs(haut) || 1);
+    var min = Math.floor(bas / pas) * pas, max = Math.ceil((haut + pas * 0.15) / pas) * pas;
+    // En %, borné à [0, 100] sauf si les données en sortent (ratio publié > 100 %, échec négatif).
+    if (pourcent && bas >= 0) min = Math.max(0, min);
+    if (pourcent && haut <= 100) max = Math.min(100, max);
+    if (max <= min) {  // valeur constante (ex. disponibilité à 100 %) : la courbe reste en haut
+      if (pourcent && max >= 100) min = Math.max(0, max - pas);
+      else max = min + pas;
+    }
+    return { min: min, max: max, interval: pas };
+  }
+
+  /* Lignes de légende (retour à la ligne, jamais tronquée) : sert à réserver la marge du bas. */
+  function lignesLegende(noms, largeur) {
+    var lignes = 1, occupe = 0, dispo = Math.max(largeur - 24, 200);
+    noms.forEach(function (nom) {
+      var l = nom.length * 6.1 + 36;
+      if (occupe && occupe + l > dispo) { lignes += 1; occupe = 0; }
+      occupe += l;
+    });
+    return lignes;
+  }
+
+  function optionTheme(g, donnees, n, largeur) {
+    var series = g.series.map(function (s) {
+      var data = donnees.valeurs[s.kpi][n];
+      var serie = { name: s.nom + " (" + donnees.syntheses[s.kpi][n] + ")", data: data, axe: s.axe,
+                    emphasis: { focus: "series" }, unite: s.unite };
+      if (s.type === "ligne" || s.type === "aire") {
+        Object.assign(serie, { type: "line", connectNulls: false, showSymbol: data.length < 40, symbolSize: 5,
+                               lineStyle: { width: 2.2 }, z: 3 });
+        if (s.type === "aire") Object.assign(serie, { areaStyle: { opacity: 0.12 }, z: 1 });
+        return serie;
+      }
+      serie.type = "bar";
+      serie.barMaxWidth = 28;
+      if (s.type === "barres_empilees") serie.stack = "pile";
+      return serie;
+    });
+    var gauche = series.filter(function (s) { return s.axe === "gauche"; });
+    var droite = series.filter(function (s) { return s.axe === "droite"; });
+    if (!gauche.length) { gauche = droite; droite = []; }
+    var yAxis = [gauche, droite].map(function (liste, i) {
+      var unites = [];
+      liste.forEach(function (s) { if (unites.indexOf(s.unite) < 0) unites.push(s.unite); });
+      liste.forEach(function (s) { s.yAxisIndex = i; });
+      var bornes = bornesTheme(liste, liste.some(function (s) { return s.type === "bar"; }),
+                               unites.length === 1 && unites[0] === "%");
+      return Object.assign({ type: "value", name: unites.join(" · "), position: i ? "right" : "left", show: liste.length > 0,
+                             nameTextStyle: { color: "#5f6878", fontSize: 11, align: i ? "right" : "left" },
+                             axisLabel: { color: "#5f6878", fontSize: 11, formatter: graduation },
+                             splitLine: { show: i === 0, lineStyle: { color: "#eef1f6" } } }, bornes);
+    });
+    var unites = {};
+    series.forEach(function (s) { unites[s.name] = s.unite; delete s.axe; });
+    var lignes = lignesLegende(series.map(function (s) { return s.name; }), largeur || 460);
+    return {
+      color: PALETTE,
+      title: { text: g.titre, left: 4, top: 2, textStyle: { fontSize: 13, color: MARINE, fontWeight: 600 } },
+      tooltip: { trigger: "axis", confine: true, axisPointer: { type: "shadow" },
+                 formatter: function (points) {
+                   if (!points.length) return "";
+                   return points[0].axisValueLabel + points.map(function (p) {
+                     var v = p.value !== null && typeof p.value === "object" ? p.value.value : p.value;
+                     return "<br>" + p.marker + p.seriesName.replace(/ \([^()]*\)$/, "") + " : <strong>" +
+                       nombre(v, unites[p.seriesName]) + "</strong>";
+                   }).join("");
+                 } },
+      legend: { type: "plain", bottom: 4, left: 8, right: 8, itemGap: 12, itemHeight: 10, textStyle: { fontSize: 11 } },
+      grid: { left: 8, right: droite.length ? 8 : 16, top: 52, bottom: 12 + lignes * 20, containLabel: true },
+      xAxis: { type: "category", data: donnees.periodes, boundaryGap: true, axisLabel: { color: "#5f6878", fontSize: 11 },
+               axisLine: { lineStyle: { color: "#c3ccda" } } },
+      yAxis: yAxis,
+      series: series
+    };
+  }
+
+  function graphesThemes(zone) {
+    var donnees = JSON.parse(document.getElementById(zone.dataset.graphesThemes).textContent);
+    var cibles = [];
+    donnees.themes.forEach(function (t) {
+      var titre = document.createElement("h4");
+      titre.className = "titre-section";
+      titre.id = zone.dataset.prefixe + t.code;
+      titre.textContent = t.titre;
+      zone.appendChild(titre);
+      var grille = document.createElement("div");
+      grille.className = "graphiques";
+      zone.appendChild(grille);
+      t.graphes.forEach(function (g) {
+        var carte = document.createElement("figure");
+        carte.className = "carte-graphique";
+        carte.style.margin = "0";
+        var div = document.createElement("div");
+        div.className = "graphique graphique-theme";
+        div.setAttribute("role", "img");
+        div.setAttribute("aria-label", g.titre);
+        carte.appendChild(div);
+        grille.appendChild(carte);
+        cibles.push({ g: g, div: div });
+      });
+    });
+    var instances = cibles.map(function (c) {
+      var g = initialiser(c.div, optionTheme(c.g, donnees, 0, c.div.clientWidth), donnees.periodes_cles, c.g.titre);
+      return vues.filter(function (v) { return v.g === g; })[0];
+    });
+    var choix = document.querySelector('[data-graphes-entite="' + zone.dataset.graphesThemes + '"]');
+    if (!choix) return;
+    choix.addEventListener("change", function () {
+      var n = Number(choix.value);
+      cibles.forEach(function (c, i) {
+        var vue = instances[i], option = optionTheme(c.g, donnees, n, c.div.clientWidth);
+        option.animation = vue.option.animation;
+        option.xAxis.triggerEvent = true;
+        option.title.triggerEvent = true;
+        vue.option = option;
+        vue.g.setOption(option, true);
+        mettreEnAvant(vue);
+      });
+    });
+  }
+
   /* Courbes d'un événement : Global (événement, référence, bande min–max des semaines de référence),
      Par site ou Par cellule (valeurs de l'événement, une courbe par site / cellule, noms en légende). */
   var VUES_EVENEMENT = [["global", "Global"], ["site", "Par site"], ["cellule", "Par cellule"]];
@@ -742,6 +881,7 @@
       graphiquesDashboard();
       document.querySelectorAll(".graphiques[data-source]:not(.courbes)").forEach(courbes);
       document.querySelectorAll(".graphique-causes[data-source]").forEach(causes);
+      document.querySelectorAll("[data-graphes-themes]").forEach(graphesThemes);
       document.querySelectorAll(".courbes[data-source]").forEach(courbesEvenement);
       var attente;
       window.addEventListener("resize", function () {

@@ -44,8 +44,8 @@ variantes_saisie:
 # Termes qui désignent une techno sans la nommer : appliqués seulement si la demande ne
 # cite aucune techno (« drop E-RAB » = 4G, « CSSR » = 3G ; « 3G » ou « 4G » explicite prime).
 technos_implicites:
-  LTE: [e rab, erab, prb, prbs, s1, csfb, cqi, enb, enodeb, mme, volte]
-  WCDMA: [hsdpa, hsupa, hspa, cssr, rab, erlang, erlangs, erl, rnc, nodeb]
+  LTE: [e rab, erab, prb, prbs, s1, csfb, cqi, enb, enodeb, mme, volte, sinr, bler, mimo, qam, rach]
+  WCDMA: [hsdpa, hsupa, hspa, cssr, rab, erlang, erlangs, erl, rnc, nodeb, rssi, sho, irat, eul]
 
 # Termes qui ajoutent leur techno même quand une autre est citée : « appels 3G et CSFB » =
 # appels 3G + appels CSFB (4G). (« drop E-RAB 3G » reste en 3G : E-RAB n'est pas listé ici.)
@@ -60,17 +60,13 @@ termes_techniques: [hsdpa, hsupa, hspa, cssr, rrc, rab, prb, prbs, cqi, csfb, vo
                     rscp, ecno, ec io, gprs]
 
 # KPI ou technologies cités mais absents des données : une note le dit, la demande continue
-# (« Nouméa SINR hier » garde Nouméa ; « drop 2G » -> note puis les technos disponibles).
+# (« Nouméa RSRP hier » garde Nouméa ; « drop 2G » -> note puis les technos disponibles).
 # terme normalisé -> libellé affiché ; « techno: true » pour une technologie absente.
 indisponibles:
-  sinr: {libelle: SINR}
-  bler: {libelle: BLER}
-  mimo: {libelle: MIMO}
   rsrp: {libelle: RSRP}
   rsrq: {libelle: RSRQ}
   rscp: {libelle: RSCP}
   ecno: {libelle: Ec/No}
-  cqi: {libelle: CQI}
   volte: {libelle: VoLTE}
   2g: {libelle: 2G, techno: true}
   gsm: {libelle: 2G (GSM), techno: true}
@@ -89,6 +85,9 @@ indisponibles:
 #   « qualité à Koné » = qualité de service, « qualité du débit » = débit.
 # rapport : rapport type proposé sur l'accueil (une carte, dans l'ordre du fichier) ;
 #   l'ordre des KPI de chaque techno est celui de la synthèse du résultat.
+# graphes : thème de config/graphes.yaml ; ajoute aux KPI de l'intention tous ceux des
+#   graphiques du thème, pour chaque techno (rapports détaillés, repris des outils Excel
+#   LTE_SQL_Access et WCDMA_SQL_Access).
 intentions:
   # ------------------------------------------------------------ rapports types
   # Les demandes habituelles en un mot (« bilan », « rapport trafic »…) ou un clic sur l'accueil.
@@ -360,6 +359,160 @@ intentions:
     kpis:
       LTE: [lte_ho_intra_sr]
 
+  # Indicateurs 4G détaillés (KPI repris de l'outil Excel LTE_SQL_Access).
+  sinr:
+    libelle: SINR
+    mots: [sinr, rapport signal sur bruit, signal sur bruit]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_sinr_pucch, lte_sinr_pusch]
+
+  cqi:
+    libelle: CQI
+    mots: [cqi, qualite du canal, cqi moyen]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_cqi]
+
+  bler:
+    libelle: Taux d'erreur (BLER)
+    mots: [bler, taux d erreur, taux d erreurs, erreurs de bloc, bler rlc, bler mac]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_bler_rlc_dl, lte_bler_rlc_ul, lte_bler_mac_dl, lte_bler_mac_ul]
+
+  mimo:
+    libelle: MIMO
+    mots: [mimo, multiplexage spatial, diversite, mode de transmission, veille mimo, mimo sleep]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_mimo_diversite, lte_mimo_multiplexage, lte_veille_mimo]
+
+  modulation:
+    libelle: Modulation
+    mots: [modulation, modulations, qam, 256qam, 256 qam, 64qam, 64 qam, 16qam, 16 qam, qpsk]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_mod_dl_256qam, lte_mod_dl_64qam, lte_mod_dl_16qam, lte_mod_dl_qpsk, lte_mod_ul_64qam,
+            lte_mod_ul_16qam, lte_mod_ul_qpsk]
+
+  latence:
+    libelle: Latence
+    mots: [latence, latences, latency, ping, delai, delais, temps de reponse]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_latence_dl]
+
+  interferences:
+    libelle: Interférences
+    mots: [interference, interferences, brouillage, brouillages, interferences ul, bruit]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_interference_pucch, lte_interference_pusch]
+
+  perte_paquets:
+    libelle: Perte de paquets
+    mots: [perte de paquets, pertes de paquets, paquets perdus, packet loss]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_perte_paquets_dl, lte_perte_paquets_ul]
+
+  agregation_porteuses:
+    libelle: Agrégation de porteuses
+    mots: [agregation de porteuses, agregation porteuses, carrier aggregation, porteuses secondaires,
+           cellule secondaire, cellules secondaires, scell]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_part_payload_dl_ca, lte_payload_dl_ca, lte_debit_utilisateur_ca_dl, lte_ca_config_sr]
+
+  paging:
+    libelle: Paging
+    mots: [paging, pagings, recherche d abonne, recherche de mobile]
+    kpis:
+      LTE: [lte_paging_recus, lte_paging_rejet]
+      WCDMA: [wcdma_paging, wcdma_paging_echec]
+
+  rach:
+    libelle: Accès aléatoire (RACH)
+    mots: [rach, acces aleatoire, random access, preambule, preambules]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_rach_tentatives, lte_rach_sr]
+
+  handover_inter:
+    libelle: Handover inter-fréquence
+    mots: [handover inter frequence, handovers inter frequence, ho inter frequence, ho inter, handover inter,
+           inter frequence, interfrequence, equilibrage de charge, load balancing, handover equilibrage, ifho]
+    kpis:
+      LTE: [lte_ho_inter_sr, lte_ho_lb_sr]
+      WCDMA: [wcdma_ifho_sr]
+
+  reetablissement:
+    libelle: Rétablissement RRC
+    mots: [reetablissement, reetablissements, reetablissement rrc, rrc reestablishment, reestablishment]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_rrc_reetab_tentatives, lte_rrc_reetab_sr]
+
+  volume_ul:
+    libelle: Volume montant
+    mots: [volume ul, volume montant, trafic ul, trafic montant, volume upload, data ul, volume uplink]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_payload_ul]
+
+  utilisateurs_actifs:
+    libelle: Utilisateurs actifs
+    mots: [utilisateurs actifs, utilisateur actif, ue actifs, users actifs, utilisateurs moyens,
+           moyenne d utilisateurs, nombre moyen d utilisateurs]
+    kpis:
+      LTE: [lte_rrc_conn_moy, lte_ue_actifs_dl, lte_ue_actifs_ul]
+      WCDMA: [wcdma_utilisateurs_hs, wcdma_utilisateurs_eul]
+
+  # Indicateurs 3G détaillés (KPI repris de l'outil Excel WCDMA_SQL_Access).
+  rssi:
+    libelle: RSSI
+    mots: [rssi, bruit montant, bruit ul, bruit recu]
+    technos_defaut: [WCDMA]
+    kpis:
+      WCDMA: [wcdma_rssi]
+
+  soft_handover:
+    libelle: Soft handover
+    mots: [soft handover, soft handovers, sho, active set, taille active set, macro diversite]
+    technos_defaut: [WCDMA]
+    kpis:
+      WCDMA: [wcdma_sho_sr, wcdma_active_set]
+
+  handover_2g:
+    libelle: Handover vers la 2G
+    # « 2G » seul est lu comme une techno absente des données : formulations IRAT.
+    mots: [irat, iratho, ho irat, handover irat, handovers irat, inter rat, handover inter rat]
+    technos_defaut: [WCDMA]
+    kpis:
+      WCDMA: [wcdma_irat_voix_sr, wcdma_irat_voix_lb_sr]
+
+  hsupa:
+    libelle: HSUPA
+    mots: [hsupa, eul, volume hsupa, debit hsupa, debit eul, volume eul]
+    technos_defaut: [WCDMA]
+    kpis:
+      WCDMA: [wcdma_payload_eul, wcdma_debit_eul]
+
+  blocage:
+    libelle: Blocages
+    mots: [blocage, blocages, taux de blocage, blocking, bloque, bloques]
+    technos_defaut: [WCDMA]
+    kpis:
+      WCDMA: [wcdma_rrc_cs_blocage, wcdma_rab_cs_blocage, wcdma_rrc_ps_blocage, wcdma_rab_ps_blocage]
+
+  acces_csfb:
+    libelle: Accès des appels CSFB
+    mots: [acces csfb, taux d acces csfb, cssr csfb, echec csfb, echecs csfb, appels csfb echoues]
+    technos_defaut: [WCDMA]
+    kpis:
+      WCDMA: [wcdma_cssr_csfb]
+
   # Rapport type et indicateur : estimation du nombre d'utilisateurs connectés (4G).
   utilisateurs:
     libelle: Utilisateurs connectés
@@ -378,6 +531,63 @@ intentions:
     technos_defaut: [LTE]
     kpis:
       LTE: [lte_rrc_conn_max]
+
+  # Rapports détaillés : graphiques thématiques des outils Excel LTE_SQL_Access et
+  # WCDMA_SQL_Access (config/graphes.yaml), 4G et 3G.
+  rapport_detail_trafic:
+    libelle: Trafic et charge détaillés
+    rapport:
+      titre: Trafic et charge détaillés
+      description: "3G et 4G : volumes, débits, utilisateurs, sessions data, PRB, signalisation, CSFB"
+      icone: trafic
+    mots: [trafic detaille, trafic detailles, charge detaillee, rapport trafic detaille, bilan trafic detaille,
+           kpi trafic detailles]
+    technos_defaut: [LTE, WCDMA]
+    graphes: trafic
+
+  rapport_detail_accessibilite:
+    libelle: Accessibilité détaillée
+    rapport:
+      titre: Accessibilité détaillée
+      description: "3G et 4G : paging, RRC et RAB (échecs, blocages, causes), S1, E-RAB, CSFB, partage de charge"
+      icone: qualite
+    mots: [accessibilite detaillee, acces detaille, acces detailles, rapport accessibilite, rapport d accessibilite,
+           accessibilite complete, kpi accessibilite detailles]
+    technos_defaut: [LTE, WCDMA]
+    graphes: accessibilite
+
+  rapport_detail_integrite:
+    libelle: Débit et qualité radio 4G détaillés
+    rapport:
+      titre: "4G : débit et qualité radio"
+      description: Débits, latence, modulation, MIMO, CQI, SINR, interférences, BLER, agrégation de porteuses
+      icone: data
+    mots: [integrite, integrity, rapport integrite, qualite radio detaillee, radio detaillee, debit detaille,
+           debits detailles, kpi radio, indicateurs radio]
+    technos_defaut: [LTE]
+    graphes: integrite
+
+  rapport_detail_coupures:
+    libelle: Coupures détaillées
+    rapport:
+      titre: Coupures détaillées
+      description: "3G et 4G : coupures RRC, RAB / E-RAB, NAS, contextes UE, causes, rétablissement RRC"
+      icone: qualite
+    mots: [coupures detaillees, coupure detaillee, drop detaille, drops detailles, retainability detaillee,
+           rapport retainability, retenabilite detaillee]
+    technos_defaut: [LTE, WCDMA]
+    graphes: retainability
+
+  rapport_detail_mobilite:
+    libelle: Mobilité détaillée
+    rapport:
+      titre: Mobilité détaillée
+      description: "3G et 4G : soft handover, inter-fréquence, vers la 2G, équilibrage de charge, continuité"
+      icone: mobilite
+    mots: [mobilite detaillee, handover detaille, handovers detailles, rapport mobilite, bilan mobilite,
+           rapport handover, rapport handovers]
+    technos_defaut: [LTE, WCDMA]
+    graphes: mobilite
 
 # Mots qui qualifient une intention (« coupure voix », « accès data ») ; seuls, ils ouvrent
 # l'intention Appels (voix) ou Trafic data (data).

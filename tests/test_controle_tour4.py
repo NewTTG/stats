@@ -166,15 +166,26 @@ def test_faux_rapprochements(ctx3):  # noqa: F811
 # ------------------------------------------------------------------ mineurs : vocabulaire et granularités
 
 @pytest.mark.parametrize("phrase,sigle", [
-    ("Nouméa SINR hier", "SINR"), ("RSRP Nouméa hier", "RSRP"), ("Nouméa RSRP hier", "RSRP"),
-    ("BLER 4G Nouméa hier", "BLER"), ("MIMO Nouméa hier", "MIMO"), ("RSRQ Nouméa hier", "RSRQ"),
-    ("CQI Nouméa hier", "CQI"), ("VoLTE Nouméa hier", "VoLTE"),
+    ("RSRP Nouméa hier", "RSRP"), ("Nouméa RSRP hier", "RSRP"), ("RSRQ Nouméa hier", "RSRQ"),
+    ("VoLTE Nouméa hier", "VoLTE"),
 ])
 def test_kpi_indisponible_note_et_lieu_garde(ctx3, phrase, sigle):  # noqa: F811
     i = interpreter(phrase, J, ctx3)
     assert f"KPI « {sigle} » non disponible dans les données." in i.notes
     assert i.params["perimetre"] == {"type": "commune", "valeurs": ["NOUMEA"]} and _question_lieu(i) is None
     assert sigle not in i.non_compris
+
+
+@pytest.mark.parametrize("phrase,kpis", [
+    ("Nouméa SINR hier", ["lte_sinr_pucch", "lte_sinr_pusch"]), ("CQI Nouméa hier", ["lte_cqi"]),
+    ("BLER 4G Nouméa hier", ["lte_bler_rlc_dl", "lte_bler_rlc_ul", "lte_bler_mac_dl", "lte_bler_mac_ul"]),
+    ("MIMO Nouméa hier", ["lte_mimo_diversite", "lte_mimo_multiplexage", "lte_veille_mimo"]),
+])
+def test_kpi_radio_4g_disponibles(ctx3, phrase, kpis):  # noqa: F811
+    """SINR, CQI, BLER, MIMO : KPI détaillés repris de l'outil Excel, en 4G, lieu gardé."""
+    i = interpreter(phrase, J, ctx3)
+    assert not i.notes and i.params["kpis"] == kpis and i.params["techno"] == ["LTE"]
+    assert i.params["perimetre"] == {"type": "commune", "valeurs": ["NOUMEA"]} and _question_lieu(i) is None
 
 
 @pytest.mark.parametrize("phrase,libelle", [("drop 2G Nouméa hier", "2G"), ("drop GSM Nouméa hier", "2G (GSM)"),

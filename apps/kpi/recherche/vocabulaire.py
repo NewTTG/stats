@@ -78,12 +78,24 @@ class Vocabulaire:
         return [i for i in self.intentions.values() if i.rapport]
 
 
-def charger_vocabulaire(chemin: Path) -> Vocabulaire:
+def charger_vocabulaire(chemin: Path, graphes=None) -> Vocabulaire:
+    """``graphes`` : graphiques thématiques (``apps.kpi.graphes``), pour les intentions qui
+    demandent tous les KPI d'un thème (clé ``graphes``) ; lus dans la configuration à défaut."""
     with open(chemin, encoding="utf-8") as f:
         brut = yaml.safe_load(f)
     intentions = {}
     for code, d in brut["intentions"].items():
         kpis = {t: list(v or []) for t, v in (d.get("kpis") or {}).items()}
+        if d.get("graphes"):  # rapport « 4G détaillée » : KPI des graphiques du thème, par techno
+            if graphes is None:
+                from ..graphes import graphes as definitions_graphes
+
+                graphes = definitions_graphes()
+            if d["graphes"] not in graphes.themes:
+                raise ValueError(f"intention {code} : thème de graphiques inconnu {d['graphes']!r}")
+            for g in graphes.du_theme(d["graphes"]):
+                kpis.setdefault(g.techno, [])
+                kpis[g.techno] += [c for c in g.kpis if c not in kpis[g.techno]]
         inconnues = set(kpis) - set(TECHNOS)
         if inconnues:
             raise ValueError(f"intention {code} : techno inconnue {sorted(inconnues)}")

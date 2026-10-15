@@ -30,7 +30,9 @@ def _kpis(texte, contexte):
 
 def test_rapports_types_dans_l_ordre():
     assert [i.code for i in vocabulaire().rapports] == ["bilan", "rapport_trafic", "rapport_data",
-                                                        "rapport_qualite", "utilisateurs"]
+                                                        "rapport_qualite", "utilisateurs", "rapport_detail_trafic",
+                                                        "rapport_detail_accessibilite", "rapport_detail_integrite",
+                                                        "rapport_detail_coupures", "rapport_detail_mobilite"]
     assert vocabulaire().intentions["rapport_trafic"].rapport.titre == "Trafic"
 
 
