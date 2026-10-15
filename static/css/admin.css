@@ -383,6 +383,12 @@ details.filtre li.selected a::before { content: ""; position: absolute; left: 11
 #changelist table tbody td.action-checkbox { padding-left: 16px; }
 #changelist table tbody tr { background: transparent; }
 #changelist tbody tr:nth-child(odd), #changelist tbody tr:nth-child(even) { background: transparent; }
+/* Colonnes de la base KPI : saisie dans la liste, une ligne par colonne. */
+#changelist table td.field-libelle input[type="text"] { width: 12em; }
+#changelist table td.field-description textarea { width: 14em; min-height: 32px; box-sizing: border-box; padding: 6px 8px; resize: vertical; }
+#changelist td.field-utilisee_par { min-width: 8em; max-width: 14em; color: var(--a-texte-3); font-size: 12px; }
+#changelist td.field-donnees { white-space: nowrap; color: var(--a-texte-2); }
+#changelist th.field-nom { max-width: 15em; overflow-wrap: anywhere; }
 #changelist table tbody td img[src*="icon-yes"], #changelist table tbody td img[src*="icon-no"] { width: 14px; height: 14px; }
 #changelist table td input[type="text"], #changelist table td input[type="number"] { width: 7em; height: 28px; padding: 0 8px; border-radius: 5px; box-sizing: border-box; }
 .paginator, #changelist .paginator { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 0; padding: 10px 16px; border-top: 1px solid var(--a-bord);

@@ -265,3 +265,28 @@ def lire(
     for c in colonnes:
         df[c] = pd.to_numeric(df[c], errors="coerce")
     return df
+
+
+def colonnes_base(engine: sa.Engine) -> dict[str, dict[str, dict]]:
+    """Colonnes de mesure des tables KPI, par techno : {nom: {"type": ..., "tables": [résolutions]}}.
+
+    Lecture du schéma seulement (aucune ligne). Les colonnes cellule et horodatage sont omises ;
+    une table absente est ignorée.
+    """
+    inspecteur = sa.inspect(engine)
+    schema = (settings.KPI_DB.get("schema") or None) if engine.dialect.name == "postgresql" else None
+    colonnes = {}
+    for (techno, resolution), (table, col_cellule, col_temps) in TABLES.items():
+        par_nom = colonnes.setdefault(techno, {})
+        if not inspecteur.has_table(table, schema=schema):
+            continue
+        for col in inspecteur.get_columns(table, schema=schema):
+            if col["name"] in (col_cellule, col_temps):
+                continue
+            try:
+                type_sql = str(col["type"]).lower()
+            except Exception:  # type propre au dialecte, sans représentation générique
+                type_sql = type(col["type"]).__name__.lower()
+            info = par_nom.setdefault(col["name"], {"type": type_sql, "tables": []})
+            info["tables"].append(resolution)
+    return colonnes
