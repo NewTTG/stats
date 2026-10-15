@@ -146,6 +146,54 @@ la purge. Pour une purge complète lors d'une maintenance de la source, arrêter
 les processus de calcul, purger, puis les redémarrer. Les changements de format du
 cache doivent incrémenter `VERSION` dans `apps/kpi/cache.py`.
 
+### Démarrage automatique et redémarrage depuis l'administration (serveur)
+
+Sur le serveur, deux processus doivent tourner en permanence : l'**application web** et le
+**worker** (`qcluster` : exports PowerPoint / Excel / PDF et rapports planifiés). Plutôt que
+deux consoles ouvertes à la main, une seule commande les lance, les relance s'ils s'arrêtent et
+exécute les redémarrages demandés dans l'administration :
+
+```powershell
+python manage.py superviser            # application sur 0.0.0.0:8082 + worker ; Ctrl+C arrête tout
+```
+
+Options : `--port` (défaut 8082, ou `APP_PORT`), `--hote` (défaut `0.0.0.0`), `--serveur`
+(`runserver` sous Windows, `gunicorn` ailleurs), `--sans-worker`. Les sorties ne sont plus dans
+une console mais dans `data/superviseur/` (`app.log`, `worker.log`, `superviseur.log` ; au-delà
+de 10 Mo, l'ancien journal passe en `.log.1`). Un seul superviseur à la fois par installation.
+Penser à mettre le nom ou l'adresse du serveur dans `DJANGO_ALLOWED_HOSTS` et, avec
+`DJANGO_DEBUG=0`, à exécuter `python manage.py collectstatic --noinput`.
+
+**Lancement au démarrage du serveur, Windows** : fermer les consoles `runserver` / `qcluster`,
+puis dans un PowerShell **exécuté en tant qu'administrateur** :
+
+```powershell
+.\scripts\windows\installer_demarrage.ps1 -OuvrirPareFeu -Demarrer
+```
+
+Le script crée la tâche planifiée « Stats - application et worker » : déclenchée au démarrage
+de Windows, sans session ouverte, relancée si elle s'arrête. Elle tourne sous le compte SYSTEM ;
+si l'accès à la base KPI dépend d'un compte Windows (VPN, lecteur réseau, authentification
+intégrée), utiliser `-Utilisateur "DOMAINE\compte"` (mot de passe demandé). `-Port 8090` change
+le port, `-Supprimer` retire la tâche. Arrêt / relance manuels : Planificateur de tâches, ou
+`Stop-ScheduledTask` / `Start-ScheduledTask -TaskName "Stats - application et worker"`.
+L'application et le worker s'arrêtent avec la tâche (objet tâche Windows), sans rester
+orphelins sur le port.
+
+**Lancement au démarrage, Linux** : adapter puis installer `scripts/linux/stats.service`
+(service systemd, instructions en tête du fichier).
+
+**Redémarrer depuis l'administration** : *Système → Processus du serveur* (superutilisateurs
+uniquement) affiche l'état de l'application et du worker, les dernières lignes de leurs
+journaux, et propose **Redémarrer le worker**, **Redémarrer l'application** ou **Tout
+redémarrer**. La demande est prise en compte en une ou deux secondes et notée dans le journal
+d'audit. Redémarrer le worker abandonne le rapport en cours de génération (à relancer) ;
+redémarrer l'application la rend indisponible quelques secondes. Ces boutons ne fonctionnent
+que si les processus ont été lancés par `manage.py superviser` ; sinon la page l'indique.
+À utiliser après une modification de `.env` ou du catalogue KPI, ou si le worker ne traite plus
+les rapports. Après une mise à jour du code (`git pull`, `pip install`, `migrate`,
+`collectstatic`), **Tout redémarrer** suffit également.
+
 ### Avec Docker (serveur)
 
 ```bash
@@ -682,6 +730,8 @@ section précédente.
 | `GROQ_MODEL` | modèle (défaut `llama-3.3-70b-versatile`) |
 | `GROQ_TIMEOUT` | délai de réponse en secondes (défaut 10) |
 | `PPTX_MODELE`, `Q_SYNC`, `Q_WORKERS` | rapports |
+| `APP_PORT`, `APP_HOTE` | port (défaut 8082) et adresse d'écoute de `manage.py superviser` |
+| `SUPERVISEUR_DIR` | état, demandes de redémarrage et journaux du superviseur (défaut `data/superviseur`) |
 
 ## Droits d'accès
 

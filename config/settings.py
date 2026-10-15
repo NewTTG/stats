@@ -184,6 +184,10 @@ Q_CLUSTER = {
     "sync": env("Q_SYNC", "0") == "1",
 }
 
+# Superviseur (python manage.py superviser) : lance l'application et le worker, les relance, et exécute
+# les redémarrages demandés dans l'administration. État, demandes et journaux des processus ici.
+SUPERVISEUR_DIR = Path(env("SUPERVISEUR_DIR") or BASE_DIR / "data" / "superviseur")
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},

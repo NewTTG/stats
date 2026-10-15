@@ -6,6 +6,7 @@ def cache_kpi_isole(settings, tmp_path):
     """Chaque test a son cache ; aucune lecture/écriture dans le cache de l'application."""
     settings.KPI_CACHE_DIR = tmp_path / "cache_kpi"
     settings.MEDIA_ROOT = tmp_path / "media"
+    settings.SUPERVISEUR_DIR = tmp_path / "superviseur"
 
 
 @pytest.fixture(autouse=True)
