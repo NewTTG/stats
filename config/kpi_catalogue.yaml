@@ -559,3 +559,1260 @@ kpis:
     sens: haut_est_mieux
     ecart_min: 0.5
     seuils: { alerte: 99, critique: 95 }
+
+# ------------------------------------------------------- LTE : KPI détaillés
+# Repris de l'outil Excel « LTE_SQL_Access » (onglets Base et KPI) : toutes les colonnes 4G de
+# ses graphiques, sous un nom lisible. KPI « détaillés » : sélectionnables (sur mesure, puces,
+# rapports 4G détaillés) et tracés dans les graphiques thématiques (config/graphes.yaml), mais
+# pas analysés par défaut dans les événements (voir ``principal`` dans apps/kpi/catalogue.py).
+#
+# Pondération des taux publiés (vérifiée sur les extraits, docs/donnees_de_base.md §6) :
+#   - par le compteur de tentatives quand il existe (reconstruit) ;
+#   - parts de modulation, MIMO, pertes de paquets, BLER, latence : par le volume (approx) ;
+#   - niveaux radio (CQI, SINR, interférences) et charges : moyenne des cellules (approx).
+kpis_detailles:
+  # ----- Disponibilité
+  - code: lte_verrou_manuel
+    libelle: "Verrouillages de cellule : manuels"
+    techno: LTE
+    unite: nombre
+    categorie: disponibilite
+    numerateur: pmCellDownLockMan
+    sens: bas_est_mieux
+    note: Compteur Ericsson pmCellDownLockMan tel que publié (cellule arrêtée par une intervention).
+
+  - code: lte_verrou_auto
+    libelle: "Verrouillages de cellule : automatiques"
+    techno: LTE
+    unite: nombre
+    categorie: disponibilite
+    numerateur: pmCellDownLockAuto
+    sens: bas_est_mieux
+    note: Compteur Ericsson pmCellDownLockAuto tel que publié (arrêt sur défaut ou alarme).
+
+  # ----- Trafic : connexions RRC réussies par motif (les cinq parts somment à 100 %)
+  - code: lte_rrc_part_urgence
+    libelle: "Connexions RRC : appels d'urgence"
+    techno: LTE
+    unite: "%"
+    categorie: trafic
+    numerateur: RrcPropSucc_EM_p * pmRrcConnEstabSucc / 100
+    denominateur: pmRrcConnEstabSucc
+    facteur: 100
+    sens: haut_est_mieux
+    qualite: reconstruit
+
+  - code: lte_rrc_part_prioritaire
+    libelle: "Connexions RRC : accès prioritaire"
+    techno: LTE
+    unite: "%"
+    categorie: trafic
+    numerateur: RrcPropSucc_HPA_p * pmRrcConnEstabSucc / 100
+    denominateur: pmRrcConnEstabSucc
+    facteur: 100
+    sens: haut_est_mieux
+    qualite: reconstruit
+
+  - code: lte_rrc_part_signalisation
+    libelle: "Connexions RRC : signalisation du mobile"
+    techno: LTE
+    unite: "%"
+    categorie: trafic
+    numerateur: RrcPropSucc_MOS_p * pmRrcConnEstabSucc / 100
+    denominateur: pmRrcConnEstabSucc
+    facteur: 100
+    sens: haut_est_mieux
+    qualite: reconstruit
+
+  - code: lte_rrc_part_data
+    libelle: "Connexions RRC : données du mobile"
+    techno: LTE
+    unite: "%"
+    categorie: trafic
+    numerateur: RrcPropSucc_MOD_p * pmRrcConnEstabSucc / 100
+    denominateur: pmRrcConnEstabSucc
+    facteur: 100
+    sens: haut_est_mieux
+    qualite: reconstruit
+
+  - code: lte_rrc_part_entrant
+    libelle: "Connexions RRC : appels et données reçus"
+    techno: LTE
+    unite: "%"
+    categorie: trafic
+    numerateur: RrcPropSucc_MT_p * pmRrcConnEstabSucc / 100
+    denominateur: pmRrcConnEstabSucc
+    facteur: 100
+    sens: haut_est_mieux
+    qualite: reconstruit
+    note: "Connexions à l'initiative du réseau (paging) : appels et données à destination du mobile."
+
+  # ----- Charge
+  - code: lte_prb_ul_util
+    libelle: Utilisation PRB UL
+    techno: LTE
+    unite: "%"
+    categorie: congestion
+    numerateur: PrbVectUsageUl_p
+    denominateur: "1"
+    sens: bas_est_mieux
+    ecart_min: 5
+    qualite: approx
+    note: Moyenne simple par cellule-période.
+
+  - code: lte_rrc_conn_moy
+    libelle: Utilisateurs connectés (moyenne RRC)
+    techno: LTE
+    unite: utilisateurs
+    categorie: trafic
+    numerateur: RrcConnAvg_nb
+    agregation: moyenne_simultanee
+    sens: haut_est_mieux
+    note: Somme des cellules à chaque horodatage, puis moyenne sur la période.
+
+  - code: lte_ue_actifs_dl_max
+    libelle: Utilisateurs actifs DL (pic)
+    techno: LTE
+    unite: utilisateurs
+    categorie: trafic
+    numerateur: ActiveUeDlMax_max_nb
+    agregation: pic
+    sens: haut_est_mieux
+    qualite: approx
+    note: Majorant, comme le pic RRC (les cellules n'atteignent pas leur pic au même moment).
+
+  - code: lte_ue_actifs_dl
+    libelle: Utilisateurs actifs DL (moyenne)
+    techno: LTE
+    unite: utilisateurs
+    categorie: trafic
+    numerateur: UserActDl_nb
+    agregation: moyenne_simultanee
+    sens: haut_est_mieux
+    note: Utilisateurs ayant des données à recevoir ; somme des cellules, moyenne sur la période.
+
+  - code: lte_ue_actifs_ul_max
+    libelle: Utilisateurs actifs UL (pic)
+    techno: LTE
+    unite: utilisateurs
+    categorie: trafic
+    numerateur: ActiveUeUlMax_max_nb
+    agregation: pic
+    sens: haut_est_mieux
+    qualite: approx
+
+  - code: lte_ue_actifs_ul
+    libelle: Utilisateurs actifs UL (moyenne)
+    techno: LTE
+    unite: utilisateurs
+    categorie: trafic
+    numerateur: UserActUl_nb
+    agregation: moyenne_simultanee
+    sens: haut_est_mieux
+
+  - code: lte_ue_programmes_dl
+    libelle: Utilisateurs programmés par TTI (DL)
+    techno: LTE
+    unite: utilisateurs
+    categorie: congestion
+    numerateur: UserScheTtiDl_nb
+    denominateur: "1"
+    sens: bas_est_mieux
+    qualite: approx
+    note: Moyenne par cellule du nombre d'utilisateurs servis à chaque intervalle de 1 ms.
+
+  - code: lte_ue_programmes_ul
+    libelle: Utilisateurs programmés par TTI (UL)
+    techno: LTE
+    unite: utilisateurs
+    categorie: congestion
+    numerateur: UserScheTtiUl_nb
+    denominateur: "1"
+    sens: bas_est_mieux
+    qualite: approx
+
+  - code: lte_bande_base_dl
+    libelle: Charge de la bande de base (DL)
+    techno: LTE
+    unite: Mbps
+    categorie: congestion
+    numerateur: BasebandUtilizationDl_kbps
+    denominateur: "1"
+    facteur: 0.001
+    sens: bas_est_mieux
+    qualite: approx
+    note: Moyenne par cellule (BasebandUtilizationDl_kbps).
+
+  - code: lte_bande_base_ul
+    libelle: Charge de la bande de base (UL)
+    techno: LTE
+    unite: Mbps
+    categorie: congestion
+    numerateur: BasebandUtilizationUl_kbps
+    denominateur: "1"
+    facteur: 0.001
+    sens: bas_est_mieux
+    qualite: approx
+
+  # ----- Volumes et débits cellule
+  - code: lte_payload_ul
+    libelle: Volume UL
+    techno: LTE
+    unite: Mo
+    categorie: trafic
+    numerateur: PayloadUl_mB
+    sens: haut_est_mieux
+
+  - code: lte_debit_cellule_dl
+    libelle: Débit cellule DL
+    techno: LTE
+    unite: Mbps
+    categorie: debit
+    numerateur: PayloadDl_mB
+    denominateur: PayloadDl_mB / CellThpDl_kbps
+    facteur: 0.001
+    sens: haut_est_mieux
+    qualite: reconstruit
+    note: Débit de la cellule pendant qu'elle transmet (temps reconstruit = volume / débit).
+
+  - code: lte_debit_cellule_ul
+    libelle: Débit cellule UL
+    techno: LTE
+    unite: Mbps
+    categorie: debit
+    numerateur: PayloadUl_mB
+    denominateur: PayloadUl_mB / CellThpUl_kbps
+    facteur: 0.001
+    sens: haut_est_mieux
+    qualite: reconstruit
+
+  - code: lte_payload_dl_signalisation
+    libelle: Volume de signalisation DL
+    techno: LTE
+    unite: Mo
+    categorie: trafic
+    numerateur: PayloadDlSrb_kB
+    facteur: 0.001
+    sens: haut_est_mieux
+    note: Messages de contrôle (SRB), hors données des utilisateurs.
+
+  - code: lte_payload_ul_signalisation
+    libelle: Volume de signalisation UL
+    techno: LTE
+    unite: Mo
+    categorie: trafic
+    numerateur: PayloadUlSrb_kB
+    facteur: 0.001
+    sens: haut_est_mieux
+
+  - code: lte_debit_signalisation_dl
+    libelle: Débit de signalisation DL
+    techno: LTE
+    unite: kbps
+    categorie: debit
+    numerateur: PayloadDlSrb_kB
+    denominateur: PayloadDlSrb_kB / CellThpDlSrb_kbps
+    sens: haut_est_mieux
+    qualite: reconstruit
+
+  - code: lte_debit_signalisation_ul
+    libelle: Débit de signalisation UL
+    techno: LTE
+    unite: kbps
+    categorie: debit
+    numerateur: PayloadUlSrb_kB
+    denominateur: PayloadUlSrb_kB / CellThpUlSrb_kbps
+    sens: haut_est_mieux
+    qualite: reconstruit
+
+  # ----- CSFB
+  - code: lte_csfb_3g
+    libelle: Appels 4G basculés en 3G (CSFB)
+    techno: LTE
+    unite: appels
+    categorie: trafic
+    numerateur: CsfbRelVolWcdma_nb
+    sens: haut_est_mieux
+
+  - code: lte_csfb_2g
+    libelle: Appels 4G basculés en 2G (CSFB)
+    techno: LTE
+    unite: appels
+    categorie: trafic
+    numerateur: CsfbRelVolGsm_nb
+    sens: haut_est_mieux
+
+  - code: lte_csfb_part
+    libelle: Part des connexions basculées en CSFB
+    techno: LTE
+    unite: "%"
+    categorie: trafic
+    numerateur: CsfbRelAct_p * pmUeCtxtEstabSucc / 100
+    denominateur: pmUeCtxtEstabSucc
+    facteur: 100
+    sens: haut_est_mieux
+    qualite: reconstruit
+    note: Basculements CSFB rapportés aux contextes UE établis (vérifié à 0,05 point près).
+
+  # ----- Accessibilité
+  - code: lte_paging_recus
+    libelle: Pagings reçus
+    techno: LTE
+    unite: pagings
+    categorie: accessibilite
+    numerateur: pmPagReceived
+    sens: haut_est_mieux
+    note: Messages de recherche d'un mobile (appel ou données entrants) reçus par la cellule.
+
+  - code: lte_paging_rejet
+    libelle: Taux de rejet des pagings
+    techno: LTE
+    unite: "%"
+    categorie: accessibilite
+    numerateur: PagingDiscRate_p * pmPagReceived / 100
+    denominateur: pmPagReceived
+    facteur: 100
+    sens: bas_est_mieux
+    ecart_min: 0.1
+    qualite: reconstruit
+
+  - code: lte_rach_tentatives
+    libelle: Tentatives d'accès aléatoire (RACH)
+    techno: LTE
+    unite: tentatives
+    categorie: accessibilite
+    numerateur: pmRaAttCbra
+    sens: haut_est_mieux
+
+  - code: lte_rach_sr
+    libelle: Taux de succès de l'accès aléatoire (RACH)
+    techno: LTE
+    unite: "%"
+    categorie: accessibilite
+    numerateur: RandAccSuccRate_p * pmRaAttCbra / 100
+    denominateur: pmRaAttCbra
+    facteur: 100
+    sens: haut_est_mieux
+    ecart_min: 0.5
+    qualite: reconstruit
+
+  - code: lte_rrc_tentatives
+    libelle: Tentatives de connexion RRC
+    techno: LTE
+    unite: tentatives
+    categorie: accessibilite
+    numerateur: pmRrcConnEstabAtt
+    sens: haut_est_mieux
+
+  - code: lte_erab_init_tentatives
+    libelle: Tentatives d'établissement E-RAB initial
+    techno: LTE
+    unite: tentatives
+    categorie: accessibilite
+    numerateur: pmErabEstabAttInit
+    sens: haut_est_mieux
+
+  - code: lte_pucch_cong_cqi
+    libelle: "Congestion PUCCH : ressources CQI"
+    techno: LTE
+    unite: "%"
+    categorie: accessibilite
+    numerateur: PucchCongCqi_p * pmRrcConnEstabAtt / 100
+    denominateur: pmRrcConnEstabAtt
+    facteur: 100
+    sens: bas_est_mieux
+    qualite: approx
+    note: Pondéré par les tentatives RRC (dénominateur exact non publié).
+
+  - code: lte_pucch_cong_sr
+    libelle: "Congestion PUCCH : ressources SR"
+    techno: LTE
+    unite: "%"
+    categorie: accessibilite
+    numerateur: PucchCongSr_p * pmRrcConnEstabAtt / 100
+    denominateur: pmRrcConnEstabAtt
+    facteur: 100
+    sens: bas_est_mieux
+    qualite: approx
+
+  - code: lte_rrc_echec
+    libelle: Taux d'échec d'établissement RRC
+    techno: LTE
+    unite: "%"
+    categorie: accessibilite
+    numerateur: pmRrcConnEstabAtt - pmRrcConnEstabSucc
+    denominateur: pmRrcConnEstabAtt
+    facteur: 100
+    sens: bas_est_mieux
+    ecart_min: 0.5
+    note: Égal à RrcSetupFailRate_p (= 100 − taux de succès RRC, vérifié ligne à ligne).
+
+  - code: lte_rrc_echec_licence
+    libelle: "Échecs RRC : limite de licence"
+    techno: LTE
+    unite: "%"
+    categorie: accessibilite
+    decomposition_de: lte_rrc_echec
+    numerateur: RrcConnFailLic_p * pmRrcConnEstabAtt / 100
+    denominateur: pmRrcConnEstabAtt
+    facteur: 100
+    sens: bas_est_mieux
+    ecart_min: 0.1
+    qualite: reconstruit
+
+  - code: lte_rrc_echec_erab
+    libelle: "Échecs RRC : établissement E-RAB"
+    techno: LTE
+    unite: "%"
+    categorie: accessibilite
+    decomposition_de: lte_rrc_echec
+    numerateur: RrcConnFailErab_p * pmRrcConnEstabAtt / 100
+    denominateur: pmRrcConnEstabAtt
+    facteur: 100
+    sens: bas_est_mieux
+    ecart_min: 0.1
+    qualite: reconstruit
+
+  - code: lte_rrc_echec_charge
+    libelle: "Échecs RRC : charge"
+    techno: LTE
+    unite: "%"
+    categorie: accessibilite
+    decomposition_de: lte_rrc_echec
+    numerateur: RrcConnFailLoad_p * pmRrcConnEstabAtt / 100
+    denominateur: pmRrcConnEstabAtt
+    facteur: 100
+    sens: bas_est_mieux
+    ecart_min: 0.1
+    qualite: reconstruit
+
+  - code: lte_rrc_echec_forte_charge
+    libelle: "Échecs RRC : forte charge"
+    techno: LTE
+    unite: "%"
+    categorie: accessibilite
+    decomposition_de: lte_rrc_echec
+    numerateur: RrcConnFailHighLoad_p * pmRrcConnEstabAtt / 100
+    denominateur: pmRrcConnEstabAtt
+    facteur: 100
+    sens: bas_est_mieux
+    ecart_min: 0.1
+    qualite: reconstruit
+
+  - code: lte_s1_tentatives
+    libelle: Tentatives de signalisation S1
+    techno: LTE
+    unite: tentatives
+    categorie: accessibilite
+    numerateur: pmS1SigConnEstabAtt
+    sens: haut_est_mieux
+
+  - code: lte_erab_ajout_tentatives
+    libelle: Tentatives d'ajout d'E-RAB
+    techno: LTE
+    unite: tentatives
+    categorie: accessibilite
+    numerateur: pmErabEstabAttAdded
+    sens: haut_est_mieux
+
+  - code: lte_erab_ajout_sr
+    libelle: Taux de succès d'ajout d'E-RAB
+    techno: LTE
+    unite: "%"
+    categorie: accessibilite
+    numerateur: AddErabSuccRate_p * pmErabEstabAttAdded / 100
+    denominateur: pmErabEstabAttAdded
+    facteur: 100
+    sens: haut_est_mieux
+    ecart_min: 0.5
+    qualite: reconstruit
+    note: E-RAB supplémentaires ouverts sur une connexion existante (ex. second service).
+
+  - code: lte_erab_modif_tentatives
+    libelle: Tentatives de modification d'E-RAB (QCI)
+    techno: LTE
+    unite: tentatives
+    categorie: accessibilite
+    numerateur: pmErabModAttQci
+    sens: haut_est_mieux
+
+  - code: lte_erab_modif_sr
+    libelle: Taux de succès de modification d'E-RAB (QCI)
+    techno: LTE
+    unite: "%"
+    categorie: accessibilite
+    numerateur: ModiErabSuccRate_p * pmErabModAttQci / 100
+    denominateur: pmErabModAttQci
+    facteur: 100
+    sens: haut_est_mieux
+    ecart_min: 0.5
+    qualite: reconstruit
+
+  # ----- Débit utilisateur, latence
+  - code: lte_latence_dl
+    libelle: Latence DL
+    techno: LTE
+    unite: ms
+    categorie: debit
+    numerateur: UserLatDl_ms * PayloadDl_mB
+    denominateur: PayloadDl_mB
+    sens: bas_est_mieux
+    ecart_min: 1
+    qualite: approx
+    note: Pondérée par le volume DL.
+
+  - code: lte_debit_utilisateur_ca_dl
+    libelle: Débit DL des utilisateurs en agrégation de porteuses
+    techno: LTE
+    unite: Mbps
+    categorie: debit
+    numerateur: PayloadDlDrbCa_mB
+    denominateur: PayloadDlDrbCa_mB / UserThpCaDl_kbps
+    facteur: 0.001
+    sens: haut_est_mieux
+    qualite: approx
+    note: Temps reconstruit avec le volume DL en agrégation de porteuses.
+
+  - code: lte_debit_utilisateur_ca_ul
+    libelle: Débit UL des utilisateurs en agrégation de porteuses
+    techno: LTE
+    unite: Mbps
+    categorie: debit
+    numerateur: PayloadUlMacSCell_mB
+    denominateur: PayloadUlMacSCell_mB / UserThpCaUl_kbps
+    facteur: 0.001
+    sens: haut_est_mieux
+    qualite: approx
+    note: Temps reconstruit avec le volume UL des cellules secondaires.
+
+  # ----- Qualité radio : MIMO, modulation, CQI, SINR, interférences, pertes, BLER
+  - code: lte_veille_mimo
+    libelle: Temps de veille MIMO
+    techno: LTE
+    unite: h
+    categorie: radio
+    numerateur: pmMimoSleepTime / 3600
+    sens: haut_est_mieux
+    note: Économie d'énergie (antennes mises en veille aux heures creuses), cumul des cellules.
+
+  - code: lte_mimo_diversite
+    libelle: "Transmission DL : diversité (1 flux)"
+    techno: LTE
+    unite: "%"
+    categorie: radio
+    numerateur: Mimo_TxDiv_p * PayloadDl_mB
+    denominateur: PayloadDl_mB
+    sens: bas_est_mieux
+    qualite: approx
+    note: Part du temps en diversité d'émission ; pondérée par le volume DL.
+
+  - code: lte_mimo_multiplexage
+    libelle: "Transmission DL : multiplexage spatial (2 flux)"
+    techno: LTE
+    unite: "%"
+    categorie: radio
+    numerateur: Mimo_SpMux_p * PayloadDl_mB
+    denominateur: PayloadDl_mB
+    sens: haut_est_mieux
+    qualite: approx
+    note: Part du temps en multiplexage spatial (MIMO) ; pondérée par le volume DL.
+
+  - code: lte_mod_dl_256qam
+    libelle: "Modulation DL : 256QAM"
+    techno: LTE
+    unite: "%"
+    categorie: radio
+    numerateur: Mod256QuamDl_p * PayloadDl_mB
+    denominateur: PayloadDl_mB
+    sens: haut_est_mieux
+    qualite: approx
+
+  - code: lte_mod_dl_64qam
+    libelle: "Modulation DL : 64QAM"
+    techno: LTE
+    unite: "%"
+    categorie: radio
+    numerateur: Mod64QuamDl_p * PayloadDl_mB
+    denominateur: PayloadDl_mB
+    sens: haut_est_mieux
+    qualite: approx
+
+  - code: lte_mod_dl_16qam
+    libelle: "Modulation DL : 16QAM"
+    techno: LTE
+    unite: "%"
+    categorie: radio
+    numerateur: Mod16QuamDl_p * PayloadDl_mB
+    denominateur: PayloadDl_mB
+    sens: bas_est_mieux
+    qualite: approx
+
+  - code: lte_mod_dl_qpsk
+    libelle: "Modulation DL : QPSK"
+    techno: LTE
+    unite: "%"
+    categorie: radio
+    numerateur: ModQpskDl_p * PayloadDl_mB
+    denominateur: PayloadDl_mB
+    sens: bas_est_mieux
+    qualite: approx
+
+  - code: lte_mod_ul_64qam
+    libelle: "Modulation UL : 64QAM"
+    techno: LTE
+    unite: "%"
+    categorie: radio
+    numerateur: Mod64QuamUl_p * PayloadUl_mB
+    denominateur: PayloadUl_mB
+    sens: haut_est_mieux
+    qualite: approx
+
+  - code: lte_mod_ul_16qam
+    libelle: "Modulation UL : 16QAM"
+    techno: LTE
+    unite: "%"
+    categorie: radio
+    numerateur: Mod16QuamUl_p * PayloadUl_mB
+    denominateur: PayloadUl_mB
+    sens: haut_est_mieux
+    qualite: approx
+
+  - code: lte_mod_ul_qpsk
+    libelle: "Modulation UL : QPSK"
+    techno: LTE
+    unite: "%"
+    categorie: radio
+    numerateur: ModQpskUl_p * PayloadUl_mB
+    denominateur: PayloadUl_mB
+    sens: bas_est_mieux
+    qualite: approx
+
+  - code: lte_cqi
+    libelle: CQI moyen
+    techno: LTE
+    unite: indice
+    categorie: radio
+    numerateur: CqiAvg
+    denominateur: "1"
+    sens: haut_est_mieux
+    ecart_min: 0.5
+    qualite: approx
+    note: Qualité du canal remontée par les mobiles (0 à 15) ; moyenne des cellules.
+
+  - code: lte_interference_pucch
+    libelle: Interférences reçues (PUCCH)
+    techno: LTE
+    unite: dBm
+    categorie: radio
+    numerateur: RecInterfPwrPucch_dBm
+    denominateur: "1"
+    sens: bas_est_mieux
+    ecart_min: 1
+    qualite: approx
+    note: Moyenne des cellules en dBm (moyenne arithmétique des niveaux publiés).
+
+  - code: lte_interference_pusch
+    libelle: Interférences reçues (PUSCH)
+    techno: LTE
+    unite: dBm
+    categorie: radio
+    numerateur: RecInterfPwrPusch_dBm
+    denominateur: "1"
+    sens: bas_est_mieux
+    ecart_min: 1
+    qualite: approx
+    note: Moyenne des cellules en dBm (moyenne arithmétique des niveaux publiés).
+
+  - code: lte_sinr_pucch
+    libelle: SINR moyen (PUCCH)
+    techno: LTE
+    unite: dB
+    categorie: radio
+    numerateur: SinrPucchAvg_dB
+    denominateur: "1"
+    sens: haut_est_mieux
+    ecart_min: 1
+    qualite: approx
+    note: Rapport signal sur bruit et interférences en montée ; moyenne des cellules.
+
+  - code: lte_sinr_pusch
+    libelle: SINR moyen (PUSCH)
+    techno: LTE
+    unite: dB
+    categorie: radio
+    numerateur: SinrPuschAvg_dB
+    denominateur: "1"
+    sens: haut_est_mieux
+    ecart_min: 1
+    qualite: approx
+    note: Rapport signal sur bruit et interférences en montée ; moyenne des cellules.
+
+  - code: lte_perte_paquets_dl
+    libelle: Taux de perte de paquets DL
+    techno: LTE
+    unite: "%"
+    categorie: radio
+    numerateur: PktLossRateDl_p * PayloadDl_mB
+    denominateur: PayloadDl_mB
+    sens: bas_est_mieux
+    ecart_min: 0.1
+    qualite: approx
+
+  - code: lte_perte_paquets_ul
+    libelle: Taux de perte de paquets UL
+    techno: LTE
+    unite: "%"
+    categorie: radio
+    numerateur: PktLossRateUl_p * PayloadUl_mB
+    denominateur: PayloadUl_mB
+    sens: bas_est_mieux
+    ecart_min: 0.1
+    qualite: approx
+
+  - code: lte_bler_rlc_dl
+    libelle: Taux d'erreur RLC DL (BLER)
+    techno: LTE
+    unite: "%"
+    categorie: radio
+    numerateur: BlerRlcDl_p * PayloadDl_mB
+    denominateur: PayloadDl_mB
+    sens: bas_est_mieux
+    ecart_min: 0.5
+    qualite: approx
+
+  - code: lte_bler_rlc_ul
+    libelle: Taux d'erreur RLC UL (BLER)
+    techno: LTE
+    unite: "%"
+    categorie: radio
+    numerateur: BlerRlcUl_p * PayloadUl_mB
+    denominateur: PayloadUl_mB
+    sens: bas_est_mieux
+    ecart_min: 0.5
+    qualite: approx
+
+  - code: lte_bler_mac_dl
+    libelle: Taux d'erreur MAC DL (BLER)
+    techno: LTE
+    unite: "%"
+    categorie: radio
+    numerateur: BlerMacDl_p * PayloadDl_mB
+    denominateur: PayloadDl_mB
+    sens: bas_est_mieux
+    ecart_min: 0.5
+    qualite: approx
+
+  - code: lte_bler_mac_ul
+    libelle: Taux d'erreur MAC UL (BLER)
+    techno: LTE
+    unite: "%"
+    categorie: radio
+    numerateur: BlerMacUl_p * PayloadUl_mB
+    denominateur: PayloadUl_mB
+    sens: bas_est_mieux
+    ecart_min: 0.5
+    qualite: approx
+
+  # ----- Agrégation de porteuses (CA)
+  - code: lte_payload_dl_ca
+    libelle: Volume DL en agrégation de porteuses
+    techno: LTE
+    unite: Mo
+    categorie: porteuses
+    numerateur: PayloadDlDrbCa_mB
+    sens: haut_est_mieux
+
+  - code: lte_part_payload_dl_ca
+    libelle: Part du volume DL en agrégation de porteuses
+    techno: LTE
+    unite: "%"
+    categorie: porteuses
+    numerateur: PayloadDlDrbCa_mB
+    denominateur: PayloadDl_mB
+    facteur: 100
+    sens: haut_est_mieux
+    note: Égale à PayloadDlDrbCa_p (vérifié ligne à ligne).
+
+  - code: lte_ca_dl_1porteuse
+    libelle: "Utilisateurs CA programmés en DL : 1 porteuse"
+    techno: LTE
+    unite: "%"
+    categorie: porteuses
+    numerateur: CaPropSchedDl1Car_p * PayloadDlDrbCa_mB
+    denominateur: PayloadDlDrbCa_mB
+    sens: bas_est_mieux
+    qualite: approx
+    note: Pondéré par le volume DL en agrégation (le reste est sur 3 porteuses ou plus).
+
+  - code: lte_ca_dl_2porteuses
+    libelle: "Utilisateurs CA programmés en DL : 2 porteuses"
+    techno: LTE
+    unite: "%"
+    categorie: porteuses
+    numerateur: CaPropSchedDl2Car_p * PayloadDlDrbCa_mB
+    denominateur: PayloadDlDrbCa_mB
+    sens: haut_est_mieux
+    qualite: approx
+
+  - code: lte_ca_dl_porteuses_moy
+    libelle: Porteuses programmées par utilisateur CA (DL)
+    techno: LTE
+    unite: porteuses
+    categorie: porteuses
+    numerateur: CaScheduledDlAvg_nb * PayloadDlDrbCa_mB
+    denominateur: PayloadDlDrbCa_mB
+    sens: haut_est_mieux
+    qualite: approx
+
+  - code: lte_ca_ul_1porteuse
+    libelle: "Utilisateurs CA programmés en UL : 1 porteuse"
+    techno: LTE
+    unite: "%"
+    categorie: porteuses
+    numerateur: CaPropSchedUl1Car_p * PayloadUlMacSCell_mB
+    denominateur: PayloadUlMacSCell_mB
+    sens: bas_est_mieux
+    qualite: approx
+    note: Pondéré par le volume UL des cellules secondaires.
+
+  - code: lte_ca_ul_2porteuses
+    libelle: "Utilisateurs CA programmés en UL : 2 porteuses"
+    techno: LTE
+    unite: "%"
+    categorie: porteuses
+    numerateur: CaPropSchedUl2Car_p * PayloadUlMacSCell_mB
+    denominateur: PayloadUlMacSCell_mB
+    sens: haut_est_mieux
+    qualite: approx
+
+  - code: lte_ca_ul_porteuses_moy
+    libelle: Porteuses programmées par utilisateur CA (UL)
+    techno: LTE
+    unite: porteuses
+    categorie: porteuses
+    numerateur: CaScheduledUlAvg_nb * PayloadUlMacSCell_mB
+    denominateur: PayloadUlMacSCell_mB
+    sens: haut_est_mieux
+    qualite: approx
+
+  - code: lte_payload_dl_mac
+    libelle: Volume DL MAC (toutes cellules)
+    techno: LTE
+    unite: Mo
+    categorie: porteuses
+    numerateur: PayloadDlMac_mB
+    sens: haut_est_mieux
+    note: Volume de la couche MAC (retransmissions comprises), supérieur au volume DL utile.
+
+  - code: lte_payload_dl_mac_scell
+    libelle: Volume DL MAC sur cellules secondaires
+    techno: LTE
+    unite: Mo
+    categorie: porteuses
+    numerateur: PayloadDlMacSCell_mB
+    sens: haut_est_mieux
+    note: Volume transmis par la cellule quand elle sert de porteuse secondaire.
+
+  - code: lte_payload_ul_mac
+    libelle: Volume UL MAC (toutes cellules)
+    techno: LTE
+    unite: Mo
+    categorie: porteuses
+    numerateur: PayloadUlMac_mB
+    sens: haut_est_mieux
+
+  - code: lte_payload_ul_mac_scell
+    libelle: Volume UL MAC sur cellules secondaires
+    techno: LTE
+    unite: Mo
+    categorie: porteuses
+    numerateur: PayloadUlMacSCell_mB
+    sens: haut_est_mieux
+
+  - code: lte_ca_config_tentatives
+    libelle: Tentatives de configuration CA
+    techno: LTE
+    unite: tentatives
+    categorie: porteuses
+    numerateur: pmCaConfiguredNoMeasAtt
+    sens: haut_est_mieux
+
+  - code: lte_ca_config_sr
+    libelle: Taux de succès de configuration CA
+    techno: LTE
+    unite: "%"
+    categorie: porteuses
+    numerateur: CaConfNoMeasSucc_p * pmCaConfiguredNoMeasAtt / 100
+    denominateur: pmCaConfiguredNoMeasAtt
+    facteur: 100
+    sens: haut_est_mieux
+    ecart_min: 0.5
+    qualite: reconstruit
+
+  - code: lte_ca_deconf_normale
+    libelle: "Fins d'agrégation : normales"
+    techno: LTE
+    unite: "%"
+    categorie: porteuses
+    numerateur: CaPropDeconfNorm_p * pmCaConfiguredNoMeasAtt
+    denominateur: pmCaConfiguredNoMeasAtt
+    sens: haut_est_mieux
+    qualite: approx
+    note: Les trois motifs somment à 100 % ; pondérés par les tentatives de configuration.
+
+  - code: lte_ca_deconf_changement
+    libelle: "Fins d'agrégation : changement de cellule secondaire"
+    techno: LTE
+    unite: "%"
+    categorie: porteuses
+    numerateur: CaPropDeconfSCellChange_p * pmCaConfiguredNoMeasAtt
+    denominateur: pmCaConfiguredNoMeasAtt
+    sens: bas_est_mieux
+    qualite: approx
+
+  - code: lte_ca_deconf_couverture
+    libelle: "Fins d'agrégation : perte de couverture"
+    techno: LTE
+    unite: "%"
+    categorie: porteuses
+    numerateur: CaPropDeconfLostCov_p * pmCaConfiguredNoMeasAtt
+    denominateur: pmCaConfiguredNoMeasAtt
+    sens: bas_est_mieux
+    qualite: approx
+
+  # ----- Coupures
+  - code: lte_rrc_reetab_tentatives
+    libelle: Tentatives de rétablissement RRC
+    techno: LTE
+    unite: tentatives
+    categorie: retainability
+    numerateur: pmRrcConnReestAtt
+    sens: bas_est_mieux
+    note: Connexion perdue que le mobile tente de rétablir (signe de dégradation radio).
+
+  - code: lte_rrc_reetab_ho_tentatives
+    libelle: Tentatives de rétablissement RRC après handover
+    techno: LTE
+    unite: tentatives
+    categorie: retainability
+    numerateur: pmRrcConnReestAttHo
+    sens: bas_est_mieux
+
+  - code: lte_rrc_reetab_sr
+    libelle: Taux de succès du rétablissement RRC
+    techno: LTE
+    unite: "%"
+    categorie: retainability
+    numerateur: RrcConReestSuccRate_p * pmRrcConnReestAtt / 100
+    denominateur: pmRrcConnReestAtt
+    facteur: 100
+    sens: haut_est_mieux
+    qualite: reconstruit
+
+  - code: lte_rrc_reetab_ho_sr
+    libelle: Taux de succès du rétablissement RRC après handover
+    techno: LTE
+    unite: "%"
+    categorie: retainability
+    numerateur: RrcConReestHoSuccRate_p * pmRrcConnReestAttHo / 100
+    denominateur: pmRrcConnReestAttHo
+    facteur: 100
+    sens: haut_est_mieux
+    qualite: reconstruit
+
+  - code: lte_ue_ctxt_etablis
+    libelle: Contextes UE établis
+    techno: LTE
+    unite: contextes
+    categorie: retainability
+    numerateur: pmUeCtxtEstabSucc
+    sens: haut_est_mieux
+    note: Connexions complètes d'un mobile au cœur de réseau.
+
+  - code: lte_erab_etablis
+    libelle: E-RAB établis
+    techno: LTE
+    unite: E-RAB
+    categorie: retainability
+    numerateur: ErabEstabSucc_nb
+    sens: haut_est_mieux
+
+  - code: lte_ue_ctxt_drop
+    libelle: Taux de coupure des contextes UE
+    techno: LTE
+    unite: "%"
+    categorie: retainability
+    numerateur: UeCtxtDropRate_p * pmUeCtxtEstabSucc / 100
+    denominateur: pmUeCtxtEstabSucc
+    facteur: 100
+    sens: bas_est_mieux
+    ecart_min: 0.1
+    qualite: approx
+    note: Pondéré par les contextes UE établis faute de compteurs de release.
+
+  - code: lte_ue_ctxt_drop_actif
+    libelle: Taux de coupure des contextes UE actifs
+    techno: LTE
+    unite: "%"
+    categorie: retainability
+    numerateur: UeCtxtDropRateAct_p * pmUeCtxtEstabSucc / 100
+    denominateur: pmUeCtxtEstabSucc
+    facteur: 100
+    sens: bas_est_mieux
+    ecart_min: 0.1
+    qualite: approx
+    note: Coupures pendant un transfert de données.
+
+  - code: lte_erab_drop_actif
+    libelle: Taux de coupure E-RAB actifs
+    techno: LTE
+    unite: "%"
+    categorie: retainability
+    numerateur: ErabDropRateAct_p * ErabEstabSucc_nb / 100
+    denominateur: ErabEstabSucc_nb
+    facteur: 100
+    sens: bas_est_mieux
+    ecart_min: 0.1
+    qualite: approx
+    note: Coupures pendant un transfert de données (= part eNodeB + part MME, vérifié).
+
+  - code: lte_erab_drop_enb
+    libelle: Coupures E-RAB initiées par l'eNodeB
+    techno: LTE
+    unite: "%"
+    categorie: retainability
+    numerateur: ErabDropRateEnb_p * ErabEstabSucc_nb / 100
+    denominateur: ErabEstabSucc_nb
+    facteur: 100
+    sens: bas_est_mieux
+    ecart_min: 0.1
+    qualite: approx
+    note: Somme des causes radio, handover, cellule, transport, préemption et licence.
+
+  - code: lte_erab_drop_actif_enb
+    libelle: Coupures E-RAB actifs initiées par l'eNodeB
+    techno: LTE
+    unite: "%"
+    categorie: retainability
+    numerateur: ErabDropRateActEnb_p * ErabEstabSucc_nb / 100
+    denominateur: ErabEstabSucc_nb
+    facteur: 100
+    sens: bas_est_mieux
+    ecart_min: 0.1
+    qualite: approx
+
+  - code: lte_erab_drop_actif_mme
+    libelle: Coupures E-RAB actifs initiées par le cœur (MME)
+    techno: LTE
+    unite: "%"
+    categorie: retainability
+    numerateur: ErabDropRateActMme_p * ErabEstabSucc_nb / 100
+    denominateur: ErabEstabSucc_nb
+    facteur: 100
+    sens: bas_est_mieux
+    ecart_min: 0.1
+    qualite: approx
+
+  # ----- Mobilité
+  - code: lte_ho_rejets_entrants
+    libelle: Handovers entrants rejetés
+    techno: LTE
+    unite: rejets
+    categorie: mobilite
+    numerateur: HoPrepRejInTot_nb
+    sens: bas_est_mieux
+
+  - code: lte_ho_rejets_licence_utilisateurs
+    libelle: "Handovers entrants rejetés : licence utilisateurs"
+    techno: LTE
+    unite: rejets
+    categorie: mobilite
+    numerateur: pmHoPrepRejInLicConnUsers
+    sens: bas_est_mieux
+
+  - code: lte_ho_rejets_admission
+    libelle: "Handovers entrants rejetés : admission refusée"
+    techno: LTE
+    unite: rejets
+    categorie: mobilite
+    numerateur: pmHoPrepRejInBearerAdmissionRej
+    sens: bas_est_mieux
+
+  - code: lte_ho_rejets_licence_mobilite
+    libelle: "Handovers entrants rejetés : licence mobilité"
+    techno: LTE
+    unite: rejets
+    categorie: mobilite
+    numerateur: pmHoPrepRejInLicMob
+    sens: bas_est_mieux
+
+  - code: lte_ho_intra_prep_tentatives
+    libelle: Préparations de HO intra-fréquence
+    techno: LTE
+    unite: tentatives
+    categorie: mobilite
+    numerateur: pmHoPrepAttLteIntraF
+    sens: haut_est_mieux
+
+  - code: lte_ho_intra_exe_tentatives
+    libelle: Exécutions de HO intra-fréquence
+    techno: LTE
+    unite: tentatives
+    categorie: mobilite
+    numerateur: pmHoExeAttLteIntraF
+    sens: haut_est_mieux
+
+  - code: lte_ho_intra_prep_sr
+    libelle: Taux de succès de préparation HO intra-fréquence
+    techno: LTE
+    unite: "%"
+    categorie: mobilite
+    numerateur: HoIntraPrepSucc_p * pmHoPrepAttLteIntraF / 100
+    denominateur: pmHoPrepAttLteIntraF
+    facteur: 100
+    sens: haut_est_mieux
+    ecart_min: 0.5
+    qualite: reconstruit
+
+  - code: lte_ho_intra_exe_sr
+    libelle: Taux de succès d'exécution HO intra-fréquence
+    techno: LTE
+    unite: "%"
+    categorie: mobilite
+    numerateur: HoIntraExeSucc_p * pmHoExeAttLteIntraF / 100
+    denominateur: pmHoExeAttLteIntraF
+    facteur: 100
+    sens: haut_est_mieux
+    ecart_min: 0.5
+    qualite: reconstruit
+
+  - code: lte_ho_inter_prep_tentatives
+    libelle: Préparations de HO inter-fréquence
+    techno: LTE
+    unite: tentatives
+    categorie: mobilite
+    numerateur: pmHoPrepAttLteInterF
+    sens: haut_est_mieux
+
+  - code: lte_ho_inter_exe_tentatives
+    libelle: Exécutions de HO inter-fréquence
+    techno: LTE
+    unite: tentatives
+    categorie: mobilite
+    numerateur: pmHoExeAttLteInterF
+    sens: haut_est_mieux
+
+  - code: lte_ho_inter_sr
+    libelle: Taux de succès HO inter-fréquence
+    techno: LTE
+    unite: "%"
+    categorie: mobilite
+    numerateur: HoInterSucc_p * pmHoPrepAttLteInterF / 100
+    denominateur: pmHoPrepAttLteInterF
+    facteur: 100
+    sens: haut_est_mieux
+    ecart_min: 0.5
+    qualite: reconstruit
+    note: Préparation × exécution (vérifié ligne à ligne).
+
+  - code: lte_ho_inter_prep_sr
+    libelle: Taux de succès de préparation HO inter-fréquence
+    techno: LTE
+    unite: "%"
+    categorie: mobilite
+    numerateur: HoInterPrepSucc_p * pmHoPrepAttLteInterF / 100
+    denominateur: pmHoPrepAttLteInterF
+    facteur: 100
+    sens: haut_est_mieux
+    ecart_min: 0.5
+    qualite: reconstruit
+
+  - code: lte_ho_inter_exe_sr
+    libelle: Taux de succès d'exécution HO inter-fréquence
+    techno: LTE
+    unite: "%"
+    categorie: mobilite
+    numerateur: HoInterExeSucc_p * pmHoExeAttLteInterF / 100
+    denominateur: pmHoExeAttLteInterF
+    facteur: 100
+    sens: haut_est_mieux
+    ecart_min: 0.5
+    qualite: reconstruit
+
+  - code: lte_ho_lb_prep_tentatives
+    libelle: Préparations de HO d'équilibrage de charge
+    techno: LTE
+    unite: tentatives
+    categorie: mobilite
+    numerateur: pmHoPrepAttLteInterFLb
+    sens: haut_est_mieux
+    note: Handovers inter-fréquence déclenchés pour répartir la charge entre porteuses.
+
+  - code: lte_ho_lb_exe_tentatives
+    libelle: Exécutions de HO d'équilibrage de charge
+    techno: LTE
+    unite: tentatives
+    categorie: mobilite
+    numerateur: pmHoExeAttLteInterFLb
+    sens: haut_est_mieux
+
+  - code: lte_ho_lb_sr
+    libelle: Taux de succès HO d'équilibrage de charge
+    techno: LTE
+    unite: "%"
+    categorie: mobilite
+    numerateur: HoInterLbSucc_p * pmHoPrepAttLteInterFLb / 100
+    denominateur: pmHoPrepAttLteInterFLb
+    facteur: 100
+    sens: haut_est_mieux
+    ecart_min: 0.5
+    qualite: reconstruit
+
+  - code: lte_ho_lb_prep_sr
+    libelle: Taux de succès de préparation HO d'équilibrage de charge
+    techno: LTE
+    unite: "%"
+    categorie: mobilite
+    numerateur: HoInterLbPrepSucc_p * pmHoPrepAttLteInterFLb / 100
+    denominateur: pmHoPrepAttLteInterFLb
+    facteur: 100
+    sens: haut_est_mieux
+    ecart_min: 0.5
+    qualite: reconstruit
+
+  - code: lte_ho_lb_exe_sr
+    libelle: Taux de succès d'exécution HO d'équilibrage de charge
+    techno: LTE
+    unite: "%"
+    categorie: mobilite
+    numerateur: HoInterLbExeSucc_p * pmHoExeAttLteInterFLb / 100
+    denominateur: pmHoExeAttLteInterFLb
+    facteur: 100
+    sens: haut_est_mieux
+    ecart_min: 0.5
+    qualite: reconstruit
+
+  - code: lte_continuite_4g
+    libelle: "Continuité de session : vers une autre cellule 4G"
+    techno: LTE
+    unite: sessions
+    categorie: mobilite
+    numerateur: pmUeCtxtRelSCEUtra
+    sens: haut_est_mieux
+    note: Connexions relâchées avec redirection (session poursuivie ailleurs, sans coupure).
+
+  - code: lte_continuite_3g
+    libelle: "Continuité de session : vers la 3G"
+    techno: LTE
+    unite: sessions
+    categorie: mobilite
+    numerateur: pmUeCtxtRelSCWcdma
+    sens: bas_est_mieux
+
+  - code: lte_continuite_2g
+    libelle: "Continuité de session : vers la 2G"
+    techno: LTE
+    unite: sessions
+    categorie: mobilite
+    numerateur: pmUeCtxtRelSCGsm
+    sens: bas_est_mieux

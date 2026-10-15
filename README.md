@@ -300,7 +300,25 @@ et redémarrer l’application et le worker. En déploiement, exécuter aussi
   | Data 4G | volume data, débit DL, PRB DL, utilisateurs connectés |
   | Qualité de service | taux d'accès 4G, accès voix / data 3G, coupures E-RAB, coupures voix / data 3G |
   | Utilisateurs 4G | utilisateurs connectés (pic RRC, estimation) |
+  | 4G détaillée : trafic et charge | disponibilité, motifs RRC, PRB DL/UL, utilisateurs (pic, moyenne, actifs, programmés), bande de base, volumes et débits cellule DL/UL, signalisation, agrégation de porteuses, CSFB |
+  | 4G détaillée : accessibilité | paging, RACH, taux d'accès, PUCCH, RRC (et causes d'échec), S1, E-RAB initial, ajout et modification d'E-RAB |
+  | 4G détaillée : débit et qualité radio | débits utilisateur (dont CA), latence, MIMO, modulation DL/UL, CQI, agrégation de porteuses, interférences, SINR, pertes de paquets, BLER |
+  | 4G détaillée : coupures | rétablissement RRC, coupures UE / E-RAB (eNodeB, cœur, actives), causes eNodeB |
+  | 4G détaillée : mobilité | HO intra / inter-fréquence et d'équilibrage de charge (préparation, exécution), rejets entrants, continuité de session |
   | Sur mesure | indicateurs cochés un par un |
+
+  Les rapports **4G détaillée** reprennent l'outil Excel « LTE_SQL_Access » (onglets *Base*
+  et *KPI*) : ses 140 colonnes 4G sous des noms lisibles (`kpis_detailles` de
+  `config/kpi_catalogue.yaml`) et ses 56 graphiques (`config/graphes.yaml`), construits de la
+  même façon : plusieurs KPI par graphique, volumes et tentatives en **barres**, parts et
+  causes en **barres empilées**, taux en **courbes**, sur l'axe principal ou secondaire, **un
+  graphique par entité** (liste « Site », « Cellule »… quand le résultat est regroupé). La
+  légende donne la valeur de chaque KPI sur toute la période. Un graphique s'affiche dès que
+  tous ses KPI sont demandés (rapport détaillé, sur mesure ou recherche : « SINR », « CQI »,
+  « BLER », « MIMO », « modulation », « latence », « paging », « RACH », « HO inter-fréquence »…).
+  Les KPI détaillés tracés dans un graphique n'ont pas de carte, de courbe ni de classement à
+  part (ils restent dans le tableau et les exports) et ne sont pas analysés par défaut dans
+  les événements.
 
   Les rapports types sont des intentions de `config/recherche.yaml` (clé `rapport`) : les
   modifier ou en ajouter un ne demande pas de code. Le résultat commence par une
@@ -796,7 +814,7 @@ python scripts/explorer_schema.py   # depuis la racine du dépôt ; lecture seul
 
 | Chemin | Rôle |
 |---|---|
-| `config/` | settings Django, `kpi_catalogue.yaml`, vocabulaire de recherche `recherche.yaml`, site d'administration (`admin.py` : ordre des sections, tableau de bord ; gabarits dans `templates/admin/`) |
+| `config/` | settings Django, `kpi_catalogue.yaml`, graphiques thématiques `graphes.yaml`, vocabulaire de recherche `recherche.yaml`, site d'administration (`admin.py` : ordre des sections, tableau de bord ; gabarits dans `templates/admin/`) |
 | `apps/comptes/` | périmètres d'accès, journal d'audit |
 | `apps/referentiel/` | sites / secteurs / cellules importés du xlsx, décodage des noms de cellules |
 | `apps/kpi/` | modèle de requête (Pydantic), catalogue, moteur de calcul, noms et seuils réglables, colonnes de la base proposées comme indicateurs, écran de recherche |
@@ -831,7 +849,14 @@ les expressions du catalogue sont évaluables.
 
 Pour un compteur de pic (ex. `RrcConnMax_max_nb`, utilisateurs connectés), `agregation: pic`
 (numérateur seul) : somme des cellules à chaque horodatage, puis maximum sur la période,
-au lieu de la somme simple.
+au lieu de la somme simple. `agregation: moyenne_simultanee` : même somme par horodatage,
+puis moyenne sur la période (ex. `RrcConnAvg_nb`, utilisateurs connectés en moyenne).
+
+Un KPI placé dans la section `kpis_detailles` (au lieu de `kpis`) est sélectionnable partout
+mais n'est pas analysé par défaut dans les événements. Pour le tracer avec d'autres KPI,
+l'ajouter à un graphique de `config/graphes.yaml` (type `barres`, `barres_empilees` ou
+`ligne`, axe `gauche` ou `droite`) ; un rapport type peut demander tous les KPI d'un thème
+avec `graphes: <thème>` dans `config/recherche.yaml`.
 
 ## Données
 

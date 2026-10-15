@@ -1,0 +1,454 @@
+# Graphiques thématiques : plusieurs KPI sur un même graphique, comme dans l'outil Excel
+# « LTE_SQL_Access » (onglet Base). Un graphique par entité (cellule, site, commune ou réseau).
+#
+# series : KPI tracés, dans l'ordre de la légende.
+#   type  barres          histogramme (« Histo » dans l'Excel)
+#         barres_empilees histogramme cumulé (« Histo_cumul » : parts, causes, motifs)
+#         ligne           courbe
+#   axe   gauche (axe principal, défaut) ou droite (axe secondaire)
+# Le titre de chaque axe est l'unité de ses KPI.
+#
+# Un graphique s'affiche quand tous ses KPI sont dans le résultat ; les rapports « 4G
+# détaillée » (config/recherche.yaml, clé graphes) demandent tous les KPI d'un thème.
+
+themes:
+  trafic: Trafic et charge
+  accessibilite: Accessibilité
+  integrite: Débit et qualité radio
+  retainability: Coupures
+  mobilite: Mobilité
+
+graphes:
+  # ------------------------------------------------------------------ Trafic et charge
+  - code: lte_disponibilite
+    titre: Disponibilité et verrouillages
+    theme: trafic
+    series:
+      - {kpi: lte_verrou_manuel, type: barres_empilees}
+      - {kpi: lte_verrou_auto, type: barres_empilees}
+      - {kpi: lte_cell_availability, type: ligne, axe: droite}
+
+  - code: lte_motifs_rrc
+    titre: Connexions RRC par motif
+    theme: trafic
+    series:
+      - {kpi: lte_rrc_part_urgence, type: barres_empilees}
+      - {kpi: lte_rrc_part_prioritaire, type: barres_empilees}
+      - {kpi: lte_rrc_part_signalisation, type: barres_empilees}
+      - {kpi: lte_rrc_part_data, type: barres_empilees}
+      - {kpi: lte_rrc_part_entrant, type: barres_empilees}
+
+  - code: lte_prb
+    titre: Utilisation des PRB
+    theme: trafic
+    series:
+      - {kpi: lte_prb_dl_util, type: ligne}
+      - {kpi: lte_prb_ul_util, type: ligne}
+
+  - code: lte_utilisateurs_rrc
+    titre: Utilisateurs connectés
+    theme: trafic
+    series:
+      - {kpi: lte_rrc_conn_max, type: barres}
+      - {kpi: lte_rrc_conn_moy, type: ligne, axe: droite}
+
+  - code: lte_utilisateurs_actifs_dl
+    titre: Utilisateurs actifs DL
+    theme: trafic
+    series:
+      - {kpi: lte_ue_actifs_dl_max, type: barres}
+      - {kpi: lte_ue_actifs_dl, type: ligne, axe: droite}
+
+  - code: lte_utilisateurs_actifs_ul
+    titre: Utilisateurs actifs UL
+    theme: trafic
+    series:
+      - {kpi: lte_ue_actifs_ul_max, type: barres}
+      - {kpi: lte_ue_actifs_ul, type: ligne, axe: droite}
+
+  - code: lte_utilisateurs_programmes
+    titre: Utilisateurs programmés par TTI
+    theme: trafic
+    series:
+      - {kpi: lte_ue_programmes_dl, type: ligne}
+      - {kpi: lte_ue_programmes_ul, type: ligne}
+
+  - code: lte_bande_base
+    titre: Charge de la bande de base
+    theme: trafic
+    series:
+      - {kpi: lte_bande_base_dl, type: ligne}
+      - {kpi: lte_bande_base_ul, type: ligne}
+
+  - code: lte_volume_dl
+    titre: Volume et débit cellule DL
+    theme: trafic
+    series:
+      - {kpi: lte_payload_dl, type: barres}
+      - {kpi: lte_debit_cellule_dl, type: ligne, axe: droite}
+
+  - code: lte_volume_dl_ca
+    titre: Volume DL en agrégation de porteuses
+    theme: trafic
+    series:
+      - {kpi: lte_payload_dl_ca, type: barres}
+      - {kpi: lte_part_payload_dl_ca, type: ligne, axe: droite}
+
+  - code: lte_signalisation_dl
+    titre: Signalisation DL
+    theme: trafic
+    series:
+      - {kpi: lte_payload_dl_signalisation, type: barres}
+      - {kpi: lte_debit_signalisation_dl, type: ligne, axe: droite}
+
+  - code: lte_volume_ul
+    titre: Volume et débit cellule UL
+    theme: trafic
+    series:
+      - {kpi: lte_payload_ul, type: barres}
+      - {kpi: lte_debit_cellule_ul, type: ligne, axe: droite}
+
+  - code: lte_signalisation_ul
+    titre: Signalisation UL
+    theme: trafic
+    series:
+      - {kpi: lte_payload_ul_signalisation, type: barres}
+      - {kpi: lte_debit_signalisation_ul, type: ligne, axe: droite}
+
+  - code: lte_csfb
+    titre: Appels basculés en 3G / 2G (CSFB)
+    theme: trafic
+    series:
+      - {kpi: lte_csfb_3g, type: barres}
+      - {kpi: lte_csfb_2g, type: barres}
+      - {kpi: lte_csfb_part, type: ligne, axe: droite}
+
+  # ------------------------------------------------------------------ Accessibilité
+  - code: lte_paging
+    titre: Pagings
+    theme: accessibilite
+    series:
+      - {kpi: lte_paging_recus, type: barres}
+      - {kpi: lte_paging_rejet, type: ligne, axe: droite}
+
+  - code: lte_rach
+    titre: Accès aléatoire (RACH)
+    theme: accessibilite
+    series:
+      - {kpi: lte_rach_tentatives, type: barres}
+      - {kpi: lte_rach_sr, type: ligne, axe: droite}
+
+  - code: lte_taux_acces
+    titre: Taux d'accès 4G
+    theme: accessibilite
+    series:
+      - {kpi: lte_rrc_tentatives, type: barres}
+      - {kpi: lte_erab_init_tentatives, type: barres}
+      - {kpi: lte_acces, type: ligne, axe: droite}
+
+  - code: lte_pucch
+    titre: Congestion PUCCH
+    theme: accessibilite
+    series:
+      - {kpi: lte_pucch_cong_cqi, type: barres_empilees}
+      - {kpi: lte_pucch_cong_sr, type: barres_empilees}
+
+  - code: lte_rrc
+    titre: Établissement RRC
+    theme: accessibilite
+    series:
+      - {kpi: lte_rrc_tentatives, type: barres}
+      - {kpi: lte_rrc_setup_sr, type: ligne, axe: droite}
+
+  - code: lte_rrc_echecs
+    titre: Échecs RRC par cause
+    theme: accessibilite
+    series:
+      - {kpi: lte_rrc_echec_licence, type: barres_empilees}
+      - {kpi: lte_rrc_echec_erab, type: barres_empilees}
+      - {kpi: lte_rrc_echec_charge, type: barres_empilees}
+      - {kpi: lte_rrc_echec_forte_charge, type: barres_empilees}
+      - {kpi: lte_rrc_echec, type: ligne}
+
+  - code: lte_s1
+    titre: Signalisation S1
+    theme: accessibilite
+    series:
+      - {kpi: lte_s1_tentatives, type: barres}
+      - {kpi: lte_s1_sig_sr, type: ligne, axe: droite}
+
+  - code: lte_erab_initial
+    titre: Établissement E-RAB initial
+    theme: accessibilite
+    series:
+      - {kpi: lte_erab_init_tentatives, type: barres}
+      - {kpi: lte_init_erab_sr, type: ligne, axe: droite}
+
+  - code: lte_erab_ajout
+    titre: Ajout d'E-RAB
+    theme: accessibilite
+    series:
+      - {kpi: lte_erab_ajout_tentatives, type: barres}
+      - {kpi: lte_erab_ajout_sr, type: ligne, axe: droite}
+
+  - code: lte_erab_modification
+    titre: Modification d'E-RAB (QCI)
+    theme: accessibilite
+    series:
+      - {kpi: lte_erab_modif_tentatives, type: barres}
+      - {kpi: lte_erab_modif_sr, type: ligne, axe: droite}
+
+  # ------------------------------------------------------------------ Débit et qualité radio
+  - code: lte_debit_utilisateur_dl
+    titre: Débit utilisateur DL et latence
+    theme: integrite
+    series:
+      - {kpi: lte_latence_dl, type: barres}
+      - {kpi: lte_dl_user_thp, type: ligne, axe: droite}
+      - {kpi: lte_debit_utilisateur_ca_dl, type: ligne, axe: droite}
+
+  - code: lte_veille_mimo
+    titre: Veille MIMO (économie d'énergie)
+    theme: integrite
+    series:
+      - {kpi: lte_veille_mimo, type: barres}
+
+  - code: lte_mimo
+    titre: Mode de transmission DL (MIMO)
+    theme: integrite
+    series:
+      - {kpi: lte_mimo_diversite, type: barres_empilees}
+      - {kpi: lte_mimo_multiplexage, type: barres_empilees}
+
+  - code: lte_modulation_dl
+    titre: Modulation DL et CQI
+    theme: integrite
+    series:
+      - {kpi: lte_mod_dl_256qam, type: barres_empilees}
+      - {kpi: lte_mod_dl_64qam, type: barres_empilees}
+      - {kpi: lte_mod_dl_16qam, type: barres_empilees}
+      - {kpi: lte_mod_dl_qpsk, type: barres_empilees}
+      - {kpi: lte_cqi, type: ligne, axe: droite}
+
+  - code: lte_debit_utilisateur_ul
+    titre: Débit utilisateur UL et modulation
+    theme: integrite
+    series:
+      - {kpi: lte_mod_ul_64qam, type: barres_empilees}
+      - {kpi: lte_mod_ul_16qam, type: barres_empilees}
+      - {kpi: lte_mod_ul_qpsk, type: barres_empilees}
+      - {kpi: lte_ul_user_thp, type: ligne, axe: droite}
+      - {kpi: lte_debit_utilisateur_ca_ul, type: ligne, axe: droite}
+
+  - code: lte_ca_programmation_dl
+    titre: Agrégation de porteuses DL
+    theme: integrite
+    series:
+      - {kpi: lte_ca_dl_1porteuse, type: barres_empilees}
+      - {kpi: lte_ca_dl_2porteuses, type: barres_empilees}
+      - {kpi: lte_ca_dl_porteuses_moy, type: ligne, axe: droite}
+
+  - code: lte_ca_programmation_ul
+    titre: Agrégation de porteuses UL
+    theme: integrite
+    series:
+      - {kpi: lte_ca_ul_1porteuse, type: barres_empilees}
+      - {kpi: lte_ca_ul_2porteuses, type: barres_empilees}
+      - {kpi: lte_ca_ul_porteuses_moy, type: ligne, axe: droite}
+
+  - code: lte_ca_volume_dl
+    titre: Volume DL MAC et cellules secondaires
+    theme: integrite
+    series:
+      - {kpi: lte_payload_dl_mac, type: barres}
+      - {kpi: lte_payload_dl_mac_scell, type: ligne, axe: droite}
+
+  - code: lte_ca_volume_ul
+    titre: Volume UL MAC et cellules secondaires
+    theme: integrite
+    series:
+      - {kpi: lte_payload_ul_mac, type: barres}
+      - {kpi: lte_payload_ul_mac_scell, type: ligne, axe: droite}
+
+  - code: lte_ca_configuration
+    titre: Configuration de l'agrégation de porteuses
+    theme: integrite
+    series:
+      - {kpi: lte_ca_config_tentatives, type: barres}
+      - {kpi: lte_ca_config_sr, type: ligne, axe: droite}
+
+  - code: lte_ca_fins
+    titre: Fins d'agrégation de porteuses par motif
+    theme: integrite
+    series:
+      - {kpi: lte_ca_deconf_normale, type: barres_empilees}
+      - {kpi: lte_ca_deconf_changement, type: barres_empilees}
+      - {kpi: lte_ca_deconf_couverture, type: barres_empilees}
+
+  - code: lte_interferences
+    titre: Interférences reçues
+    theme: integrite
+    series:
+      - {kpi: lte_interference_pucch, type: ligne}
+      - {kpi: lte_interference_pusch, type: ligne}
+
+  - code: lte_sinr
+    titre: SINR
+    theme: integrite
+    series:
+      - {kpi: lte_sinr_pucch, type: ligne}
+      - {kpi: lte_sinr_pusch, type: ligne}
+
+  - code: lte_perte_paquets
+    titre: Perte de paquets
+    theme: integrite
+    series:
+      - {kpi: lte_perte_paquets_dl, type: ligne}
+      - {kpi: lte_perte_paquets_ul, type: ligne}
+
+  - code: lte_bler_rlc
+    titre: Taux d'erreur RLC (BLER)
+    theme: integrite
+    series:
+      - {kpi: lte_bler_rlc_dl, type: ligne}
+      - {kpi: lte_bler_rlc_ul, type: ligne}
+
+  - code: lte_bler_mac
+    titre: Taux d'erreur MAC (BLER)
+    theme: integrite
+    series:
+      - {kpi: lte_bler_mac_dl, type: ligne}
+      - {kpi: lte_bler_mac_ul, type: ligne}
+
+  # ------------------------------------------------------------------ Coupures
+  - code: lte_rrc_reetablissement
+    titre: Rétablissement RRC
+    theme: retainability
+    series:
+      - {kpi: lte_rrc_reetab_tentatives, type: barres}
+      - {kpi: lte_rrc_reetab_ho_tentatives, type: barres}
+      - {kpi: lte_rrc_reetab_sr, type: ligne, axe: droite}
+      - {kpi: lte_rrc_reetab_ho_sr, type: ligne, axe: droite}
+
+  - code: lte_coupures
+    titre: Coupures des contextes UE et E-RAB
+    theme: retainability
+    series:
+      - {kpi: lte_ue_ctxt_etablis, type: barres}
+      - {kpi: lte_erab_etablis, type: barres}
+      - {kpi: lte_ue_ctxt_drop, type: ligne, axe: droite}
+      - {kpi: lte_erab_drop, type: ligne, axe: droite}
+      - {kpi: lte_ue_ctxt_drop_actif, type: ligne, axe: droite}
+
+  - code: lte_coupures_erab
+    titre: Coupures E-RAB eNodeB / cœur
+    theme: retainability
+    series:
+      - {kpi: lte_erab_etablis, type: barres}
+      - {kpi: lte_erab_drop_enb, type: ligne, axe: droite}
+      - {kpi: lte_drop_mme, type: ligne, axe: droite}
+
+  - code: lte_coupures_erab_actifs
+    titre: Coupures E-RAB actifs eNodeB / cœur
+    theme: retainability
+    series:
+      - {kpi: lte_erab_etablis, type: barres}
+      - {kpi: lte_erab_drop_actif, type: ligne, axe: droite}
+      - {kpi: lte_erab_drop_actif_enb, type: ligne, axe: droite}
+      - {kpi: lte_erab_drop_actif_mme, type: ligne, axe: droite}
+
+  - code: lte_coupures_causes_enb
+    titre: Coupures E-RAB eNodeB par cause
+    theme: retainability
+    series:
+      - {kpi: lte_drop_cellule_indispo, type: barres_empilees}
+      - {kpi: lte_drop_ho, type: barres_empilees}
+      - {kpi: lte_drop_preemption, type: barres_empilees}
+      - {kpi: lte_drop_transport, type: barres_empilees}
+      - {kpi: lte_drop_radio, type: barres_empilees}
+      - {kpi: lte_drop_licence, type: barres_empilees}
+      - {kpi: lte_erab_drop_enb, type: ligne}
+
+  # ------------------------------------------------------------------ Mobilité
+  - code: lte_ho_rejets
+    titre: Handovers entrants rejetés
+    theme: mobilite
+    series:
+      - {kpi: lte_ho_rejets_licence_utilisateurs, type: barres_empilees}
+      - {kpi: lte_ho_rejets_admission, type: barres_empilees}
+      - {kpi: lte_ho_rejets_licence_mobilite, type: barres_empilees}
+      - {kpi: lte_ho_rejets_entrants, type: ligne}
+
+  - code: lte_ho_intra
+    titre: Handover intra-fréquence
+    theme: mobilite
+    series:
+      - {kpi: lte_ho_intra_prep_tentatives, type: barres}
+      - {kpi: lte_ho_intra_exe_tentatives, type: barres}
+      - {kpi: lte_ho_intra_sr, type: ligne, axe: droite}
+
+  - code: lte_ho_intra_preparation
+    titre: Préparation HO intra-fréquence
+    theme: mobilite
+    series:
+      - {kpi: lte_ho_intra_prep_tentatives, type: barres}
+      - {kpi: lte_ho_intra_prep_sr, type: ligne, axe: droite}
+
+  - code: lte_ho_intra_execution
+    titre: Exécution HO intra-fréquence
+    theme: mobilite
+    series:
+      - {kpi: lte_ho_intra_exe_tentatives, type: barres}
+      - {kpi: lte_ho_intra_exe_sr, type: ligne, axe: droite}
+
+  - code: lte_ho_inter
+    titre: Handover inter-fréquence
+    theme: mobilite
+    series:
+      - {kpi: lte_ho_inter_prep_tentatives, type: barres}
+      - {kpi: lte_ho_inter_exe_tentatives, type: barres}
+      - {kpi: lte_ho_inter_sr, type: ligne, axe: droite}
+
+  - code: lte_ho_inter_preparation
+    titre: Préparation HO inter-fréquence
+    theme: mobilite
+    series:
+      - {kpi: lte_ho_inter_prep_tentatives, type: barres}
+      - {kpi: lte_ho_inter_prep_sr, type: ligne, axe: droite}
+
+  - code: lte_ho_inter_execution
+    titre: Exécution HO inter-fréquence
+    theme: mobilite
+    series:
+      - {kpi: lte_ho_inter_exe_tentatives, type: barres}
+      - {kpi: lte_ho_inter_exe_sr, type: ligne, axe: droite}
+
+  - code: lte_ho_lb
+    titre: Handover d'équilibrage de charge
+    theme: mobilite
+    series:
+      - {kpi: lte_ho_lb_prep_tentatives, type: barres}
+      - {kpi: lte_ho_lb_exe_tentatives, type: barres}
+      - {kpi: lte_ho_lb_sr, type: ligne, axe: droite}
+
+  - code: lte_ho_lb_preparation
+    titre: Préparation HO d'équilibrage de charge
+    theme: mobilite
+    series:
+      - {kpi: lte_ho_lb_prep_tentatives, type: barres}
+      - {kpi: lte_ho_lb_prep_sr, type: ligne, axe: droite}
+
+  - code: lte_ho_lb_execution
+    titre: Exécution HO d'équilibrage de charge
+    theme: mobilite
+    series:
+      - {kpi: lte_ho_lb_exe_tentatives, type: barres}
+      - {kpi: lte_ho_lb_exe_sr, type: ligne, axe: droite}
+
+  - code: lte_continuite_session
+    titre: Continuité de session
+    theme: mobilite
+    series:
+      - {kpi: lte_continuite_4g, type: barres_empilees}
+      - {kpi: lte_continuite_3g, type: barres_empilees}
+      - {kpi: lte_continuite_2g, type: barres_empilees}

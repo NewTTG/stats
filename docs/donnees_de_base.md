@@ -116,3 +116,34 @@ L'extrait horaire est pris à 0h (trafic de nuit) : il ne représente pas une he
 - Drops 3G/4G et PRB restent **approximatifs** tant que les compteurs de release ne sont pas
   disponibles (cf. `docs/questions.md`).
 - Valeurs `Max_max` : à agréger en maximum, pas en somme (aucune n'est utilisée aujourd'hui).
+
+## 6. KPI 4G détaillés (outil Excel LTE_SQL_Access)
+
+Les 140 colonnes 4G des graphiques de l'outil Excel sont reprises dans `kpis_detailles`
+(`config/kpi_catalogue.yaml`), sous des noms lisibles. Relations vérifiées sur les deux
+extraits (automatisées dans `tests/test_kpi_detailles.py`) :
+
+| Relation | Écart | Conséquence |
+|---|---|---|
+| `RrcSetupFailRate_p = 100 − RrcSetupSuccRate_p` | nul | `lte_rrc_echec` = (tentatives − succès) / tentatives, exact |
+| Σ `RrcConnFail*_p` ≈ `RrcSetupFailRate_p` | médiane 0,05 pt | causes d'échec RRC (`decomposition_de`), reste « non ventilé » ; `PucchCong*_p` ≈ 0 |
+| Σ `RrcPropSucc_*_p` = 100 | nul (quelques cellules horaires à 0) | parts des connexions RRC réussies, pondérées par `pmRrcConnEstabSucc` |
+| `PayloadDlDrbCa_p = PayloadDlDrbCa_mB / PayloadDl_mB` | ≤ 0,1 pt (jour) | part du volume en CA calculée sur les volumes, exacte |
+| `HoXSucc_p = HoXPrepSucc_p × HoXExeSucc_p` (intra, inter, équilibrage) | nul | préparation pondérée par les préparations, exécution par les exécutions |
+| `HoXPrepSucc_p = pmHoExeAttX / pmHoPrepAttX` | médiane nulle | idem |
+| `HoPrepRejInTot_nb` = Σ des trois motifs de rejet | médiane nulle | |
+| `ErabDropRateAct_p = ErabDropRateActEnb_p + ErabDropRateActMme_p` | nul | |
+| `CsfbRelAct_p ≈ CSFB / pmUeCtxtEstabSucc` | médiane 0,05 pt | part CSFB pondérée par les contextes UE |
+| Σ modulation DL, Σ modulation UL, Σ MIMO, Σ fins de CA = 100 | nul | parts |
+| `CaPropSchedDl1Car_p + CaPropSchedDl2Car_p` < 100 sur certaines cellules | jusqu'à 61 pt | le reste : 3 porteuses ou plus |
+
+Pondérations retenues faute de compteurs bruts (qualité `approx`) : parts de modulation, MIMO,
+pertes de paquets, BLER et latence par le **volume** (DL ou UL) ; parts CA par le volume en
+agrégation ; niveaux radio (CQI, SINR, interférences en dBm), charges PRB UL, bande de base
+et utilisateurs programmés par TTI en **moyenne des cellules**. `pmMimoSleepTime` est en
+secondes (3 600 au plus par heure) : affiché en heures. `pmCellDownLock*` est repris tel que
+publié (nombre selon l'outil Excel). Quatre colonnes de l'outil sont remplacées par un calcul
+équivalent sur les compteurs : `PssrLte_p` (`lte_acces`), `RrcSetupSuccRate_p`
+(`lte_rrc_setup_sr`), `RrcSetupFailRate_p` (`lte_rrc_echec`), `PayloadDlDrbCa_p`
+(`lte_part_payload_dl_ca`).
+

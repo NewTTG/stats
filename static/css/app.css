@@ -427,6 +427,13 @@ details.options-affichage > .aide { margin: .45rem 0 0; }
 .vue-tableau { padding: .9rem; border: 1px solid var(--bord); border-radius: var(--rayon); background: #fff; }
 .vue-tableau > .aide { margin: 0 0 .65rem; }
 .causes { display: grid; gap: 1rem; }
+.graphes-themes { margin-top: 1.25rem; }
+.graphique.graphique-theme { height: 340px; }
+.graphes-themes .titre-section:first-child { margin-top: .25rem; }
+.choix-entite { display: inline-flex; flex: none; align-items: center; gap: .5rem; font-size: .85rem; color: var(--texte-3); }
+.choix-entite select { max-width: 16rem; padding: .4rem .6rem; border: 1px solid var(--bord); border-radius: var(--rayon-petit);
+  background: #fff; color: inherit; font: inherit; }
+.themes-graphes { margin-bottom: .5rem; }
 .cause-corps { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem 2rem; }
 @media (min-width: 960px) { .cause-corps { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); align-items: start; } }
 .pareto { list-style: none; padding: 0; margin: .5rem 0 0; display: grid; gap: .45rem; }
@@ -562,6 +569,8 @@ footer.pied-page a:hover { color: var(--marine); }
   .filtres-panneau { position: fixed; left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; max-height: 80vh; overflow: auto; }
   .visualisation-entete { flex-direction: column; }
   .selecteur-vue { width: 100%; }
+  .choix-entite { width: 100%; }
+  .choix-entite select { flex: 1; max-width: none; }
   .selecteur-vue button { flex: 1; justify-content: center; }
   footer.pied-page a { margin-left: 0; }
   /* Panneaux des puces : feuille en bas d'écran, jamais de débordement horizontal. */

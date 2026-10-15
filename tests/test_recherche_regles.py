@@ -323,7 +323,8 @@ def test_vocabulaire_sans_causes_en_dur():
     cat = catalogue_yaml()
     optionnels = {"wcdma_duree_appel"}  # ajouté au catalogue par ailleurs
     for intention in voc["intentions"].values():
-        for codes in intention["kpis"].values():
+        # Rapports « 4G détaillée » : KPI (causes comprises) lus dans config/graphes.yaml.
+        for codes in (intention.get("kpis") or {}).values():
             for code in codes:
                 assert code in cat or code in optionnels, code
                 assert code not in cat or not cat[code].decomposition_de, code

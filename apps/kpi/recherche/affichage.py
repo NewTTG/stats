@@ -4,6 +4,7 @@ import math
 import re
 
 from ..export_excel import LIGNES_MAX as LIGNES_MAX_EXPORT
+from ..graphes import graphes as definitions_graphes
 from ..service import Resultat, ResultatTechno
 from .vocabulaire import LIBELLES_TECHNO
 
@@ -18,7 +19,8 @@ PART_NEGLIGEABLE = 0.1
 NOMS_TECHNO = {"LTE": "4G · LTE", "WCDMA": "3G · WCDMA"}
 # Synthèse en haut de page : cartes de toutes les technos regroupées par thème.
 THEMES = [("Trafic", ("trafic",)), ("Débit et charge", ("debit", "congestion")), ("Accès", ("accessibilite",)),
-          ("Coupures", ("retainability",)), ("Disponibilité", ("disponibilite",)), ("Mobilité", ("mobilite",))]
+          ("Coupures", ("retainability",)), ("Disponibilité", ("disponibilite",)), ("Mobilité", ("mobilite",)),
+          ("Qualité radio", ("radio",)), ("Agrégation de porteuses", ("porteuses",))]
 _SUFFIXE_TECHNO = re.compile(r"\s*\((?:3G|4G)\)$")
 ESPACE_FINE = " "  # séparateur de milliers (espace fine insécable)
 
@@ -81,12 +83,14 @@ def _taille(texte: str) -> str:
     return "longue" if len(texte) > 7 else ""
 
 
-def cartes(res: ResultatTechno, conv=None) -> list[dict]:
+def cartes(res: ResultatTechno, conv=None, exclus=frozenset()) -> list[dict]:
     conv = conv or conversions(res)
     sortie = []
     for k in res.kpis:
         if k.decomposition_de and any(p.code == k.decomposition_de for p in res.kpis):
             continue  # affichée dans la décomposition par cause
+        if k.code in exclus:
+            continue  # KPI détaillé tracé dans un graphique thématique
         v = valeur(res.synthese_globale.get(k.code))
         texte, unite = formater(v, k.unite, conv[k.code][0])
         statut = k.statut(v)
@@ -128,9 +132,17 @@ def _pires(res: ResultatTechno, k, nombre: int) -> list:
     return list(serie.sort_values(ascending=k.sens == "haut_est_mieux" and _qualite(k)).index[:nombre])
 
 
-def graphiques(res: ResultatTechno, granularite_temps: str, conv=None) -> dict:
-    """Courbes par KPI (hors causes) : une série par entité ; au-delà de quelques entités,
-    seules les plus dégradées (ou les plus chargées) sont tracées. Même unité que la carte."""
+def _libelles_periodes(periodes, granularite_temps: str) -> list[str]:
+    format_periode = FORMAT_PERIODE[granularite_temps]
+    if granularite_temps == "heure" and len({p.date() for p in periodes}) == 1:
+        format_periode = "%Hh"
+    return [p.strftime(format_periode) for p in periodes]
+
+
+def graphiques(res: ResultatTechno, granularite_temps: str, conv=None, exclus=frozenset()) -> dict:
+    """Courbes par KPI (hors causes et KPI de ``exclus``) : une série par entité ; au-delà de
+    quelques entités, seules les plus dégradées (ou les plus chargées) sont tracées. Même unité
+    que la carte."""
     conv = conv or conversions(res)
     table = res.table
     if table.empty:
@@ -140,7 +152,7 @@ def graphiques(res: ResultatTechno, granularite_temps: str, conv=None) -> dict:
     tronque = len(entites) > SERIES_PIRES
     graphes = []
     for k in res.kpis:
-        if k.decomposition_de:
+        if k.decomposition_de or k.code in exclus:
             continue
         diviseur, unite = conv[k.code]
         choisies = (_pires(res, k, SERIES_PIRES) or entites[:SERIES_PIRES]) if tronque else entites
@@ -151,12 +163,59 @@ def graphiques(res: ResultatTechno, granularite_temps: str, conv=None) -> dict:
                            "valeurs": [None if (x := valeur(v)) is None else round(x / diviseur, 6) for v in serie]})
         graphes.append({"code": k.code, "titre": k.libelle, "unite": unite, "seuils": k.seuils.model_dump(),
                         "zero": k.additif or k.sens == "bas_est_mieux", "series": series})
-    format_periode = FORMAT_PERIODE[granularite_temps]
-    if granularite_temps == "heure" and len({p.date() for p in periodes}) == 1:
-        format_periode = "%Hh"
-    return {"periodes": [p.strftime(format_periode) for p in periodes],
+    return {"periodes": _libelles_periodes(periodes, granularite_temps),
             "periodes_cles": [p.isoformat() for p in periodes], "kpis": graphes, "tronque": tronque,
             "nombre": SERIES_PIRES}
+
+
+def graphes_affiches(res: ResultatTechno) -> list:
+    """Graphiques thématiques (``config/graphes.yaml``) dont tous les KPI sont dans le résultat."""
+    return definitions_graphes().couverts(res.techno, [k.code for k in res.kpis])
+
+
+def kpis_en_graphes(res: ResultatTechno) -> frozenset[str]:
+    """KPI détaillés tracés dans un graphique thématique : ni carte, ni courbe, ni classement
+    à part (leur valeur sur la période figure dans la légende du graphique)."""
+    detailles = {k.code for k in res.kpis if not k.principal}
+    return frozenset(c for g in graphes_affiches(res) for c in g.kpis if c in detailles)
+
+
+def graphes_themes(res: ResultatTechno, granularite_temps: str, conv=None) -> dict | None:
+    """Graphiques thématiques, comme dans l'outil Excel d'origine : un graphique par entité
+    (sélecteur), plusieurs KPI en barres, barres empilées ou courbes, sur deux axes.
+
+    Valeurs dans l'unité des cartes (``conv``) ; ``valeurs[kpi][n]`` : série de l'entité n ;
+    ``syntheses[kpi][n]`` : valeur sur toute la période (légende)."""
+    defs = graphes_affiches(res)
+    table = res.table
+    if not defs or table.empty:
+        return None
+    conv = conv or conversions(res)
+    kpis = {k.code: k for k in res.kpis}
+    periodes = sorted(table.index.get_level_values("periode").unique())
+    toutes = list(dict.fromkeys(table.index.get_level_values("entite")))
+    entites = toutes[:SERIES_MAX]
+    codes = list(dict.fromkeys(c for g in defs for c in g.kpis))
+    valeurs, syntheses = {}, {}
+    for code in codes:
+        diviseur, unite = conv[code]
+        valeurs[code], syntheses[code] = [], []
+        for e in entites:
+            serie = table.xs(e, level="entite")[code].reindex(periodes)
+            valeurs[code].append([None if (x := valeur(v)) is None else round(x / diviseur, 6) for v in serie])
+            total = res.synthese.at[e, code] if res.synthese is not None and e in res.synthese.index else None
+            syntheses[code].append(ESPACE_FINE.join(formater(total, kpis[code].unite, diviseur)))
+    noms_themes = definitions_graphes().themes
+    themes = {}
+    for g in defs:
+        series = [{"kpi": s.kpi, "nom": _court(kpis[s.kpi].libelle), "unite": conv[s.kpi][1], "type": s.type,
+                   "axe": s.axe} for s in g.series]
+        themes.setdefault(g.theme, []).append({"code": g.code, "titre": g.titre, "series": series})
+    return {"periodes": _libelles_periodes(periodes, granularite_temps),
+            "periodes_cles": [p.isoformat() for p in periodes],
+            "entites": [str(e) for e in entites], "entites_total": len(toutes),
+            "themes": [{"code": t, "titre": noms_themes[t], "graphes": liste} for t, liste in themes.items()],
+            "valeurs": valeurs, "syntheses": syntheses}
 
 
 def causes(res: ResultatTechno, granularite_temps: str, granularite_espace: str) -> list[dict]:
@@ -220,7 +279,7 @@ def _volume(k) -> bool:
     return k.categorie == "trafic" and k.additif
 
 
-def classement(res: ResultatTechno, conv=None, nombre: int | None = None) -> list[dict]:
+def classement(res: ResultatTechno, conv=None, nombre: int | None = None, exclus=frozenset()) -> list[dict]:
     """Classement des entités : « Les plus dégradés » pour les KPI de qualité (pire d'abord),
     « Les plus chargés » pour les volumes de trafic (plus grand d'abord) ; ``nombre`` lignes
     (« top 5 », « les 10 cellules »), 10 par défaut."""
@@ -229,7 +288,7 @@ def classement(res: ResultatTechno, conv=None, nombre: int | None = None) -> lis
     conv = conv or conversions(res)
     sortie = []
     for k in res.kpis:
-        if k.decomposition_de or not (_qualite(k) or _volume(k)):
+        if k.decomposition_de or k.code in exclus or not (_qualite(k) or _volume(k)):
             continue
         serie = res.synthese[k.code].dropna()
         if serie.empty:
@@ -286,16 +345,19 @@ def blocs(resultat: Resultat, nombre: int | None = None) -> list[dict]:
     sortie = []
     for res in resultat.par_techno:
         conv = conversions(res)
+        exclus = kpis_en_graphes(res)
         lignes, total = lignes_table(res, req.granularite_temps)
         sortie.append({
             "res": res,
             "nom": NOMS_TECHNO.get(res.techno, res.techno),
             "court": LIBELLES_TECHNO.get(res.techno, res.techno),
-            "cartes": cartes(res, conv),
-            "graphiques": graphiques(res, req.granularite_temps, conv),
+            "cartes": cartes(res, conv, exclus),
+            "graphiques": graphiques(res, req.granularite_temps, conv, exclus),
             "id_graphiques": f"graphiques-{res.techno}",
+            "graphes_themes": graphes_themes(res, req.granularite_temps, conv),
+            "id_graphes_themes": f"graphes-themes-{res.techno}",
             "causes": causes(res, req.granularite_temps, req.granularite_espace),
-            "classement": classement(res, conv, nombre) if req.granularite_espace != "global" else [],
+            "classement": classement(res, conv, nombre, exclus) if req.granularite_espace != "global" else [],
             "lignes": lignes,
             "lignes_total": total,
             "lignes_tronquees": total > len(lignes),

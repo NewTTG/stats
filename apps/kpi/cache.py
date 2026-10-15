@@ -17,7 +17,7 @@ from django.conf import settings
 from filelock import FileLock, Timeout
 
 journal = logging.getLogger(__name__)
-VERSION = 1  # À incrémenter si la structure ou la sémantique des résultats change.
+VERSION = 2  # À incrémenter si la structure ou la sémantique des résultats change.
 ABSENT = object()
 
 

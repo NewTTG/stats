@@ -44,7 +44,7 @@ variantes_saisie:
 # Termes qui désignent une techno sans la nommer : appliqués seulement si la demande ne
 # cite aucune techno (« drop E-RAB » = 4G, « CSSR » = 3G ; « 3G » ou « 4G » explicite prime).
 technos_implicites:
-  LTE: [e rab, erab, prb, prbs, s1, csfb, cqi, enb, enodeb, mme, volte]
+  LTE: [e rab, erab, prb, prbs, s1, csfb, cqi, enb, enodeb, mme, volte, sinr, bler, mimo, qam, rach, paging]
   WCDMA: [hsdpa, hsupa, hspa, cssr, rab, erlang, erlangs, erl, rnc, nodeb]
 
 # Termes qui ajoutent leur techno même quand une autre est citée : « appels 3G et CSFB » =
@@ -60,17 +60,13 @@ termes_techniques: [hsdpa, hsupa, hspa, cssr, rrc, rab, prb, prbs, cqi, csfb, vo
                     rscp, ecno, ec io, gprs]
 
 # KPI ou technologies cités mais absents des données : une note le dit, la demande continue
-# (« Nouméa SINR hier » garde Nouméa ; « drop 2G » -> note puis les technos disponibles).
+# (« Nouméa RSRP hier » garde Nouméa ; « drop 2G » -> note puis les technos disponibles).
 # terme normalisé -> libellé affiché ; « techno: true » pour une technologie absente.
 indisponibles:
-  sinr: {libelle: SINR}
-  bler: {libelle: BLER}
-  mimo: {libelle: MIMO}
   rsrp: {libelle: RSRP}
   rsrq: {libelle: RSRQ}
   rscp: {libelle: RSCP}
   ecno: {libelle: Ec/No}
-  cqi: {libelle: CQI}
   volte: {libelle: VoLTE}
   2g: {libelle: 2G, techno: true}
   gsm: {libelle: 2G (GSM), techno: true}
@@ -89,6 +85,8 @@ indisponibles:
 #   « qualité à Koné » = qualité de service, « qualité du débit » = débit.
 # rapport : rapport type proposé sur l'accueil (une carte, dans l'ordre du fichier) ;
 #   l'ordre des KPI de chaque techno est celui de la synthèse du résultat.
+# graphes : thème de config/graphes.yaml ; ajoute aux KPI de l'intention tous ceux des
+#   graphiques du thème (rapports « 4G détaillée », repris de l'outil Excel LTE_SQL_Access).
 intentions:
   # ------------------------------------------------------------ rapports types
   # Les demandes habituelles en un mot (« bilan », « rapport trafic »…) ou un clic sur l'accueil.
@@ -360,6 +358,116 @@ intentions:
     kpis:
       LTE: [lte_ho_intra_sr]
 
+  # Indicateurs 4G détaillés (KPI repris de l'outil Excel LTE_SQL_Access).
+  sinr:
+    libelle: SINR
+    mots: [sinr, rapport signal sur bruit, signal sur bruit]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_sinr_pucch, lte_sinr_pusch]
+
+  cqi:
+    libelle: CQI
+    mots: [cqi, qualite du canal, cqi moyen]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_cqi]
+
+  bler:
+    libelle: Taux d'erreur (BLER)
+    mots: [bler, taux d erreur, taux d erreurs, erreurs de bloc, bler rlc, bler mac]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_bler_rlc_dl, lte_bler_rlc_ul, lte_bler_mac_dl, lte_bler_mac_ul]
+
+  mimo:
+    libelle: MIMO
+    mots: [mimo, multiplexage spatial, diversite, mode de transmission, veille mimo, mimo sleep]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_mimo_diversite, lte_mimo_multiplexage, lte_veille_mimo]
+
+  modulation:
+    libelle: Modulation
+    mots: [modulation, modulations, qam, 256qam, 256 qam, 64qam, 64 qam, 16qam, 16 qam, qpsk]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_mod_dl_256qam, lte_mod_dl_64qam, lte_mod_dl_16qam, lte_mod_dl_qpsk, lte_mod_ul_64qam,
+            lte_mod_ul_16qam, lte_mod_ul_qpsk]
+
+  latence:
+    libelle: Latence
+    mots: [latence, latences, latency, ping, delai, delais, temps de reponse]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_latence_dl]
+
+  interferences:
+    libelle: Interférences
+    mots: [interference, interferences, brouillage, brouillages, interferences ul, bruit]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_interference_pucch, lte_interference_pusch]
+
+  perte_paquets:
+    libelle: Perte de paquets
+    mots: [perte de paquets, pertes de paquets, paquets perdus, packet loss]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_perte_paquets_dl, lte_perte_paquets_ul]
+
+  agregation_porteuses:
+    libelle: Agrégation de porteuses
+    mots: [agregation de porteuses, agregation porteuses, carrier aggregation, porteuses secondaires,
+           cellule secondaire, cellules secondaires, scell]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_part_payload_dl_ca, lte_payload_dl_ca, lte_debit_utilisateur_ca_dl, lte_ca_config_sr]
+
+  paging:
+    libelle: Paging
+    mots: [paging, pagings, recherche d abonne, recherche de mobile]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_paging_recus, lte_paging_rejet]
+
+  rach:
+    libelle: Accès aléatoire (RACH)
+    mots: [rach, acces aleatoire, random access, preambule, preambules]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_rach_tentatives, lte_rach_sr]
+
+  handover_inter:
+    libelle: Handover inter-fréquence
+    mots: [handover inter frequence, handovers inter frequence, ho inter frequence, ho inter, handover inter,
+           inter frequence, interfrequence, equilibrage de charge, load balancing, handover equilibrage]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_ho_inter_sr, lte_ho_lb_sr]
+
+  reetablissement:
+    libelle: Rétablissement RRC
+    mots: [reetablissement, reetablissements, reetablissement rrc, rrc reestablishment, reestablishment]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_rrc_reetab_tentatives, lte_rrc_reetab_sr]
+
+  volume_ul:
+    libelle: Volume montant
+    mots: [volume ul, volume montant, trafic ul, trafic montant, volume upload, data ul, volume uplink]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_payload_ul]
+
+  utilisateurs_actifs:
+    libelle: Utilisateurs actifs
+    mots: [utilisateurs actifs, utilisateur actif, ue actifs, users actifs, utilisateurs moyens,
+           moyenne d utilisateurs, nombre moyen d utilisateurs]
+    technos_defaut: [LTE]
+    kpis:
+      LTE: [lte_rrc_conn_moy, lte_ue_actifs_dl, lte_ue_actifs_ul]
+
   # Rapport type et indicateur : estimation du nombre d'utilisateurs connectés (4G).
   utilisateurs:
     libelle: Utilisateurs connectés
@@ -378,6 +486,62 @@ intentions:
     technos_defaut: [LTE]
     kpis:
       LTE: [lte_rrc_conn_max]
+
+  # Rapports 4G détaillés : graphiques thématiques de l'outil Excel (config/graphes.yaml).
+  rapport_lte_trafic:
+    libelle: Trafic et charge 4G détaillés
+    rapport:
+      titre: "4G détaillée : trafic et charge"
+      description: Volumes, débits cellule, utilisateurs, PRB, signalisation, CSFB, disponibilité
+      icone: trafic
+    mots: [trafic detaille, trafic detailles, trafic 4g detaille, charge detaillee, rapport trafic detaille,
+           bilan trafic detaille, kpi trafic detailles]
+    technos_defaut: [LTE]
+    graphes: trafic
+
+  rapport_lte_accessibilite:
+    libelle: Accessibilité 4G détaillée
+    rapport:
+      titre: "4G détaillée : accessibilité"
+      description: Paging, RACH, RRC (et causes d'échec), S1, E-RAB initial, ajout et modification
+      icone: qualite
+    mots: [accessibilite detaillee, acces detaille, acces detailles, rapport accessibilite, rapport d accessibilite,
+           accessibilite complete, kpi accessibilite detailles]
+    technos_defaut: [LTE]
+    graphes: accessibilite
+
+  rapport_lte_integrite:
+    libelle: Débit et qualité radio 4G détaillés
+    rapport:
+      titre: "4G détaillée : débit et qualité radio"
+      description: Débits, latence, modulation, MIMO, CQI, SINR, interférences, BLER, agrégation de porteuses
+      icone: data
+    mots: [integrite, integrity, rapport integrite, qualite radio detaillee, radio detaillee, debit detaille,
+           debits detailles, kpi radio, indicateurs radio]
+    technos_defaut: [LTE]
+    graphes: integrite
+
+  rapport_lte_coupures:
+    libelle: Coupures 4G détaillées
+    rapport:
+      titre: "4G détaillée : coupures"
+      description: Rétablissement RRC, coupures UE et E-RAB (eNodeB, cœur, actives) et leurs causes
+      icone: qualite
+    mots: [coupures detaillees, coupure detaillee, drop detaille, drops detailles, retainability detaillee,
+           rapport retainability, retenabilite detaillee]
+    technos_defaut: [LTE]
+    graphes: retainability
+
+  rapport_lte_mobilite:
+    libelle: Mobilité 4G détaillée
+    rapport:
+      titre: "4G détaillée : mobilité"
+      description: Handovers intra / inter-fréquence et d'équilibrage de charge, rejets, continuité de session
+      icone: mobilite
+    mots: [mobilite detaillee, handover detaille, handovers detailles, rapport mobilite, bilan mobilite,
+           rapport handover, rapport handovers]
+    technos_defaut: [LTE]
+    graphes: mobilite
 
 # Mots qui qualifient une intention (« coupure voix », « accès data ») ; seuls, ils ouvrent
 # l'intention Appels (voix) ou Trafic data (data).
