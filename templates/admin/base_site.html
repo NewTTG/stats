@@ -5,7 +5,7 @@
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
 {% block branding %}
-<div id="site-name"><a href="{% url 'admin:index' %}"><span class="marque-admin-logo" aria-hidden="true">K</span>{{ site_header|default:_('Django administration') }}</a></div>
+<div id="site-name"><a href="{% url 'admin:index' %}"><span class="marque-admin-logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 19v-7m7 7V7m7 12V3"/></svg></span>{{ site_header|default:_('Django administration') }}</a></div>
 {% if user.is_anonymous %}
   {% include "admin/color_theme_toggle.html" %}
 {% endif %}
@@ -15,6 +15,8 @@
 {% block content_subtitle %}{% endblock %}
 
 {% block welcome-msg %}{% endblock %}
+
+{% block footer %}{% if not is_popup %}<div class="admin-pied"><span>Stats réseau · OPT</span><span>Heure de Nouméa · Administration</span></div>{% endif %}{% endblock %}
 
 {% block userlinks %}
   {% if site_url %}<a class="retour-statistiques" href="{{ site_url }}">← Retour aux statistiques</a>{% endif %}

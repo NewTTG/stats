@@ -1,0 +1,4 @@
+{% extends 'admin/change_list.html' %}
+{% comment %}Gestion des KPI : noms affichés, catégories, descriptions et seuils des KPI du catalogue.{% endcomment %}
+{% block breadcrumbs %}<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Accueil</a> › Gestion des KPI › KPI : noms et seuils</div>{% endblock %}
+{% block page_intro %}<p class="page-intro">Noms, catégories et descriptions vus par les utilisateurs dans toute l'application (choix des indicateurs, résultats, exports, rapports), et seuils d'alerte. Valeurs initiales : celles du catalogue ; l'action « Rétablir » y revient. Pour proposer une colonne de la base qui n'est dans aucun KPI : <a href="{% url 'admin:kpi_colonnekpi_changelist' %}">Colonnes de la base</a>.</p>{% endblock %}

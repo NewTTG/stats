@@ -7,7 +7,7 @@ import re
 from django import forms
 from django.db.models import Count
 
-from apps.kpi.catalogue import LIBELLES_CATEGORIE, catalogue_yaml, kpis_principaux
+from apps.kpi.catalogue import LIBELLES_CATEGORIE, catalogue, catalogue_yaml, kpis_principaux
 from apps.referentiel.models import Cellule, Secteur, Site
 
 from . import mobiles
@@ -68,7 +68,7 @@ class EvenementForm(forms.ModelForm):
     def __init__(self, *args, visibilite: bool = True, **kwargs):
         """``visibilite`` : public / privé se choisit (création, ou par le créateur)."""
         super().__init__(*args, **kwargs)
-        self.fields["kpis"].choices = [(code, k.libelle) for code, k in catalogue_yaml().items()]
+        self.fields["kpis"].choices = [(code, k.libelle) for code, k in catalogue().items()]
         self.fields["kpis_choisis"].initial = bool(self.instance.kpis)
         if visibilite:
             self.initial["public"] = "public" if self.instance.public else "prive"
@@ -173,7 +173,7 @@ def zone_pour_carte(evenement: Evenement) -> dict:
 
 def groupes_kpi(formulaire: EvenementForm) -> list[dict]:
     """KPI du catalogue par techno puis catégorie ; cochés : la sélection, sinon les KPI principaux."""
-    cat = catalogue_yaml()
+    cat = catalogue()
     if formulaire["kpis_choisis"].value():
         coches = set(formulaire["kpis"].value() or formulaire.instance.kpis or [])
     else:

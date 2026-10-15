@@ -1,6 +1,6 @@
-{# Menu latéral : rubriques par usage (config/admin.py, NAVIGATION), filtrées selon les droits. #}
+{# Menu latéral : marque de l'application, puis rubriques par usage (config/admin.py, NAVIGATION), filtrées selon les droits. #}
 <nav id="nav-sidebar" aria-label="Menu de l’administration">
-  <a class="admin-marque" href="{% url 'admin:index' %}"><span class="marque-admin-logo" aria-hidden="true">K</span><span>Stats réseau<small>Administration</small></span></a>
+  <a class="admin-marque" href="{% url 'admin:index' %}"><span class="marque-admin-logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 19v-7m7 7V7m7 12V3"/></svg></span><span>Stats<span class="brand-dot">.</span><small>Administration</small></span></a>
   {% for rubrique in navigation %}
   <div class="admin-rubrique">
     <p class="admin-rubrique-titre" id="rubrique-{{ forloop.counter }}">{{ rubrique.titre }}</p>

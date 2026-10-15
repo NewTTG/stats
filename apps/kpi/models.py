@@ -1,40 +1,79 @@
+import re
+
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
 from .catalogue import LIBELLES_CATEGORIE
 
+SENS = [("haut_est_mieux", "↑ plus haut est mieux"), ("bas_est_mieux", "↓ plus bas est mieux")]
+
 
 class SeuilKpi(models.Model):
-    """Seuils d'un KPI réglés dans l'admin ; ils remplacent ceux du catalogue YAML.
+    """Réglages d'un KPI dans l'admin : nom affiché, catégorie, description et seuils.
 
-    Une ligne par KPI, créée avec les valeurs du YAML à l'ouverture de la page d'admin.
-    Seuil vide = pas de seuil.
+    Une ligne par KPI du catalogue YAML, créée avec ses valeurs à l'ouverture de la page d'admin ;
+    les valeurs réglées ici remplacent celles du YAML dans toute l'application (``catalogue()``).
+    Seuil vide = pas de seuil ; description vide = pas de description.
     """
 
     code = models.CharField("KPI", max_length=64, unique=True)
+    libelle = models.CharField("nom affiché", max_length=120, blank=True,
+                               help_text="Nom présenté aux utilisateurs (recherche, résultats, exports, rapports).")
+    categorie = models.CharField("catégorie", max_length=32, blank=True, choices=list(LIBELLES_CATEGORIE.items()))
+    # None : description du catalogue YAML (lignes créées avant ces réglages).
+    description = models.TextField(null=True, blank=True,
+                                   help_text="Affichée en info-bulle à côté de la valeur et dans les rapports.")
     alerte = models.FloatField(null=True, blank=True)
     critique = models.FloatField(null=True, blank=True)
     modifie_le = models.DateTimeField("modifié le", auto_now=True)
 
     class Meta:
         ordering = ["code"]
-        verbose_name = "seuil KPI"
-        verbose_name_plural = "seuils KPI"
+        verbose_name = "KPI"
+        verbose_name_plural = "KPI"
 
     def __str__(self):
-        return self.code
+        return self.libelle or self.code
 
     @classmethod
     def synchroniser(cls):
-        """Crée les lignes manquantes avec les seuils du catalogue YAML."""
+        """Crée les lignes manquantes avec les valeurs du catalogue YAML et complète les champs vides."""
         from .catalogue import catalogue_yaml
 
-        existants = set(cls.objects.values_list("code", flat=True))
+        cat = catalogue_yaml()
+        existants = {s.code: s for s in cls.objects.all()}
         cls.objects.bulk_create([
-            cls(code=code, alerte=k.seuils.alerte, critique=k.seuils.critique)
-            for code, k in catalogue_yaml().items() if code not in existants
+            cls(code=code, libelle=k.libelle, categorie=k.categorie, description=k.note or "",
+                alerte=k.seuils.alerte, critique=k.seuils.critique)
+            for code, k in cat.items() if code not in existants
         ])
+        a_completer = []
+        for code, s in existants.items():
+            if code in cat and (not s.libelle or not s.categorie or s.description is None):
+                k = cat[code]
+                s.libelle, s.categorie = s.libelle or k.libelle, s.categorie or k.categorie
+                s.description = (k.note or "") if s.description is None else s.description
+                a_completer.append(s)
+        cls.objects.bulk_update(a_completer, ["libelle", "categorie", "description"])
+
+    def retablir(self, kpi):
+        """Valeurs du catalogue YAML (``kpi``) : nom, catégorie, description et seuils."""
+        self.libelle, self.categorie, self.description = kpi.libelle, kpi.categorie, kpi.note or ""
+        self.alerte, self.critique = kpi.seuils.alerte, kpi.seuils.critique
+
+    def appliquer(self, kpi):
+        """Définition ``kpi`` du YAML avec les réglages de cette ligne."""
+        from .catalogue import Seuils
+
+        modifs = {"seuils": Seuils(alerte=self.alerte, critique=self.critique)}
+        if self.libelle:
+            modifs["libelle"] = self.libelle
+        if self.categorie:
+            modifs["categorie"] = self.categorie
+        if self.description is not None:
+            modifs["note"] = self.description.strip() or None
+        return kpi.model_copy(update=modifs)
 
     def clean(self):
         from .catalogue import catalogue_yaml
@@ -51,15 +90,30 @@ class SeuilKpi(models.Model):
                 raise ValidationError({"critique": "Plus bas est mieux : le seuil critique doit être ≥ au seuil d'alerte."})
 
 
+# Suffixes des colonnes (docs/schema.md) : unité et calcul proposés par défaut.
+SUFFIXES = [("_p", "%", "moyenne"), ("_kbps", "kbps", "moyenne"), ("_mB", "Mo", "somme"), ("_kB", "ko", "somme"),
+            ("_erlg", "Erl", "somme"), ("_dBm", "dBm", "moyenne"), ("_dB", "dB", "moyenne"), ("_nb", "nombre", "somme")]
+_IDENTIFIANT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_TYPES_NON_NUMERIQUES = ("char", "text", "date", "time", "bool", "json")
+
+
+def unite_et_calcul(nom: str) -> tuple[str, str]:
+    """Unité et calcul suggérés d'après le suffixe ; « Max » dans le nom : pic simultané."""
+    unite, calcul = next(((u, c) for suffixe, u, c in SUFFIXES if nom.endswith(suffixe)), ("", "somme"))
+    return unite, "pic" if "max" in nom.lower() and calcul == "somme" else calcul
+
+
 class ColonneKpi(models.Model):
     """Colonne de mesure d'une table de la base KPI, décrite pour les utilisateurs.
 
     Les lignes sont créées et tenues à jour par ``synchroniser`` (lecture du schéma de la base KPI) ;
     libellé, catégorie et description se règlent dans l'admin. Une colonne qui disparaît de la base
-    est conservée (``presente`` à faux) avec sa description.
+    est conservée (``presente`` à faux) avec sa description. Une colonne « proposée aux utilisateurs »
+    devient un indicateur de l'application, sous son nom affiché (``definition``).
     """
 
     TECHNOS = [("LTE", "4G (LTE)"), ("WCDMA", "3G (WCDMA)")]
+    CALCULS = [("somme", "Somme"), ("moyenne", "Moyenne"), ("pic", "Pic simultané")]
 
     techno = models.CharField(max_length=8, choices=TECHNOS)
     nom = models.CharField("colonne", max_length=128, help_text="Nom de la colonne dans la base KPI.")
@@ -70,6 +124,14 @@ class ColonneKpi(models.Model):
     type_donnees = models.CharField("type", max_length=64, blank=True)
     tables = models.CharField("données", max_length=32, blank=True,
                               help_text="Tables où la colonne existe : jour, heure.")
+    proposee = models.BooleanField("proposée", default=False,
+                                   help_text="Indicateur sélectionnable dans l'application, sous son nom affiché.")
+    calcul = models.CharField(max_length=16, blank=True, choices=CALCULS,
+                              help_text="Somme : volumes, nombres. Moyenne : taux, débits, niveaux "
+                                        "(moyenne des valeurs des cellules). Pic simultané : somme des cellules "
+                                        "à chaque instant, puis maximum sur la période.")
+    unite = models.CharField("unité", max_length=24, blank=True)
+    sens = models.CharField(max_length=16, choices=SENS, default="haut_est_mieux")
     presente = models.BooleanField("présente en base", default=True)
     vue_le = models.DateTimeField("dernière lecture de la base", null=True, blank=True)
     modifie_le = models.DateTimeField("modifié le", auto_now=True)
@@ -86,6 +148,40 @@ class ColonneKpi(models.Model):
     @property
     def nom_affiche(self):
         return self.libelle or self.nom
+
+    @property
+    def code(self):
+        """Code de l'indicateur dans le catalogue (requêtes, périmètres, rapports enregistrés)."""
+        from .catalogue import PREFIXE_COLONNE
+
+        return f"{PREFIXE_COLONNE}{self.techno.lower()}_{self.nom}"
+
+    def clean(self):
+        if not self.proposee:
+            return
+        manques = {champ: "Obligatoire pour proposer la colonne aux utilisateurs."
+                   for champ in ("libelle", "categorie", "calcul", "unite") if not getattr(self, champ)}
+        if manques:
+            raise ValidationError(manques)
+        if not self.presente or self.tables != "jour, heure" or not _IDENTIFIANT.match(self.nom):
+            raise ValidationError({"proposee": "Seules les colonnes présentes dans les tables journalière "
+                                               "et horaire peuvent être proposées."})
+        if any(t in self.type_donnees for t in _TYPES_NON_NUMERIQUES):
+            raise ValidationError({"proposee": f"Colonne non numérique ({self.type_donnees}) : pas de calcul possible."})
+
+    def definition(self):
+        """Indicateur du catalogue correspondant à la colonne (None si incomplète)."""
+        from .catalogue import DefinitionKpi
+
+        try:
+            self.clean()
+        except ValidationError:
+            return None
+        return DefinitionKpi(
+            code=self.code, libelle=self.libelle, techno=self.techno, unite=self.unite, categorie=self.categorie,
+            numerateur=self.nom, denominateur="1" if self.calcul == "moyenne" else None,
+            agregation="pic" if self.calcul == "pic" else "somme", sens=self.sens,
+            note=self.description.strip() or None)
 
     @classmethod
     def synchroniser(cls, engine=None) -> dict:
@@ -112,15 +208,20 @@ class ColonneKpi(models.Model):
                 colonne = existantes.get((techno, nom))
                 if colonne is None:
                     cats = categories.get((techno, nom), set())
+                    unite, calcul = unite_et_calcul(nom)
                     nouvelles.append(cls(techno=techno, nom=nom, type_donnees=info["type"][:64], tables=tables,
-                                         categorie=next(iter(cats)) if len(cats) == 1 else "", vue_le=maintenant))
+                                         categorie=next(iter(cats)) if len(cats) == 1 else "",
+                                         unite=unite, calcul=calcul, vue_le=maintenant))
                     continue
                 colonne.type_donnees, colonne.tables = info["type"][:64], tables
                 colonne.presente, colonne.vue_le = True, maintenant
+                if not colonne.calcul:  # lignes créées avant le choix du calcul
+                    colonne.unite, colonne.calcul = colonne.unite or unite_et_calcul(nom)[0], unite_et_calcul(nom)[1]
                 modifiees.append(colonne)
         cls.objects.bulk_create(nouvelles)
         # bulk_update n'applique pas auto_now : « modifié le » reste la date de la dernière saisie.
-        cls.objects.bulk_update(modifiees, ["type_donnees", "tables", "presente", "vue_le"], batch_size=500)
+        cls.objects.bulk_update(modifiees, ["type_donnees", "tables", "presente", "vue_le", "unite", "calcul"],
+                                batch_size=500)
         vues = {(c.techno, c.nom) for c in nouvelles + modifiees}
         disparues = [c.pk for cle, c in existantes.items() if cle not in vues and c.presente]
         cls.objects.filter(pk__in=disparues).update(presente=False)

@@ -295,11 +295,13 @@ et redémarrer l’application et le worker. En déploiement, exécuter aussi
 - **Administration** (/admin), à part des statistiques : lien « Administration » en haut à
   droite pour un compte administrateur, « Accès administrateur » (/connexion) en pied de page
   sinon ; les pages des statistiques n'affichent aucun détail technique à un utilisateur
-  (commande de la démo, configuration de la base KPI). Mise en page d'outil d'administration :
-  menu latéral fixe par usage (pilotage, analyse, gestion des KPI, référentiel réseau,
-  comptes et accès, système), barre supérieure avec fil d'Ariane, « ← Retour aux statistiques » et menu du
+  (commande de la démo, configuration de la base KPI). Même identité visuelle que l'application
+  (marque « Stats. », fond vert très clair, accent pétrole, cartes arrondies, boutons, champs et
+  tableaux de l'espace de travail ; static/css/admin.css reprend ses jetons) : menu latéral
+  fixe par usage (pilotage, analyse, gestion des KPI, référentiel réseau, comptes et accès,
+  système), barre supérieure avec fil d'Ariane, « ← Retour aux statistiques » et menu du
   compte ; listes compactes avec recherche et filtres en menus déroulants au-dessus du
-  tableau ; thèmes clair et sombre. Le tableau de bord réunit les indicateurs des demandes,
+  tableau ; thème clair comme l'application, et thème sombre dans les mêmes teintes. Le tableau de bord réunit les indicateurs des demandes,
   les dernières demandes, les points **à traiter** (précisions sans
   réponse, échecs, rapports et tâches en erreur), l'état du référentiel et des accès rapides.
   La liste des utilisateurs masque par défaut les sessions visiteur (filtre « Type de compte »).
@@ -457,28 +459,54 @@ bilan complet ; un indicateur explicite reste prioritaire (« stats du débit »
   Pourcentages réglables dans l'admin.
 - Un lecteur restreint ne voit que les cellules et KPI de son périmètre.
 
+### KPI : noms et seuils
+
+Admin → **Gestion des KPI › KPI : noms et seuils** : une ligne par KPI du catalogue YAML,
+initialisée avec ses valeurs. **Nom affiché**, **catégorie**, **description** (info-bulle
+à côté de la valeur, rapports) et **seuils** d'alerte et critique se modifient directement
+dans la liste ; ils remplacent ceux du YAML dans toute l'application (choix des indicateurs,
+résultats, graphiques, exports Excel, rapports PowerPoint / PDF, événements). La fiche d'un
+KPI rappelle sa formule et les colonnes de la base qu'il utilise. L'action « Rétablir les
+valeurs du catalogue YAML » remet nom, catégorie, description et seuils du YAML ; un KPI
+ajouté au YAML apparaît à la prochaine ouverture de la page. La recherche en langage libre
+reste pilotée par `config/recherche.yaml` (mots-clés vers codes KPI) : un renommage ne change
+pas les mots reconnus.
+
 ### Colonnes de la base KPI
 
 Admin → **Gestion des KPI › Colonnes de la base** : les colonnes de mesure des tables KPI
 (`lte_cell_day` / `_hour`, `wcdma_cell_day` / `_hour`, sans les colonnes cellule et
 horodatage), une ligne par techno et colonne, avec les tables où elle existe (jour, heure)
-et les KPI du catalogue qui l'utilisent. Pour chacune : **nom affiché** aux utilisateurs,
-**catégorie** (celles du catalogue : débit, trafic, accessibilité, coupures, congestion,
-mobilité, disponibilité) et **description**, modifiables directement dans la liste ou dans
-la fiche. Filtres : techno, catégorie (dont « Non classée »), « À nommer », usage par un KPI,
-présence en base ; le menu latéral indique le nombre de colonnes à nommer.
+et les KPI du catalogue qui l'utilisent (« utilisée par », lien vers la fiche du KPI pour
+le renommer). Pour chacune : **nom affiché**, **catégorie** (celles du catalogue : débit,
+trafic, accessibilité, coupures, congestion, mobilité, disponibilité) et **description**,
+modifiables dans la liste ou dans la fiche. Filtres : techno, catégorie (dont « Non
+classée »), « À nommer », usage (par un KPI, par aucun, proposée), présence en base ; le menu
+latéral indique le nombre de colonnes à nommer.
+
+**Proposer une colonne aux utilisateurs** (case « proposée ») : elle devient un indicateur
+de l'application, sous son nom affiché et dans sa catégorie, à côté des KPI du catalogue
+(« Indicateurs sur mesure », résultats, exports, rapports enregistrés ; code
+`col_<techno>_<colonne>`, utilisable dans les KPI autorisés d'un périmètre). Calcul sur le
+périmètre et la période :
+
+| Calcul | Résultat | Pour |
+|---|---|---|
+| Somme | somme des valeurs des cellules | volumes, nombres (`_mB`, `_nb`, `_erlg`) |
+| Moyenne | moyenne des valeurs des cellules sur la période (pas un ratio de sommes) | taux, débits, niveaux (`_p`, `_kbps`, `_dBm`) |
+| Pic simultané | somme des cellules à chaque instant, puis maximum | maxima (`…Max…`) |
+
+Calcul et unité sont proposés d'après le suffixe de la colonne et se modifient dans la fiche
+(avec le sens : plus haut ou plus bas est mieux). Une colonne proposée doit avoir un nom, une
+catégorie, un calcul et une unité, être numérique et exister dans les tables journalière et
+horaire. Elle n'est pas analysée par défaut dans les événements (à cocher) et n'est pas
+reconnue par la recherche en langage libre.
 
 La base KPI est lue (schéma seulement, aucune ligne) à la première ouverture, puis avec le
 bouton **Relire la base KPI** : nouvelles colonnes ajoutées (catégorie reprise des KPI qui
-l'utilisent si elle est unique), colonnes disparues marquées « absente de la base » ; noms,
-catégories et descriptions sont conservés. Relecture : droit « modifier une colonne de la
-base KPI ».
-
-### Seuils KPI
-
-Admin → **Seuils KPI** : une ligne par KPI, initialisée avec les valeurs du catalogue
-YAML ; modifier directement dans la liste. L'action « Rétablir les seuils du catalogue »
-remet les valeurs du YAML.
+l'utilisent si elle est unique), colonnes disparues marquées « absente de la base » (une
+colonne proposée disparue n'est plus proposée) ; noms, catégories et descriptions sont
+conservés. Relecture : droit « modifier une colonne de la base KPI ».
 
 ### Modèle PowerPoint
 
@@ -712,7 +740,7 @@ python scripts/explorer_schema.py   # depuis la racine du dépôt ; lecture seul
 | `config/` | settings Django, `kpi_catalogue.yaml`, vocabulaire de recherche `recherche.yaml`, site d'administration (`admin.py` : ordre des sections, tableau de bord ; gabarits dans `templates/admin/`) |
 | `apps/comptes/` | périmètres d'accès, journal d'audit |
 | `apps/referentiel/` | sites / secteurs / cellules importés du xlsx, décodage des noms de cellules |
-| `apps/kpi/` | modèle de requête (Pydantic), catalogue, moteur de calcul, seuils réglables, écran de recherche |
+| `apps/kpi/` | modèle de requête (Pydantic), catalogue, moteur de calcul, noms et seuils réglables, colonnes de la base proposées comme indicateurs, écran de recherche |
 | `apps/kpi/recherche/` | recherche en langage libre : règles (`regles.py`), IA (`ia.py`), lieux, dates |
 | `apps/kpi/management/commands/charger_demo_kpi.py` | base KPI de démonstration (SQLite) |
 | `apps/evenements/` | événements, analyse contre référence, règles de détection (`detection.py`) |

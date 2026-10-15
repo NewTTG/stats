@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from django.contrib.auth.models import Permission, User
 from django.urls import reverse
 
-from apps.kpi.models import ColonneKpi
+from apps.kpi.models import ColonneKpi, SeuilKpi
 from apps.kpi.source import BaseKpiNonConfiguree, colonnes_base
 
 pytestmark = pytest.mark.django_db
@@ -80,15 +80,19 @@ def test_page_lue_a_la_premiere_ouverture_puis_editable(client_admin, base):
     assert "Taux de succès d&#x27;établissement RRC" in html
     # menu latéral : rubrique dédiée, pastille des colonnes à nommer
     rubriques = {r["titre"]: r["entrees"] for r in reponse.context["navigation"]}
-    entree = rubriques["Gestion des KPI"][0]
-    assert entree["libelle"] == "Colonnes de la base" and entree["actif"] and entree["compteur"] == 5
+    assert [e["libelle"] for e in rubriques["Gestion des KPI"]] == ["KPI : noms et seuils", "Colonnes de la base"]
+    entree = rubriques["Gestion des KPI"][1]
+    assert entree["actif"] and entree["compteur"] == 5
+    # « utilisée par » : lien vers la fiche du KPI, à modifier
+    rrc = SeuilKpi.objects.get(code="lte_rrc_setup_sr")
+    assert f'href="{reverse("admin:kpi_seuilkpi_change", args=[rrc.pk])}"' in html
 
     # saisie dans la liste : nom affiché, catégorie, description
     colonnes = list(ColonneKpi.objects.order_by("techno", "nom"))
     donnees = {"form-TOTAL_FORMS": len(colonnes), "form-INITIAL_FORMS": len(colonnes), "_save": "Enregistrer"}
     for i, c in enumerate(colonnes):
         donnees.update({f"form-{i}-id": c.pk, f"form-{i}-libelle": c.libelle, f"form-{i}-categorie": c.categorie,
-                        f"form-{i}-description": c.description})
+                        f"form-{i}-description": c.description, f"form-{i}-calcul": c.calcul})
     i = next(i for i, c in enumerate(colonnes) if c.nom == "Tac")
     donnees.update({f"form-{i}-libelle": "Zone de suivi (TAC)", f"form-{i}-categorie": "mobilite",
                     f"form-{i}-description": "Code de zone LTE"})
