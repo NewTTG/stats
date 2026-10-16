@@ -159,6 +159,7 @@ def detail(request, pk):
         statut = 503
     except Exception:
         suivi.terminer(demande, 'erreur', 'Erreur inattendue pendant l’analyse de l’événement.')
+        journal.exception("Échec de la demande %s (événement %s)", demande.pk if demande else '-', pk)
         raise
     if contexte.get('erreur'):
         suivi.terminer(demande, 'erreur', contexte['erreur'])
