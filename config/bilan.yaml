@@ -1,0 +1,53 @@
+# Analyse d'un résultat (« Ce qui s'est bien passé / mal passé », congestion mise en avant).
+#
+# La congestion se lit sur les KPI de catégorie « congestion » qui ont un seuil (catalogue
+# ou administration) : utilisation PRB DL 4G (alerte 80 %, critique 90 %). Chaque période
+# (heure au pas horaire) au-delà du seuil d'alerte compte, cellule par cellule.
+#
+# signes_de_charge : rejets et blocages dus au manque de ressources, lus aux mêmes périodes.
+#   Sans seuil, une valeur compte au-dessus de « plancher » (bruit de mesure ; 0 par défaut).
+#   Avec un seuil (administration), c'est le seuil d'alerte qui compte.
+# complements : compteurs proposés quand la demande porte sur la congestion et qu'ils ne
+#   sont pas dans le résultat, dans l'ordre de la liste (raison affichée à côté).
+# Un code absent du catalogue est ignoré.
+
+signes_de_charge:
+  LTE:
+    lte_rrc_echec_charge: {plancher: 0.1}
+    lte_rrc_echec_forte_charge: {plancher: 0.1}
+    lte_pucch_cong_cqi: {plancher: 0.1}
+    lte_pucch_cong_sr: {plancher: 0.1}
+    lte_ho_rejets_admission: {}
+    lte_ho_rejets_licence_utilisateurs: {}
+  WCDMA:
+    wcdma_rrc_cs_blocage: {plancher: 0.1}
+    wcdma_rab_cs_blocage: {plancher: 0.1}
+    wcdma_rrc_ps_blocage: {plancher: 0.1}
+    wcdma_rab_ps_blocage: {plancher: 0.1}
+    wcdma_drop_congestion: {plancher: 0.1}
+    wcdma_rrc_echec_admission: {plancher: 0.1}
+    wcdma_admission_refus_dl_puissance: {}
+    wcdma_admission_refus_dl_codes: {}
+    wcdma_admission_refus_limite_connexions: {}
+    wcdma_refus_eul_tti2: {}
+
+complements:
+  LTE:
+    lte_prb_dl_util: Indicateur de congestion 4G (alerte 80 %, critique 90 %)
+    lte_dl_user_thp: Débit ressenti par les clients, qui chute quand la cellule sature
+    lte_rrc_conn_max: Pic d'utilisateurs connectés, origine de la charge
+    lte_rrc_echec_charge: Connexions refusées faute de ressources
+    lte_rrc_echec_forte_charge: Connexions refusées en forte charge
+    lte_ue_programmes_dl: Utilisateurs servis à chaque milliseconde (partage des ressources)
+    lte_prb_ul_util: Charge du sens montant
+    lte_pucch_cong_sr: Saturation du canal de contrôle montant
+    lte_ho_rejets_admission: Handovers refusés par la cellule chargée
+  WCDMA:
+    wcdma_rab_ps_blocage: Sessions data 3G bloquées faute de ressources
+    wcdma_rab_cs_blocage: Appels 3G bloqués faute de ressources
+    wcdma_rrc_cs_blocage: Connexions voix 3G bloquées
+    wcdma_rrc_ps_blocage: Connexions data 3G bloquées
+    wcdma_drop_congestion: Appels coupés pour congestion
+    wcdma_admission_refus_dl_puissance: Admissions refusées faute de puissance DL
+    wcdma_utilisateurs_hs: Utilisateurs HSDPA, origine de la charge 3G
+    wcdma_hs_user_thp: Débit 3G ressenti

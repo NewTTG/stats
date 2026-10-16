@@ -150,6 +150,27 @@ intentions:
       LTE: [lte_acces, lte_erab_drop]
       WCDMA: [wcdma_cssr_cs, wcdma_cssr_ps, wcdma_cs_drop, wcdma_ps_drop]
 
+  rapport_congestion:
+    libelle: Analyse de la congestion
+    rapport:
+      titre: Congestion
+      description: "Charge PRB, débit, utilisateurs, rejets et blocages dus à la charge (3G et 4G), cellule par cellule"
+      icone: data
+    # « Mettre en avant la congestion » : la congestion est le sujet de l'analyse ; avec une autre
+    # intention (« qualité radio … pour mettre en avant la congestion »), les deux sont retenues.
+    mots: [analyse de la congestion, analyse congestion, analyse des congestions, bilan congestion,
+           bilan de la congestion, rapport congestion, rapport de congestion, rapport de la congestion,
+           point congestion, congestion detaillee, congestions detaillees, analyse de la saturation,
+           analyse saturation, analyse de la charge, mettre en avant la congestion,
+           mettre en avant les congestions, mettre en evidence la congestion, mise en avant de la congestion,
+           focus congestion, focus sur la congestion, accent sur la congestion, mettre l accent sur la congestion,
+           zoom congestion, zoom sur la congestion, priorite congestion, priorite sur la congestion,
+           cellules congestionnees, cellules saturees, cellules chargees]
+    technos_defaut: [LTE, WCDMA]
+    kpis:
+      LTE: [lte_prb_dl_util, lte_dl_user_thp, lte_rrc_conn_max, lte_ue_programmes_dl, lte_prb_ul_util]
+      WCDMA: [wcdma_rab_ps_blocage, wcdma_rab_cs_blocage, wcdma_rrc_cs_blocage, wcdma_rrc_ps_blocage]
+
   # ------------------------------------------------------------ indicateurs
   drop:
     libelle: Drop
@@ -626,7 +647,8 @@ neutres: [kpi, kpis, stat, stats, statistique, statistiques, indicateur, indicat
           ete, fait, faire, merci, stp, svp, please, show, me, the, of, at, in, for, rate, radio, mobile, reseaux,
           detail, details, detaille, operateur, opt, journee, journees, jour, jours, periode,
           nb, nbre, quantite, erab, e rab, volte, rab, oss, enodeb, nodeb, rnc, succes, reussite, taux de succes,
-          taux de reussite, signalisation, sr]
+          taux de reussite, signalisation, sr, fais, faites, fait moi, fais moi, faites moi, mettre en avant,
+          mise en avant, mettre en evidence, en avant, focus, accent, zoom, priorite, prioritairement]
 
 # Mots courants jamais rapprochés d'un nom de lieu (correspondance approchée) ni pris pour
 # un lieu : « près du marché » n'est pas Maré, « Koné contre Pouembout » n'est pas un événement.

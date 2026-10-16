@@ -670,7 +670,8 @@ quelque chose, elle pose une question avec des réponses en un clic.
   « commune Koné ou site KONE ? ».
 - **Dates** : aujourd'hui, hier, cette semaine, la semaine dernière, les N derniers jours,
   ce mois-ci, le mois dernier, « septembre », « septembre 2025 », « du 1er au 15
-  septembre », « du 01/09 au 15/09 », « le 14/09 », « le week-end du 14 », « semaine 38 »
+  septembre », « du 01/09 au 15/09 », « le 14/09 », « le week-end du 14 » (samedi-dimanche),
+  « le week-end du 24 25 septembre », « les 24-25 septembre » (les jours cités), « semaine 38 »
   ou « sem. 38 » ; « S40 », « S 40 », « s.40 » seulement avec un contexte de date (« en S40 »,
   « la S40 », « semaine S40 », « S40 2026 ») et jamais « S1 » (interface S1) ; « Nouméa S40 »
   sans contexte : question de période avec « Semaine 40 » en premier ; « la semaine du 5
@@ -696,6 +697,32 @@ quelque chose, elle pose une question avec des réponses en un clic.
   dernières recherches ». Suggestions de lieux en JSON : `/suggestions/?q=nou`.
 - Fonctionne sans JavaScript (formulaires GET) ; JavaScript sert aux graphiques (ECharts
   servi localement).
+
+### Analyse du résultat : congestion, bien / mal passé
+
+En tête de chaque résultat qui compte au moins un KPI à seuil, une section **Analyse**
+(`apps/kpi/bilan.py`, calculée sur les valeurs déjà agrégées, sans nouvelle lecture) :
+
+- **Congestion** (mise en avant dès qu'un KPI de congestion ou un rejet dû à la charge est
+  demandé) : cellules (ou sites…) dont l'utilisation PRB DL franchit son seuil (alerte 80 %,
+  critique 90 %, réglables dans l'administration), nombre d'heures, pic, plages horaires
+  (« 24/09 18h–22h ») et, au même moment, débit DL (à l'heure du pic et au plus bas),
+  utilisateurs connectés, PRB UL ; puis les rejets et blocages dus à la charge (échecs RRC
+  « charge », blocages RRC / RAB 3G…). Au pas journalier ou sur une commune entière, un lien
+  propose le détail heure par heure ou par cellule (une moyenne masque la cellule saturée).
+- **Ce qui ne s'est pas bien passé / ce qui s'est bien passé** : chaque KPI à seuil sur le
+  périmètre, par entité sur la période et heure par heure (« 4 heures-cellule au-dessus du
+  seuil »), cellules sans données ; la congestion d'abord. Les KPI sans seuil sont listés
+  « non évalués ».
+- **Autres compteurs utiles pour la congestion** : compteurs absents du résultat, à ajouter
+  en un clic (un par un ou tous). Listes des rejets dus à la charge et des compteurs proposés :
+  [`config/bilan.yaml`](config/bilan.yaml).
+
+La même analyse ouvre les rapports PowerPoint et PDF d'une recherche. Exemples :
+« Fais moi une analyse de la qualité radio sur le weekend du 24 25 septembre sur la commune
+de Canala par cellule pour mettre en avant la congestion » (qualité de service + analyse de la
+congestion, 3G et 4G), « analyse de la congestion à Canala hier », « focus congestion »,
+« mettre en avant la congestion » ; « congestion » seul reste l'utilisation PRB DL.
 
 ### Recherche IA (facultative)
 

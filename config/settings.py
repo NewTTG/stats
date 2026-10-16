@@ -141,6 +141,8 @@ LOGOUT_REDIRECT_URL = "kpi:requete" if ACCES_ANONYME else "login"
 
 KPI_CATALOGUE_PATH = BASE_DIR / "config" / "kpi_catalogue.yaml"
 KPI_GRAPHES_PATH = BASE_DIR / "config" / "graphes.yaml"
+# Analyse d'un résultat : congestion, signes de charge, compteurs proposés.
+KPI_BILAN_PATH = BASE_DIR / "config" / "bilan.yaml"
 
 # Référentiel réseau rechargé depuis l'administration : dernier xlsx déposé (MEDIA_ROOT/referentiel/),
 # sinon ce fichier.

@@ -15,6 +15,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import LongTable, Paragraph, SimpleDocTemplate, TableStyle, KeepTogether
 from django.utils import timezone
 
+from apps.kpi.bilan import analyser, sections_rapport
 from apps.kpi.export_excel import parametres
 from apps.kpi.recherche.affichage import valeur
 from apps.kpi.source import est_demo
@@ -145,6 +146,9 @@ def pdf_requete(resultat):
     elements = [p(f'{cle} : {v}') for cle, v in parametres(resultat)]
     for a in resultat.avertissements:
         elements.append(p(f'Avertissement : {a}'))
+    for titre, lignes in sections_rapport(analyser(resultat)):
+        elements.append(p(f'Analyse : {titre[:1].lower() + titre[1:]}', 'section'))
+        elements += [p(f'• {ligne}') for ligne in lignes]
     for res in resultat.par_techno:
         elements.append(p(f'{res.techno} : Synthèse sur la période', 'section'))
         lignes = []
