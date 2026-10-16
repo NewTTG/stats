@@ -33,6 +33,7 @@ from apps.comptes.models import JournalAudit
 from apps.comptes import suivi
 from apps.rapports.models import RapportPlanifie
 
+from . import bilan
 from .catalogue import LIBELLES_CATEGORIE, catalogue
 from .export_excel import construire as construire_excel
 from .forms import DONNEES, FENETRES, GRAN_ESPACE, GRAN_TEMPS, PERIMETRES, RequeteForm, champs_depuis_requete
@@ -360,6 +361,24 @@ def _recherches_recentes(user, nombre=10) -> list[dict]:
     return sortie
 
 
+def _bilan(get, req: RequeteKpi, resultat, cat_visible) -> bilan.Bilan:
+    """Analyse du résultat, avec les liens : ajouter un compteur proposé (ou tous), détailler
+    par cellule, heure par heure."""
+    b = bilan.analyser(resultat, cat_visible)
+
+    def ajouter(codes):
+        kpis = list(dict.fromkeys([*req.kpis, *codes]))
+        technos = [t for t in ("LTE", "WCDMA") if any(cat_visible[c].techno == t for c in kpis if c in cat_visible)]
+        return _lien(get, {"kpis": kpis, "techno": technos}, retirer=REMPLACES["kpis"])
+
+    for s in b.suggestions:
+        s.lien = ajouter([s.code])
+    b.lien_suggestions = ajouter([s.code for s in b.suggestions]) if len(b.suggestions) > 1 else ""
+    b.lien_cellule = _lien(get, {"granularite_espace": "cellule"}) if b.conseil_cellule else ""
+    b.lien_heure = _lien(get, {"donnees": "heure", "granularite_temps": "heure"}) if b.conseil_heure else ""
+    return b
+
+
 def _message_validation(e: ValidationError) -> str:
     return "; ".join(err["msg"].removeprefix("Value error, ") for err in e.errors())
 
@@ -525,6 +544,7 @@ def requete(request):
             nombre = interp.demande.classement_nombre if interp and interp.demande else None
             ctx["blocs"] = affichage.blocs(resultat, nombre)
             ctx["synthese"] = affichage.synthese(ctx["blocs"])
+            ctx["bilan"] = _bilan(get, req, resultat, cat_visible)
             ctx["avertissements"] = affichage.avertissements(resultat)
             # Résultat vide (aucune donnée) : pas de boutons Excel / PowerPoint.
             ctx["donnees_presentes"] = any(b["lignes_total"] for b in ctx["blocs"])

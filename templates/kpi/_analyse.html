@@ -1,0 +1,90 @@
+{# Analyse du résultat (apps/kpi/bilan.py) : congestion d'abord, puis bien / mal passé et compteurs à ajouter. #}
+<section class="analyse" aria-labelledby="titre-analyse">
+  <h2 id="titre-analyse" class="titre-section">Analyse</h2>
+
+  {% if bilan.congestion_sujet and bilan.constats %}
+  <div class="carte analyse-congestion{% if bilan.congestion or bilan.signes %} touchee{% endif %}">
+    <h3>Congestion</h3>
+    {% for c in bilan.constats %}<p class="constat">{{ c }}</p>{% endfor %}
+    {% if bilan.lien_cellule or bilan.lien_heure %}
+    <p class="aide conseils">
+      {% if bilan.lien_heure %}Sans le détail horaire, les pics du soir sont lissés : <a href="{{ bilan.lien_heure }}">voir heure par heure</a>.{% endif %}
+      {% if bilan.lien_cellule %}Une moyenne sur plusieurs cellules masque la cellule saturée : <a href="{{ bilan.lien_cellule }}">voir par cellule</a>.{% endif %}
+    </p>
+    {% endif %}
+
+    {% if bilan.congestion %}
+    <div class="table-defil">
+      <table class="table-congestion">
+        <thead><tr><th scope="col">{{ requete.granularite_espace|capfirst }}</th><th scope="col">En congestion</th><th scope="col">Pic</th><th scope="col">Quand</th><th scope="col">Au même moment</th></tr></thead>
+        <tbody>
+          {% for c in bilan.congestion %}
+          <tr>
+            <td class="entite"><span class="badge-techno petit {% if c.techno == '3G' %}WCDMA{% else %}LTE{% endif %}">{{ c.techno }}</span> <strong>{{ c.entite }}</strong>
+              <span class="statut {{ c.gravite }}">{{ c.gravite|capfirst }}</span></td>
+            <td class="nombre">{{ c.periodes }} {{ bilan.unite_periode }} <small>sur {{ c.periodes_mesurees }}</small>{% if c.periodes_critiques %}<br><small>dont {{ c.periodes_critiques }} critique{{ c.periodes_critiques|pluralize }}</small>{% endif %}</td>
+            <td class="nombre">{{ c.pic }}<br><small>{{ c.pic_quand }}</small></td>
+            <td class="plages">{{ c.plages }}</td>
+            <td class="impacts">{% if c.impacts %}<ul>{% for i in c.impacts %}<li>{{ i }}</li>{% endfor %}</ul>{% else %}<span class="aide">Ajouter le débit et les rejets dus à la charge pour mesurer l'effet.</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="aide">Seuils de {{ bilan.congestion.0.kpi.libelle }} : alerte {{ bilan.congestion.0.kpi.seuils.alerte|floatformat:"-2" }} {{ bilan.congestion.0.kpi.unite }}{% if bilan.congestion.0.kpi.seuils.critique is not None %}, critique {{ bilan.congestion.0.kpi.seuils.critique|floatformat:"-2" }} {{ bilan.congestion.0.kpi.unite }}{% endif %} (réglables dans l'administration).{% if bilan.congestion_autres %} {{ bilan.congestion_autres }} autre{{ bilan.congestion_autres|pluralize }} en congestion, moins touchée{{ bilan.congestion_autres|pluralize }} : voir le tableau détaillé.{% endif %}</p>
+    {% endif %}
+
+    {% if bilan.signes %}
+    <h4>Rejets et blocages dus à la charge</h4>
+    <div class="table-defil">
+      <table class="table-congestion">
+        <thead><tr><th scope="col">{{ requete.granularite_espace|capfirst }}</th><th scope="col">Indicateur</th><th scope="col">Périodes</th><th scope="col">Maximum</th><th scope="col">Quand</th></tr></thead>
+        <tbody>
+          {% for s in bilan.signes %}
+          <tr><td class="entite"><span class="badge-techno petit {% if s.techno == '3G' %}WCDMA{% else %}LTE{% endif %}">{{ s.techno }}</span> <strong>{{ s.entite }}</strong></td>
+            <td>{{ s.kpi.libelle }}</td><td class="nombre">{{ s.periodes }} {{ bilan.unite_periode }}</td><td class="nombre">{{ s.maximum }}</td><td class="plages">{{ s.plages }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if bilan.signes_autres %}<p class="aide">{{ bilan.signes_autres }} autre{{ bilan.signes_autres|pluralize }} ligne{{ bilan.signes_autres|pluralize }} dans le tableau détaillé.</p>{% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if bilan.bien or bilan.mal %}
+  <div class="analyse-colonnes">
+    <div class="carte analyse-mal">
+      <h3>Ce qui ne s'est pas bien passé</h3>
+      {% if bilan.mal %}
+      <ul class="points">
+        {% for p in bilan.mal %}<li><span class="statut {% if p.gravite == 'ponctuel' %}alerte{% else %}{{ p.gravite }}{% endif %}">{% if p.gravite == 'ponctuel' %}Ponctuel{% else %}{{ p.gravite|capfirst }}{% endif %}</span> {{ p.texte }}</li>{% endfor %}
+      </ul>
+      {% else %}<p class="aide">Aucun seuil franchi, aucune cellule sans données.</p>{% endif %}
+    </div>
+    <div class="carte analyse-bien">
+      <h3>Ce qui s'est bien passé</h3>
+      {% if bilan.bien %}
+      <ul class="points">
+        {% for p in bilan.bien %}<li><span class="statut ok">OK</span> {{ p.texte }}</li>{% endfor %}
+      </ul>
+      {% else %}<p class="aide">Aucun indicateur à seuil dans le seuil sur l'ensemble du périmètre.</p>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+  {% if bilan.non_evalues %}<p class="aide">Sans seuil, non évalués : {{ bilan.non_evalues|join:", " }} (seuils réglables dans l'administration).</p>{% endif %}
+
+  {% if bilan.suggestions %}
+  <div class="carte analyse-suggestions">
+    <h3>Autres compteurs utiles pour la congestion</h3>
+    <ul>
+      {% for s in bilan.suggestions %}
+      <li><span class="badge-techno petit {% if s.techno == '3G' %}WCDMA{% else %}LTE{% endif %}">{{ s.techno }}</span>
+        <strong>{{ s.libelle }}</strong> <span class="aide">{{ s.raison }}</span>
+        <a href="{{ s.lien }}" class="ajouter" aria-label="Ajouter {{ s.libelle }} ({{ s.techno }})">+ Ajouter</a></li>
+      {% endfor %}
+    </ul>
+    {% if bilan.lien_suggestions %}<p class="lien-suite"><a href="{{ bilan.lien_suggestions }}">Ajouter tous ces compteurs →</a></p>{% endif %}
+  </div>
+  {% endif %}
+</section>

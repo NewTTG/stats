@@ -149,13 +149,16 @@ def jour_passe(jour_semaine: int, aujourdhui: date) -> date:
 def _motifs(aujourdhui: date):
     hier = aujourdhui - timedelta(days=1)
 
-    def entre_jours(m):  # du 1er au 15 septembre [2025]
+    def entre_jours(m):  # du 1er au 15 septembre [2025], les 24-25 septembre, le week-end du 24 25 septembre
         mois = MOIS[m[3]]
         annee = int(m[4]) if m[4] else None
         d, f = _date(int(m[1]), mois, annee, aujourdhui), _date(int(m[2]), mois, annee, aujourdhui)
         if d and f and f < d and annee is None:  # du 28 au 3 octobre : début le mois précédent
             d = _date(int(m[1]), mois - 1 or 12, (f.year if mois > 1 else f.year - 1), aujourdhui)
-        return (d, f, f"du {_fmt(d)} au {_fmt(f)}") if d and f else None
+        # Jours cités : « le week-end du 24 25 septembre » (24 septembre férié, pont du 25) = ces
+        # jours-là, pas le samedi-dimanche le plus proche.
+        prefixe = "week-end du" if re.match(r"(?:le |ce )?(?:week end|weekend|we) ", m[0]) else "du"
+        return (d, f, f"{prefixe} {_fmt(d)} au {_fmt(f)}") if d and f else None
 
     def entre_mois(m):  # du 28 septembre au 3 octobre [2026]
         annee = int(m[5]) if m[5] else None
@@ -297,7 +300,8 @@ def _motifs(aujourdhui: date):
 
     sep = r"(?:au|a|jusqu au|jusqu a|et le|et)"
     return [
-        (rf"(?:du |entre le |entre )?{_JOUR} {sep} (?:le )?{_JOUR} ({_MOIS})(?: {_AN})?", entre_jours),
+        (rf"(?:(?:le |ce )?(?:week end|weekend|we) (?:du |de |des )?|du |entre le |entre )?"
+         rf"{_JOUR}(?: {sep} (?:le )?| ?[-/] ?| ){_JOUR} ({_MOIS})(?: {_AN})?", entre_jours),
         (rf"(?:du |entre le |entre )?{_JOUR} ({_MOIS}) {sep} (?:le )?{_JOUR} ({_MOIS})(?: {_AN})?", entre_mois),
         (r"(?:du |entre le |entre )?(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))? " + sep + r" (?:le )?(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?",
          entre_numeriques),

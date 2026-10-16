@@ -9,6 +9,8 @@
 {% for a in avertissements %}<div class="avertissement">{{ a }}</div>{% endfor %}
 {% if not blocs and not avertissements %}<div class="avertissement">Aucun KPI sélectionné pour les technologies choisies.</div>{% endif %}
 
+{% if bilan and not bilan.vide and donnees_presentes %}{% include "kpi/_analyse.html" %}{% endif %}
+
 {% if synthese %}
 <section class="synthese" aria-labelledby="titre-synthese">
   <h2 id="titre-synthese" class="titre-section">Synthèse sur la période</h2>

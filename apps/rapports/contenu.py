@@ -7,6 +7,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from apps.evenements.analyse import NIVEAUX, Analyse
+from apps.kpi.bilan import analyser, sections_rapport
 from apps.kpi.export_excel import FONDS_STATUT, parametres
 from apps.kpi.recherche.affichage import causes
 from apps.kpi.service import Resultat
@@ -17,6 +18,7 @@ from .powerpoint import Deck, nombre, pourcentage
 LIBELLES_REGLE = {"seuil": "Seuil dépassé", "ecart": "Écart à la référence",
                   "sans_donnees": "Données absentes", "saturation": "Saturation"}
 MAX_CELLULES_ANNEXE = 300
+LIGNES_DIAPO = 6  # lignes d'analyse par diapositive
 JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
 
 
@@ -54,6 +56,10 @@ def _annexe(deck: Deck, par_techno):
 def pptx_requete(resultat: Resultat) -> bytes:
     deck = Deck()
     deck.titre("Statistiques KPI réseau", [f"{cle} : {val}" for cle, val in parametres(resultat)])
+    for titre, lignes in sections_rapport(analyser(resultat)):
+        for i in range(0, len(lignes), LIGNES_DIAPO):  # une diapo lisible : quelques lignes
+            deck.texte(f"Analyse : {titre[:1].lower() + titre[1:]}" + (" (suite)" if i else ""),
+                       lignes[i:i + LIGNES_DIAPO])
     gran = resultat.requete.granularite_temps
     for res in resultat.par_techno:
         lignes, statuts = [], []
