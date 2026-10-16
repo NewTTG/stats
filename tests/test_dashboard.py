@@ -1,4 +1,5 @@
 """Accueil : valeurs réelles, filtrage des droits, dates et états indisponibles."""
+import threading
 from datetime import date, datetime, timedelta
 from unittest.mock import Mock
 
@@ -160,10 +161,19 @@ def test_source_absente(monkeypatch):
 
 
 @pytest.mark.parametrize('selection', ['24h', 'hier', 'aujourdhui', '7j'])
-def test_timeout_connexion_une_seule_tentative(selection, client, monkeypatch, caplog):
+def test_timeout_connexion_un_seul_delai(selection, client, monkeypatch, caplog):
     # SQLAlchemy enveloppe réellement le timeout psycopg, comme dans le journal
     # de production ; aucun accès réseau ni attente effective pendant le test.
-    connexion = Mock(side_effect=ConnectionTimeout('serveur-prive mot-de-passe-secret'))
+    # 24h : la découverte LTE échoue, WCDMA n'est pas tentée. Autres vues : les deux
+    # lectures partent ensemble (la barrière exige qu'elles se chevauchent) ; la page
+    # n'attend donc qu'un délai de connexion, jamais un par techno.
+    simultanees = threading.Barrier(1 if selection == '24h' else 2, timeout=5)
+
+    def expirer():
+        simultanees.wait()
+        raise ConnectionTimeout('serveur-prive mot-de-passe-secret')
+
+    connexion = Mock(side_effect=expirer)
     engine = sa.create_engine('postgresql+psycopg://', creator=connexion)
     monkeypatch.setattr('apps.kpi.dashboard.moteur_kpi', lambda: engine)
     client.force_login(User.objects.create_superuser('admin-timeout'))
@@ -174,7 +184,7 @@ def test_timeout_connexion_une_seule_tentative(selection, client, monkeypatch, c
         assert not d['cartes'] and not d['graphiques'] and not d['periodes']
         assert "base de données KPI n'est pas accessible" in d['message']
         assert 'Aucune donnée' not in d['message']
-        assert connexion.call_count == 1
+        assert connexion.call_count == simultanees.parties
         html = reponse.content.decode()
         assert 'serveur-prive' not in html + caplog.text
         assert 'mot-de-passe-secret' not in html + caplog.text
@@ -212,3 +222,47 @@ def test_erreur_sql_lte_ne_masque_pas_wcdma(historique_horaire, caplog):
     assert d['periodes'][0]['techno'] == '3G'
     assert any('LTE' in a for a in d['avertissements'])
     assert any(r.exc_info for r in caplog.records if r.name == 'apps.kpi.dashboard')
+
+
+def test_lectures_lte_wcdma_simultanees(historique_horaire, tmp_path, monkeypatch):
+    # Base fichier (une connexion par fil) : la barrière exige que les deux lectures
+    # se chevauchent ; des lectures l'une après l'autre la feraient expirer.
+    memoire, heures_lte, heures_3g = historique_horaire
+    engine = sa.create_engine(f'sqlite:///{tmp_path / "kpi.sqlite"}', poolclass=sa.pool.NullPool)
+    for table in ('lte_cell_hour', 'wcdma_cell_hour'):
+        pd.read_sql_table(table, memoire).to_sql(table, engine, index=False)
+    monkeypatch.setattr('apps.kpi.dashboard.moteur_kpi', lambda: engine)
+    import apps.kpi.dashboard as dashboard
+    import apps.kpi.service as service
+    lancer, lire = dashboard._lancer, service.lire
+    monkeypatch.setattr(dashboard, '_lancer', lambda lots, parallele: lancer(lots, parallele=True))
+    simultanees = threading.Barrier(2, timeout=5)
+
+    def lire_ensemble(*args, **kwargs):
+        simultanees.wait()
+        return lire(*args, **kwargs)
+
+    monkeypatch.setattr(service, 'lire', lire_ensemble)
+    d = construire(User.objects.create_superuser('admin-parallele'), date(2026, 10, 13))
+    assert [c['texte'] for c in d['cartes']] == ['72', '72']
+    assert [p['techno'] for p in d['periodes']] == ['4G', '3G']
+    assert [g['periodes_cles'] for g in d['graphiques']] == [
+        [h.isoformat() for h in sorted(heures)] for heures in (heures_lte, heures_3g)]
+    assert not d['avertissements'] and 'message' not in d
+    engine.dispose()
+
+
+def test_calculs_differes_gardent_leur_techno(historique_horaire):
+    # Calculs lancés après la boucle des technos : chacun lit SA table.
+    from apps.kpi.service import completer, preparer
+    engine, _, _ = historique_horaire
+    req = RequeteKpi(techno=['LTE', 'WCDMA'], perimetre={'type': 'global'},
+                     periode={'debut': date(2026, 10, 7), 'fin': date(2026, 10, 10)},
+                     kpis=['lte_payload_dl', 'wcdma_payload_hs'], granularite_temps='heure')
+    resultat, calculs = preparer(req, User.objects.create_superuser('admin-differe'), engine)
+    assert len(calculs) == 2 and not resultat.par_techno
+    for calcul in calculs:
+        completer(resultat, calcul())
+    assert [r.techno for r in resultat.par_techno] == ['LTE', 'WCDMA']
+    assert resultat.par_techno[0].synthese_globale['lte_payload_dl'] == 30 * 3
+    assert resultat.par_techno[1].synthese_globale['wcdma_payload_hs'] == 30 * 3

@@ -3,6 +3,7 @@
 import re
 from datetime import date
 from dataclasses import dataclass, field
+from functools import partial
 
 import pandas as pd
 from django.db.models import Q
@@ -157,6 +158,24 @@ def couverture_donnees(df: pd.DataFrame, debut: date, fin: date) -> str | None:
 
 
 def executer(requete: RequeteKpi, user, engine) -> Resultat:
+    resultat, calculs = preparer(requete, user, engine)
+    for calcul in calculs:
+        completer(resultat, calcul())
+    return resultat
+
+
+def completer(resultat: Resultat, sortie: tuple[ResultatTechno, list[str]]):
+    res, avertissements = sortie
+    resultat.par_techno.append(res)
+    resultat.avertissements.extend(avertissements)
+
+
+def preparer(requete: RequeteKpi, user, engine) -> tuple[Resultat, list]:
+    """Droits, périmètre et référentiel (ORM), puis un calcul à lancer par techno.
+
+    Les calculs lisent la base KPI ou le cache, sans ORM : l'accueil lance ceux de
+    LTE et WCDMA en parallèle. ``completer`` ajoute chaque sortie au résultat.
+    """
     cat = catalogue()
     inconnus = [c for c in requete.kpis if c not in cat]
     if inconnus:
@@ -168,7 +187,7 @@ def executer(requete: RequeteKpi, user, engine) -> Resultat:
 
     autorises = kpis_autorises(user, set(requete.kpis))
     refuses = set(requete.kpis) - autorises
-    resultat = Resultat(requete=requete, par_techno=[])
+    resultat, calculs = Resultat(requete=requete, par_techno=[]), []
     if refuses:
         resultat.avertissements.append(f"KPI non autorisés ignorés : {', '.join(sorted(refuses))}")
 
@@ -203,14 +222,11 @@ def executer(requete: RequeteKpi, user, engine) -> Resultat:
             "composants": [k.model_dump() for k in ratios_simples(kpis)],
             "correspondance": correspondance, "secteurs": sorted(secteurs),
         }
-        def calculer():
-            return _calculer_techno(requete, techno, resolution, kpis, cellules,
-                                   engine, correspondance, secteurs)
-
-        res, avertissements = memoriser("resultat", cle, calculer, actif=source is not None)
-        resultat.par_techno.append(res)
-        resultat.avertissements.extend(avertissements)
-    return resultat
+        # partial : chaque calcul garde les valeurs de SA techno, même lancé après la boucle.
+        calculer = partial(_calculer_techno, requete, techno, resolution, kpis, cellules,
+                           engine, correspondance, secteurs)
+        calculs.append(partial(memoriser, "resultat", cle, calculer, actif=source is not None))
+    return resultat, calculs
 
 
 def _calculer_techno(requete, techno, resolution, kpis, cellules, engine, correspondance, secteurs):
