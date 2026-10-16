@@ -272,3 +272,17 @@ def test_formulaire_dans_un_navigateur(client, editions, analyste, monkeypatch):
         page.screenshot(path=str(racine / "work/evenement-mobile.png"), full_page=True)
         assert not erreurs
         browser.close()
+
+
+def test_reference_calendaire_sans_donnees(client, referentiel, base_horaire, analyste, monkeypatch):
+    # « 40 ans du Kanéka » : journées entières, aucune donnée l'année précédente. Le morceau de
+    # référence vide ne doit pas convertir les mesures de l'événement en texte (TypeError).
+    e = Evenement.objects.create(nom="Anniversaire", sites=["AAA100"])
+    monkeypatch.setattr("apps.evenements.views.moteur_kpi", lambda: base_horaire)
+    client.force_login(analyste)
+    r = client.get(reverse("evenements:detail", args=[e.pk]), {
+        "du": "2026-09-24", "au": "2026-09-25", "de": "0", "a": "24",
+        "comparaison": "auto", "edition_id": "direct", "niveau": "secteur"})
+    assert r.status_code == 200 and "erreur" not in r.context
+    vol = _synthese(r.context["analyse"], "lte_payload_dl")
+    assert vol.valeur == 2 * 6 * 2 * 11 and vol.reference is None

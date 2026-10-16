@@ -123,6 +123,14 @@ def _lire_fenetres(engine, techno, colonnes, cellules, fenetres) -> pd.DataFrame
     return pd.concat(morceaux, ignore_index=True)
 
 
+def _assembler(*morceaux: pd.DataFrame) -> pd.DataFrame:
+    """Concatène l'événement et sa référence. Un morceau vide (période sans données) est écarté :
+    ses colonnes « object » convertiraient sinon les mesures en texte (pandas >= 2.1)."""
+    colonnes = list(dict.fromkeys(c for m in morceaux for c in m.columns))
+    pleins = [m for m in morceaux if len(m)] or list(morceaux[:1])
+    return pd.concat(pleins, ignore_index=True).reindex(columns=colonnes)
+
+
 def _valeurs(df: pd.DataFrame, kpis: list[DefinitionKpi], par: list[str], ref_kpis=None):
     """``par`` non vide. (valeurs événement, référence, valeurs par semaine de référence), indexées par ``par``."""
     codes = [k.code for k in kpis]
@@ -284,7 +292,7 @@ def analyser(evenement: Evenement, user, engine, niveau: str = "secteur", crenea
                     historique = df.iloc[:0].copy()
                     analyse.avertissements.append("Source indisponible : référence hebdomadaire en N/D, données de l'édition conservées.")
                 historique = historique.assign(entite=historique["cellule"].map(entites))
-                df = pd.concat([df, historique], ignore_index=True)
+                df = _assembler(df, historique)
             else:
                 df = df[(df["semaine"] == 0) | ~df["cellule"].isin(mobiles_connues)].copy()
 
@@ -320,7 +328,7 @@ def analyser(evenement: Evenement, user, engine, niveau: str = "secteur", crenea
             axe = list(range(max(len(instants), len(ref_instants))))
             df["instant"] = df["horodatage"].map({v: i for i, v in enumerate(instants)})
             ref["instant"] = ref["horodatage"].map({v: i for i, v in enumerate(ref_instants)})
-            df = pd.concat([df, ref], ignore_index=True)
+            df = _assembler(df, ref)
             for colonne in colonnes:
                 if colonne not in df:
                     df[colonne] = float("nan")
